@@ -42,13 +42,44 @@
 //!
 //! Dropdowns close on outside-click, `Esc`, or clicking an item.
 //!
+//! Custom widgets go in two places. [`MenuBarUi::ui`] exposes the strip's
+//! [`Ui`] for content inline with the triggers, and [`MenuBarUi::trailing`]
+//! pins content to the right edge, outside the status slot.
+//!
+//! For an app that hides the native title bar, the strip can stand in for
+//! it: [`MenuBar::title_bar`] lets its empty area move and maximise the
+//! window, and the trailing slot holds the window controls:
+//!
+//! ```no_run
+//! # use elegance::{Button, ButtonSize, MenuBar, MenuItem, glyphs};
+//! # egui::__run_test_ui(|ui| {
+//! MenuBar::new("app_menubar")
+//!     .brand("Elegance")
+//!     .status("main \u{00b7} up to date")
+//!     .title_bar(true)
+//!     .show(ui, |bar| {
+//!         bar.menu("File", |ui| {
+//!             ui.add(MenuItem::new("Quit"));
+//!         });
+//!         bar.trailing(|ui| {
+//!             let close = Button::icon(glyphs::X, "Close window")
+//!                 .outline()
+//!                 .size(ButtonSize::Small);
+//!             if ui.add(close).clicked() {
+//!                 ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
+//!             }
+//!         });
+//!     });
+//! # });
+//! ```
+//!
 //! For a single click-to-open menu attached to an arbitrary trigger button,
 //! use [`Menu`](crate::Menu) directly.
 
 use egui::{
-    Align, Color32, CornerRadius, Frame, Id, ImageSource, Layout, Margin, Popup,
-    PopupCloseBehavior, Pos2, Rect, Sense, SetOpenCommand, Stroke, Ui, Vec2, WidgetInfo,
-    WidgetText, WidgetType, emath::RectAlign,
+    Align, Color32, Context, CornerRadius, Frame, Id, ImageSource, Layout, Margin, PointerButton,
+    Popup, PopupCloseBehavior, Pos2, Rect, Response, Sense, SetOpenCommand, Stroke, Ui, UiBuilder,
+    Vec2, ViewportCommand, WidgetInfo, WidgetText, WidgetType, emath::RectAlign,
 };
 
 use crate::theme::{Accent, Theme, mix, with_alpha};
@@ -58,6 +89,8 @@ const STRIP_PAD_X: f32 = 6.0;
 const TRIGGER_PAD_X: f32 = 10.0;
 const TRIGGER_PAD_Y: f32 = 5.0;
 const BRAND_LOGO_SIZE: f32 = 14.0;
+/// Gap between the trailing slot's content and the status to its left.
+const TRAILING_STATUS_GAP: f32 = 8.0;
 
 #[derive(Debug, Clone)]
 struct StatusContent {
@@ -124,6 +157,7 @@ pub struct MenuBar {
     id_salt: Id,
     brand: Option<Brand>,
     status: Option<StatusContent>,
+    title_bar: bool,
 }
 
 impl MenuBar {
@@ -134,6 +168,7 @@ impl MenuBar {
             id_salt: Id::new(("elegance::menu_bar", Id::new(id_salt))),
             brand: None,
             status: None,
+            title_bar: false,
         }
     }
 
@@ -191,6 +226,23 @@ impl MenuBar {
         self
     }
 
+    /// Make the strip act as the window's title bar, for apps that hide the
+    /// native one (e.g. with `ViewportBuilder::with_decorations(false)`).
+    /// Dragging the strip's empty area moves the window, and
+    /// double-clicking it toggles maximised. Default: `false`.
+    ///
+    /// The brand and status take no input, so they count as empty area.
+    /// Widgets that sense clicks or drags keep their input: menu triggers,
+    /// trailing buttons, and any interactive widget added through
+    /// [`MenuBarUi::ui`]. On desktop that includes egui's selectable
+    /// labels, which select text on drag rather than moving the window;
+    /// add them with `.selectable(false)` if they should act as empty area.
+    #[inline]
+    pub fn title_bar(mut self, title_bar: bool) -> Self {
+        self.title_bar = title_bar;
+        self
+    }
+
     /// Render the menu bar. The closure receives a [`MenuBarUi`] used to
     /// declare each menu's trigger label and dropdown body.
     pub fn show<R>(self, ui: &mut Ui, body: impl FnOnce(&mut MenuBarUi<'_>) -> R) -> R {
@@ -206,6 +258,7 @@ impl MenuBar {
         // Read the previous frame's snapshot: which menus existed, where
         // their triggers were, and whether any was open.
         let state_id = self.id_salt.with("__state");
+        let press_id = self.id_salt.with("__title_bar_press");
         let prev_state: MenuBarFrameState = ui
             .ctx()
             .data(|d| d.get_temp::<MenuBarFrameState>(state_id))
@@ -242,51 +295,80 @@ impl MenuBar {
             .fill(menubar_fill)
             .inner_margin(Margin::symmetric(STRIP_PAD_X as i8, STRIP_PAD_Y as i8));
 
-        let outer = frame.show(ui, |ui| {
-            ui.horizontal(|ui| {
-                ui.spacing_mut().item_spacing.x = 0.0;
-                ui.set_min_height(theme.typography.body + TRIGGER_PAD_Y * 2.0);
+        // A `Ui`'s own sense sits below the widgets inside it, so in title
+        // bar mode the strip receives only the presses its triggers and
+        // custom widgets don't claim. Clicks only: the strip must not be a
+        // focus stop, and sensing drags would let it take over drags that
+        // start on click-only widgets (see `move_window_from_strip`).
+        let strip_sense = if self.title_bar {
+            Sense::CLICK
+        } else {
+            Sense::hover()
+        };
+        let strip = ui.scope_builder(UiBuilder::new().sense(strip_sense), |ui| {
+            frame
+                .show(ui, |ui| {
+                    ui.horizontal(|ui| {
+                        // Triggers abut, carrying their own padding. The caller's
+                        // spacing is kept for the trailing slot, where custom
+                        // widgets sit side by side.
+                        let item_spacing_x = ui.spacing().item_spacing.x;
+                        ui.spacing_mut().item_spacing.x = 0.0;
+                        ui.set_min_height(theme.typography.body + TRIGGER_PAD_Y * 2.0);
 
-                if let Some(brand) = self.brand.as_ref() {
-                    paint_brand(ui, &theme, brand);
-                }
+                        if let Some(brand) = self.brand.as_ref() {
+                            paint_brand(ui, &theme, brand);
+                        }
 
-                let mut bar = MenuBarUi {
-                    ui,
-                    base_id: self.id_salt,
-                    next_idx: 0,
-                    any_open_prev: prev_state.any_open,
-                    any_open_now: false,
-                    triggers: Vec::with_capacity(prev_state.triggers.len()),
-                };
-                let r = body(&mut bar);
-                let any_open_now = bar.any_open_now;
-                let triggers = std::mem::take(&mut bar.triggers);
+                        let mut bar = MenuBarUi {
+                            ui,
+                            base_id: self.id_salt,
+                            next_idx: 0,
+                            any_open_prev: prev_state.any_open,
+                            any_open_now: false,
+                            triggers: Vec::with_capacity(prev_state.triggers.len()),
+                            status: self.status.as_ref(),
+                            item_spacing_x,
+                            trailing_shown: false,
+                        };
+                        let r = body(&mut bar);
+                        let any_open_now = bar.any_open_now;
+                        let triggers = std::mem::take(&mut bar.triggers);
 
-                if let Some(status) = self.status.as_ref() {
-                    bar.ui
-                        .with_layout(Layout::right_to_left(Align::Center), |ui| {
-                            paint_status(ui, &theme, status);
+                        // `trailing` paints the status alongside its own content;
+                        // otherwise the status still needs its slot.
+                        if !bar.trailing_shown
+                            && let Some(status) = bar.status
+                        {
+                            bar.ui
+                                .with_layout(Layout::right_to_left(Align::Center), |ui| {
+                                    paint_status(ui, &theme, status);
+                                });
+                        }
+
+                        bar.ui.ctx().data_mut(|d| {
+                            d.insert_temp(
+                                state_id,
+                                MenuBarFrameState {
+                                    triggers,
+                                    any_open: any_open_now,
+                                },
+                            )
                         });
-                }
 
-                bar.ui.ctx().data_mut(|d| {
-                    d.insert_temp(
-                        state_id,
-                        MenuBarFrameState {
-                            triggers,
-                            any_open: any_open_now,
-                        },
-                    )
-                });
-
-                r
-            })
-            .inner
+                        r
+                    })
+                    .inner
+                })
+                .inner
         });
 
+        if self.title_bar {
+            move_window_from_strip(ui.ctx(), &strip.response, press_id);
+        }
+
         // Bottom border separates the strip from the body content below.
-        let strip_rect = outer.response.rect;
+        let strip_rect = strip.response.rect;
         ui.painter().line_segment(
             [
                 Pos2::new(strip_rect.min.x, strip_rect.max.y - 0.5),
@@ -295,7 +377,41 @@ impl MenuBar {
             Stroke::new(1.0, p.border),
         );
 
-        outer.inner
+        strip.inner
+    }
+}
+
+/// Title bar behaviour for a press on the strip's empty area: a drag hands
+/// the window to the platform to move, a double-click toggles maximised.
+///
+/// The strip senses clicks but not drags. Sensing drags would hand it
+/// drags that start on click-only widgets such as buttons, which egui
+/// routes to the drag-sensing widget behind them, so it tracks the drag
+/// itself: `press_id` keys a flag in egui memory recording whether the
+/// press began on empty area, consumed once the press becomes a drag.
+fn move_window_from_strip(ctx: &Context, strip: &Response, press_id: Id) {
+    let (pressed, dragging) = ctx.input(|i| {
+        let pointer = &i.pointer;
+        (
+            pointer.primary_pressed(),
+            pointer.primary_down() && pointer.is_decidedly_dragging(),
+        )
+    });
+    if pressed {
+        // egui hovers a click-only widget on a press only when it is the
+        // click target, i.e. no widget in front of the strip claimed it.
+        let on_empty = ctx.interaction_snapshot(|s| s.hovered.contains(&strip.id));
+        ctx.data_mut(|d| d.insert_temp(press_id, on_empty));
+    }
+    if dragging && ctx.data_mut(|d| d.remove_temp::<bool>(press_id)) == Some(true) {
+        ctx.send_viewport_cmd(ViewportCommand::StartDrag);
+    }
+    // egui's double-click check is timing only, so a click on a widget
+    // followed quickly by one on empty area also toggles. Rare enough to
+    // leave, as tracking the first click's target would add state.
+    if strip.double_clicked_by(PointerButton::Primary) {
+        let maximized = ctx.input(|i| i.viewport().maximized.unwrap_or(false));
+        ctx.send_viewport_cmd(ViewportCommand::Maximized(!maximized));
     }
 }
 
@@ -309,7 +425,8 @@ struct MenuBarFrameState {
 
 /// The handle passed to a [`MenuBar::show`] closure for declaring menu
 /// triggers. Each call to [`MenuBarUi::menu`] paints one trigger and its
-/// dropdown.
+/// dropdown. Custom widgets go inline via [`MenuBarUi::ui`] or at the
+/// right edge via [`MenuBarUi::trailing`].
 pub struct MenuBarUi<'u> {
     ui: &'u mut Ui,
     base_id: Id,
@@ -317,6 +434,11 @@ pub struct MenuBarUi<'u> {
     any_open_prev: bool,
     any_open_now: bool,
     triggers: Vec<(Id, Rect)>,
+    status: Option<&'u StatusContent>,
+    /// The item spacing in effect before the strip zeroed it, restored for
+    /// the trailing slot's content.
+    item_spacing_x: f32,
+    trailing_shown: bool,
 }
 
 impl<'u> std::fmt::Debug for MenuBarUi<'u> {
@@ -326,11 +448,65 @@ impl<'u> std::fmt::Debug for MenuBarUi<'u> {
             .field("next_idx", &self.next_idx)
             .field("any_open_prev", &self.any_open_prev)
             .field("any_open_now", &self.any_open_now)
+            .field("trailing_shown", &self.trailing_shown)
             .finish()
     }
 }
 
 impl<'u> MenuBarUi<'u> {
+    /// The strip's [`Ui`], for custom widgets inline with the menu
+    /// triggers. Widgets added here follow the triggers declared so far,
+    /// left to right, vertically centred in the strip.
+    ///
+    /// Item spacing is zero, since the triggers carry their own padding;
+    /// use [`Ui::add_space`] to separate custom widgets from their
+    /// neighbours. For content pinned to the right edge, such as window
+    /// controls, use [`MenuBarUi::trailing`] rather than a right-to-left
+    /// layout here, which would claim the width the status slot needs.
+    #[inline]
+    pub fn ui(&mut self) -> &mut Ui {
+        self.ui
+    }
+
+    /// Pin content to the right edge of the strip, outside the status
+    /// slot, which moves left to make room. Suited to window controls
+    /// (close, maximise, minimise) when the bar serves as an app's title
+    /// bar, or to an account avatar or settings button.
+    ///
+    /// The content is laid out right to left, as in egui's
+    /// [`Layout::right_to_left`]: the first widget added sits at the right
+    /// edge and each later one lands to its left. Item spacing is the
+    /// caller's, as it was before [`MenuBar::show`] ran.
+    ///
+    /// Call this once, after the last menu: it claims the rest of the
+    /// strip's width, so a trigger declared afterwards has nowhere to go.
+    /// Both mistakes panic in debug builds.
+    pub fn trailing<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> R {
+        debug_assert!(
+            !self.trailing_shown,
+            "MenuBarUi::trailing called more than once; add all trailing content in one call"
+        );
+        self.trailing_shown = true;
+
+        let status = self.status;
+        let item_spacing_x = self.item_spacing_x;
+        self.ui
+            .with_layout(Layout::right_to_left(Align::Center), |ui| {
+                let inner = ui
+                    .scope(|ui| {
+                        ui.spacing_mut().item_spacing.x = item_spacing_x;
+                        add_contents(ui)
+                    })
+                    .inner;
+                if let Some(status) = status {
+                    ui.add_space(TRAILING_STATUS_GAP);
+                    paint_status(ui, &Theme::current(ui.ctx()), status);
+                }
+                inner
+            })
+            .inner
+    }
+
     /// Paint a single menu trigger with `label` and attach a dropdown
     /// populated by `body`. Clicking an item inside the dropdown dismisses
     /// the menu — the standard pattern for action-style menus (File / Edit
@@ -366,6 +542,10 @@ impl<'u> MenuBarUi<'u> {
         close_behavior: PopupCloseBehavior,
         body: impl FnOnce(&mut Ui) -> R,
     ) -> Option<R> {
+        debug_assert!(
+            !self.trailing_shown,
+            "MenuBarUi menu declared after MenuBarUi::trailing; declare every menu first"
+        );
         let label: WidgetText = label.into();
         let theme = Theme::current(self.ui.ctx());
         let p = &theme.palette;
