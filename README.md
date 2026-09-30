@@ -858,6 +858,24 @@ MenuBar::new("app_menubar")
     });
 ```
 
+For custom widgets, `bar.ui()` exposes the strip's `Ui` for content inline with the triggers, and `bar.trailing(|ui| …)` pins content to the right edge, outside the status. Call `trailing` after the last menu; it lays out right to left, so the first widget added sits at the edge.
+
+For an app that hides the native title bar (`ViewportBuilder::with_decorations(false)`), `.title_bar(true)` lets the strip stand in for it: dragging its empty area moves the window and double-clicking toggles maximised, while triggers and buttons keep their own clicks. The trailing slot holds the window controls:
+
+```rust
+use elegance::{Button, ButtonSize, glyphs};
+
+MenuBar::new("app_menubar").brand("Elegance").title_bar(true).show(ui, |bar| {
+    bar.menu("File", |ui| { /* … */ });
+    bar.trailing(|ui| {
+        let close = Button::icon(glyphs::X, "Close window").outline().size(ButtonSize::Small);
+        if ui.add(close).clicked() {
+            ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
+        }
+    });
+});
+```
+
 For a single click-to-open menu attached to an arbitrary trigger button (e.g. row actions, a toolbar overflow), reach for [`Menu`](#menu--menuitem) directly instead.
 
 ### Modal

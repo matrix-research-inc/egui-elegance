@@ -10,6 +10,9 @@ Versions before 0.11.0 predate tagging; see the git history for those.
 
 - **`Button::icon(glyph, label)`** — a square icon-only button showing one of the bundled Lucide `glyphs`. A glyph passed to `Button::new` was laid out at the size preset's *label* size inside a box padded for text, so it inked under a third of a wide rectangle at every `ButtonSize`. An icon button is as tall as a text button of the same size, so the two line up in a row, and sizes its glyph off that box instead. `label` is the accessible name rather than a painted label, and is required: an icon alone announces nothing to a screen reader. Every other builder method applies unchanged.
 
+- **Custom content in `MenuBar`.** `MenuBarUi::ui()` exposes the strip's `Ui` for widgets inline with the menu triggers, and `MenuBarUi::trailing(|ui| …)` pins content to the right edge, outside the status slot. The trailing slot suits window controls when the bar serves as an app's title bar.
+- **`MenuBar::title_bar(true)`** lets the strip stand in for a hidden native title bar: dragging its empty area moves the window, and double-clicking it toggles maximised. Menu triggers and custom widgets keep their own clicks.
+
 ### Changed
 
 - `Button::new` now documents that it uses only the string content of its argument. It takes `impl Into<WidgetText>` to match egui's own signature, but the label is always laid out at the size preset in the button's state colour, so a `RichText`'s size, colour, and style are silently dropped. Reach for `Button::icon` instead of sizing the text.
