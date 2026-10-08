@@ -1,12 +1,12 @@
 # egui-elegance
 
-[![CI](https://github.com/stephenberry/egui-elegance/actions/workflows/ci.yml/badge.svg)](https://github.com/stephenberry/egui-elegance/actions/workflows/ci.yml)
+[![CI](https://github.com/matrix-research-inc/egui-elegance/actions/workflows/ci.yml/badge.svg)](https://github.com/matrix-research-inc/egui-elegance/actions/workflows/ci.yml)
 
 Opinionated widgets for [`egui`]: six-accent rounded buttons, text inputs with a focus ring and submit-flash feedback, themed selects and tabs, segmented LED toggles, status pills, and badges — all driven by a single installable `Theme`. Four palettes ship built-in — two dark (`Theme::slate`, `Theme::charcoal`) and two light (`Theme::frost`, `Theme::paper`) — paired so you can toggle without any layout shift.
 
 The design aims to make native apps feel as polished as modern web UIs.
 
-![A polished deployment dashboard built with egui-elegance](https://raw.githubusercontent.com/stephenberry/egui-elegance/main/docs/images/hero.png)
+![A polished deployment dashboard built with egui-elegance](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/hero.png)
 
 ## Install
 
@@ -79,7 +79,7 @@ Reference for each widget follows. Tiles are rendered headlessly by `cargo rende
 
 ### Button
 
-![Buttons](https://raw.githubusercontent.com/stephenberry/egui-elegance/main/docs/images/buttons.png)
+![Buttons](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/buttons.png)
 
 Chunky rounded button in six accent colours plus an outline variant, in three sizes. `Button::icon` gives a square icon-only button, as tall as a text button of the same size so the two line up in a row.
 
@@ -99,7 +99,7 @@ ui.add(Button::icon(glyphs::DOWNLOAD, "Download").accent(Accent::Blue));
 
 ### TextInput
 
-![Text inputs — normal, hint, dirty, password, revealable](https://raw.githubusercontent.com/stephenberry/egui-elegance/main/docs/images/text_inputs.png)
+![Text inputs — normal, hint, dirty, password, revealable](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/text_inputs.png)
 
 Single-line text input. See also [Submit-flash feedback](#submit-flash-feedback) for success / error tinting on submit.
 
@@ -122,7 +122,7 @@ ui.add(TextInput::new(&mut passphrase).label("Passphrase").revealable(true));
 
 ### TextArea
 
-![Text areas — regular and monospace](https://raw.githubusercontent.com/stephenberry/egui-elegance/main/docs/images/text_areas.png)
+![Text areas — regular and monospace](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/text_areas.png)
 
 Multi-line counterpart to `TextInput` with a configurable visible row count. Optional monospace for code, JSON, or keys.
 
@@ -140,7 +140,7 @@ ui.add(TextArea::new(&mut json).monospace(true).rows(8));
 
 ### TagInput
 
-![Tag input — recipients with email validation, plus skill chips](https://raw.githubusercontent.com/stephenberry/egui-elegance/main/docs/images/tag_input.png)
+![Tag input — recipients with email validation, plus skill chips](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/tag_input.png)
 
 A pill-list text input bound to a `Vec<String>`. Enter or comma commits the buffer as a tag; with `commit_on_space(true)` whitespace commits too. Backspace on an empty buffer arms the last pill (red highlight) and a second Backspace removes it; clicking a pill's `×` removes it directly. Pasted text containing commas or whitespace splits into multiple tags. Optional `validator` closure rejects malformed values with an inline error.
 
@@ -164,7 +164,7 @@ TagInput::new("recipients", &mut recipients)
 
 ### RemovableChip
 
-![Removable chip — inline editable value with an × close button](https://raw.githubusercontent.com/stephenberry/egui-elegance/main/docs/images/removable_chip.png)
+![Removable chip — inline editable value with an × close button](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/removable_chip.png)
 
 A bordered inline text input bound to a single `String`, with an `×` close button and an optional non-editable prefix. Auto-sizes the editor to fit the current text within a min/max range. The `removed` flag fires when the user clicks `×` or presses Escape on an empty editor; the caller decides whether to clear or drop the binding. Use this for inline filter pills, single-tag editors, or path-segment chips. For multi-value pill lists see `TagInput`.
 
@@ -186,7 +186,7 @@ if let Some(value) = suffix.as_mut() {
 
 ### Select
 
-![Selects](https://raw.githubusercontent.com/stephenberry/egui-elegance/main/docs/images/selects.png)
+![Selects](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/selects.png)
 
 Themed combo-box generic over any `PartialEq + Clone` value type. Hand it the last committed value with `.saved(…)` and a *staged* select — one whose selection has moved but not yet been saved — marks itself with the same focus-accent dot `BrowserTab` uses for unsaved work, so it reads as pending beside a dirty `TextInput` in the same form.
 
@@ -217,7 +217,7 @@ ui.add(Select::strings("env", &mut env, ["Production", "Staging"]).enabled(false
 
 ### Checkbox · Switch · SegmentedButton
 
-![Toggles — checkbox, switch, segmented](https://raw.githubusercontent.com/stephenberry/egui-elegance/main/docs/images/toggles.png)
+![Toggles — checkbox, switch, segmented](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/toggles.png)
 
 Three flavours of boolean input. Pick `Checkbox` for list-style selection, `Switch` for feature/settings flags, `SegmentedButton` for mode toggles where the on-state should read as a distinct accent pill.
 
@@ -237,7 +237,7 @@ ui.add(
 
 ### TabBar
 
-![TabBar](https://raw.githubusercontent.com/stephenberry/egui-elegance/main/docs/images/tabs.png)
+![TabBar](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/tabs.png)
 
 Horizontal tab strip. The active tab gets a focus-accent underline.
 
@@ -249,7 +249,7 @@ ui.add(TabBar::new(&mut tab, ["Overview", "Settings", "Activity", "Logs"]));
 
 ### SegmentedControl
 
-![SegmentedControl](https://raw.githubusercontent.com/stephenberry/egui-elegance/main/docs/images/segmented_control.png)
+![SegmentedControl](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/segmented_control.png)
 
 A row of mutually-exclusive segments sharing one rounded track. The selected segment lifts to the card colour with a soft drop shadow; unhovered, unactive neighbours are separated by a hairline. Use it for compact pickers where every option fits inline (timeframe, density, view mode).
 
@@ -300,7 +300,7 @@ ui.add(
 
 ### BrowserTabs
 
-![BrowserTabs](https://raw.githubusercontent.com/stephenberry/egui-elegance/main/docs/images/browser_tabs.png)
+![BrowserTabs](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/browser_tabs.png)
 
 Owned-state strip of browser-style closable tabs. The active tab fills with the card colour so it merges with the panel below; each tab can flag a focus-accent dirty-dot for unsaved changes, and the trailing `+` emits a `NewRequested` event for the caller to handle.
 
@@ -325,7 +325,7 @@ impl App {
 
 ### StatusPill · Indicator · Badge
 
-![Status](https://raw.githubusercontent.com/stephenberry/egui-elegance/main/docs/images/status.png)
+![Status](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/status.png)
 
 `IndicatorState` has three visual modes: `On` (solid green dot), `Off` (red bar), `Connecting` (amber ring). `Badge` carries a `BadgeTone`: `Ok`, `Warning`, `Danger`, `Info`, or `Neutral`.
 
@@ -344,7 +344,7 @@ ui.add(Badge::new("Dev build", BadgeTone::Info));
 
 ### Avatar · AvatarGroup
 
-![Avatars — sizes, auto-tone, presence dots, stacked group](https://raw.githubusercontent.com/stephenberry/egui-elegance/main/docs/images/avatar.png)
+![Avatars — sizes, auto-tone, presence dots, stacked group](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/avatar.png)
 
 Circular profile tile in five sizes with deterministic colour from the initials, an optional presence dot (`Online`, `Busy`, `Away`, `Offline`), and an `AvatarGroup` for stacked rows with a `+N` overflow tile. Pass `surface(theme.palette.card)` when placing an avatar inside a card so the presence-dot border punches cleanly out of the card surface.
 
@@ -369,7 +369,7 @@ ui.add(
 
 ### Slider
 
-![Sliders](https://raw.githubusercontent.com/stephenberry/egui-elegance/main/docs/images/sliders.png)
+![Sliders](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/sliders.png)
 
 Pill-track slider generic over `egui::emath::Numeric` — works with any integer or float type. Value readout on the right; `.value_fmt(|v| …)` for custom formatting. Keyboard: `←`/`→` nudge by `step` (or 1% of the range span when continuous), `Shift`+`←`/`→` for a 10x nudge, `Home`/`End` jump to the bounds. Grabbing the rail with the pointer gives the slider keyboard focus, so a click can be refined with the arrow keys without tabbing to it first.
 
@@ -387,7 +387,7 @@ ui.add(Slider::new(&mut port, 0u16..=65535u16).label("Port"));
 
 ### MetricSlider
 
-![Metric sliders](https://raw.githubusercontent.com/stephenberry/egui-elegance/main/docs/images/metric_sliders.png)
+![Metric sliders](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/metric_sliders.png)
 
 Single-value slider whose central UI element is the value itself, rendered large in the top-right. Generalised over an arbitrary `RangeInclusive<f32>` so it works for any metric: buffer size in GiB, latency budget in ms, refresh rate in Hz. Pair the headline with `.suffix("ms")` for a small muted unit baseline-aligned to the value, or replace the headline entirely with `.headline_fmt(|v| …)` when the value is a tier index or named category. Tick labels follow with `.tick_fmt(|v| …)`. Three snap modes: `.step(s)` for multiples of `s` relative to the range start; `.steps(n)` for `n` evenly-spaced positions including both endpoints; `.stops([…])` for an explicit, possibly non-uniform list. When `steps` or `stops` is set, the tick row renders at exactly those positions and `←`/`→` jump between them. Keyboard: `←`/`→` nudge by `step` (or 1% of the range span when continuous), `Shift`+`←`/`→` for a 10x nudge, `Home`/`End` jump to the bounds; grabbing the rail focuses the slider, so a click can be refined with the arrow keys. Use `.show_ticks(false)` for compact layouts. `PercentSlider` is the `0..=100` + `"%"` preset over this widget. In `stops` mode a full-rail drag reports `changed()` once per stop crossed; gate expensive reactions on [`committed()`](#commit-signal) instead.
 
@@ -421,7 +421,7 @@ ui.add(
 
 ### PercentSlider
 
-![Percent sliders](https://raw.githubusercontent.com/stephenberry/egui-elegance/main/docs/images/percent_sliders.png)
+![Percent sliders](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/percent_sliders.png)
 
 The percent-flavoured preset of [`MetricSlider`](#metricslider): range locked to `0.0..=100.0`, small muted `%` suffix beside the headline, quartile ticks (`0`, `25%`, `50%`, `75%`, `100%`) beneath the track. Faint 10% interior divisions add battery-style legibility without breaking the smooth-fill feel. Pair with `.callout_fmt(|p| …)` when the percentage maps to a meaningful absolute quantity (a duration, a file size, a budget share) — the closure's return value surfaces in a callout above the thumb while the user drags, with the consumer in full control of the text. Three snap modes: `.step(s)` for multiples of `s`; `.steps(n)` for `n` evenly-spaced positions including both endpoints (cleaner than computing a step size when stops don't divide 100 evenly); `.stops([…])` for an explicit, possibly non-uniform list. When `steps` or `stops` is set, the tick row renders at exactly those positions and `←`/`→` jump between them. Keyboard: `←`/`→` nudge by `step` or step to the adjacent stop, `Shift`+`←`/`→` for a 10x nudge in continuous mode, `Home`/`End` jump to the bounds; grabbing the rail focuses the slider. Use `.show_ticks(false)` for compact layouts.
 
@@ -460,7 +460,7 @@ ui.add(
 
 ### RangeSlider
 
-![Range sliders](https://raw.githubusercontent.com/stephenberry/egui-elegance/main/docs/images/range_sliders.png)
+![Range sliders](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/range_sliders.png)
 
 Two-handle range slider for picking a `[low, high]` interval. Same pill track and accent fill as `Slider`; the fill spans only the selected portion. Optional evenly-spaced ticks with labels, and the keyboard works on the focused thumb (`←`/`→` nudge by `step`, `Shift`+`←`/`→` for a 10x nudge, `Home`/`End` jump to the bounds). Grabbing a thumb focuses it, so the arrow keys act on the endpoint you just moved.
 
@@ -490,7 +490,7 @@ ui.add(
 
 ### Knob
 
-![Knobs — instrument panel, stepped detents, bipolar](https://raw.githubusercontent.com/stephenberry/egui-elegance/main/docs/images/knobs.png)
+![Knobs — instrument panel, stepped detents, bipolar](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/knobs.png)
 
 Rotary knob bound to any `egui::emath::Numeric`. A 270-degree arc with an accent fill grows clockwise from the lower left; the active position drives a tick indicator inside the body. Three sizes (`Small` / `Medium` / `Large`), an `Accent` colour, and three behavioural variants share one widget: continuous (with optional `step` snap), `bipolar` (fill from the centre of the range outward toward the current value, suited to signed offsets), and stepped with `(value, label)` `detents` that render labeled ticks and snap drag/scroll/keyboard moves to the nearest detent. Drag combines horizontal and vertical motion: right and up both increase, left and down both decrease, so a diagonal flick reads as a single gesture (Shift slows for fine control). The scroll wheel and arrow keys nudge, Page Up / Page Down step coarser, Home / End jump to the bounds, and Alt+click, double-click, or `0` resets to a configured `default`. Grabbing the knob focuses it, so a drag can be refined with the arrow keys. Optional `log_scale` for wide ranges (audio frequency, gain). `show_value(true)` renders the formatted value below the knob.
 
@@ -532,7 +532,7 @@ ui.add(
 
 ### ColorPicker
 
-![ColorPicker](https://raw.githubusercontent.com/stephenberry/egui-elegance/main/docs/images/color_picker.png)
+![ColorPicker](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/color_picker.png)
 
 Bound to a `Color32`. Renders as a compact swatch-and-hex trigger; clicking opens a popover containing any combination of a curated palette grid, an auto-tracked recents row, a continuous saturation/value plane plus hue slider, an alpha slider, and a hex input. Builder toggles let you mix-and-match: a palette-only picker for status colors, a continuous picker for free-form brand colors, or both stacked. Recent picks are persisted in egui context memory keyed by `id_salt`. Hex parsing accepts `#RGB`, `#RRGGBB`, `#RRGGBBAA` (with or without `#`). The three continuous surfaces are keyboard-operable: `Tab` to one and the SV plane takes `←`/`→` for saturation and `↑`/`↓` for value, while the hue and alpha strips take `←`/`→` plus `Home`/`End`, with `Shift` for a 10x nudge. On the hue strip `End` stops one step short of the far edge, where the circle closes back onto the red that `Home` gives. Grabbing a surface with the pointer focuses it, and a run of keyboard adjustments records one recents entry, the same way a pointer gesture records one on release.
 
@@ -552,7 +552,7 @@ ui.add(
 
 ### FileDropZone
 
-![FileDropZone](https://raw.githubusercontent.com/stephenberry/egui-elegance/main/docs/images/file_drop_zone.png)
+![FileDropZone](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/file_drop_zone.png)
 
 A click-and-drop file target: dashed border, upload icon, and prompt. The widget renders the visual treatment and drag-over state; the caller handles the dropped files reported on `FileDropResponse.dropped_files` and opens a native picker on click (use a crate like `rfd`).
 
@@ -573,7 +573,7 @@ for file in &drop.dropped_files {
 
 ### Spinner · ProgressBar
 
-![Spinners and progress bars](https://raw.githubusercontent.com/stephenberry/egui-elegance/main/docs/images/feedback.png)
+![Spinners and progress bars](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/feedback.png)
 
 `Spinner` is the indeterminate loader — an animated sweeping arc. `ProgressBar` is determinate: a pill-shaped bar with an optional inline label.
 
@@ -588,7 +588,7 @@ ui.add(ProgressBar::new(1.0).accent(Accent::Amber).text("Complete"));
 
 ### ProgressRing
 
-![ProgressRing](https://raw.githubusercontent.com/stephenberry/egui-elegance/main/docs/images/progress_ring.png)
+![ProgressRing](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/progress_ring.png)
 
 A determinate circular progress indicator — a ring-shaped cousin of `ProgressBar`. A faint track plus an accent-coloured arc that sweeps clockwise from 12 o'clock as the fraction grows. Centre text defaults to the rounded percent; override with `.text(...)` and add a small muted sub-caption with `.caption(...)`. Doubles as a circular gauge: pass `.zones(GaugeZones::new(warn, crit))` to colour the arc by which threshold band the fraction falls in (`success`/`warning`/`danger`), `.unit("...")` to render a baseline-aligned suffix next to the value, and `.caption_below("...")` to anchor a descriptive caption beneath the ring instead of inside. For indeterminate "still working" loaders, use `Spinner` instead.
 
@@ -622,7 +622,7 @@ ui.add(ProgressRing::new(0.3).size(32.0).text(""));
 
 ### RadialGauge · LinearGauge
 
-![Gauges — radial and linear](https://raw.githubusercontent.com/stephenberry/egui-elegance/main/docs/images/gauge.png)
+![Gauges — radial and linear](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/gauge.png)
 
 Two widgets for displaying a value (as a `0..1` fraction) against optional threshold zones. `RadialGauge` is a half-circle dashboard speedometer with a needle and a value readout in the bowl; `LinearGauge` is a horizontal meter with optional faded threshold bands behind the fill plus tick-and-label markers above. For the donut form (a circular gauge with no needle), use `ProgressRing` with `.zones(...)`. Pass `GaugeZones::new(warn, crit)` to drive the fill colour automatically (success/warning/danger based on which band the value falls into). Without zones, the fill defaults to the theme's focus accent.
 
@@ -648,7 +648,7 @@ ui.add(
 
 ### Steps
 
-![Steps — cells, numbered, labeled](https://raw.githubusercontent.com/stephenberry/egui-elegance/main/docs/images/steps.png)
+![Steps — cells, numbered, labeled](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/steps.png)
 
 A stepped progress indicator for discrete, countable stages. Three visual styles share the same state model (`total`, `current`, `errored`): `StepsStyle::Cells` paints a segmented bar of uniform rounded cells, suited to compact "N of M" progress. `StepsStyle::Numbered` paints numbered circles connected by thin lines, with a checkmark on completed dots and a glow on the active one. `StepsStyle::Labeled` (via `Steps::labeled`) paints taller pills containing text labels — horizontal by default (a progress bar with readable stage names), or call `.vertical()` for a wizard-sidebar layout. Done cells use the theme's success green, the active one uses the focus accent, and errors use danger red.
 
@@ -710,7 +710,7 @@ ui.add(StatCard::new("Revenue today").accent(Accent::Green).loading(true));
 
 ### Card · CollapsingSection
 
-![Containers](https://raw.githubusercontent.com/stephenberry/egui-elegance/main/docs/images/containers.png)
+![Containers](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/containers.png)
 
 Both take a body closure and return an `InnerResponse<R>`.
 
@@ -761,7 +761,7 @@ Accordion::new("settings").exclusive(true).show(ui, |acc| {
 
 ### Menu · MenuItem
 
-![Menu](https://raw.githubusercontent.com/stephenberry/egui-elegance/main/docs/images/menu.png)
+![Menu](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/menu.png)
 
 Click-to-open popup attached to any trigger `Response`. `Esc`, outside-click, or item-click all dismiss. For a desktop-style top-of-window strip with brand, multiple menus, and status, see [`MenuBar`](#menubar).
 
@@ -802,7 +802,7 @@ MenuBar::new("app").show(ui, |bar| {
 
 ### ContextMenu
 
-![ContextMenu](https://raw.githubusercontent.com/stephenberry/egui-elegance/main/docs/images/context_menu.png)
+![ContextMenu](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/context_menu.png)
 
 Right-click popup anchored to the cursor. Hosts the same `MenuItem`, `MenuSection`, and `SubMenuItem` widgets as the rest of the menu family, so the styling is consistent. The target `Response` needs a click sense for egui to register the secondary click — most interactive widgets already do; for plain labels add `.sense(egui::Sense::click())`.
 
@@ -827,7 +827,7 @@ ContextMenu::new("file_row").show(&row, |ui| {
 
 ### MenuBar
 
-![MenuBar](https://raw.githubusercontent.com/stephenberry/egui-elegance/main/docs/images/menu_bar.png)
+![MenuBar](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/menu_bar.png)
 
 Desktop-style top-of-window menu strip: an optional brand on the left, a row of click-to-open menus (File, Edit, View, …), and an optional status slot on the right. Once any menu is open, hovering a sibling trigger switches to it — the same "menu mode" feel native menubars have. Each dropdown is a themed panel; populate it with `MenuItem`s, separators, and section headers. `MenuItem` exposes `.checked(bool)` (checkbox toggles), `.radio(bool)` (mutually-exclusive choices), `.icon(...)` (leading glyph), `.shortcut("⌘N")`, `.danger()`, and `.enabled(false)`.
 
@@ -880,7 +880,7 @@ For a single click-to-open menu attached to an arbitrary trigger button (e.g. ro
 
 ### Modal
 
-![Modal](https://raw.githubusercontent.com/stephenberry/egui-elegance/main/docs/images/modal.png)
+![Modal](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/modal.png)
 
 Centered dialog over a dimmed backdrop. `Esc`, backdrop-click, or the built-in × button all flip the bound `open` flag back to `false`.
 
@@ -898,7 +898,7 @@ Disable individual dismissal paths with `.close_on_escape(false)` / `.close_on_b
 
 ### Drawer
 
-![Drawer](https://raw.githubusercontent.com/stephenberry/egui-elegance/main/docs/images/drawer.png)
+![Drawer](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/drawer.png)
 
 Side-anchored slide-in overlay panel: full-height, dimmed backdrop, slides over the page rather than carving space out of it. Reach for `Drawer` when the content is too tall for a `Modal` but doesn't deserve its own route — record inspectors, edit forms, filter sidebars. `Esc`, backdrop-click, and the built-in × button all flip the bound `open` flag back to `false`. The slide animation, focus capture, and focus restore on close are built in.
 
@@ -934,7 +934,7 @@ For a *persistent* (non-overlay) side panel that resizes the surrounding content
 
 ### Popover
 
-![Popover](https://raw.githubusercontent.com/stephenberry/egui-elegance/main/docs/images/popover.png)
+![Popover](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/popover.png)
 
 Click-anchored floating panel that points at a trigger. Lighter than `Modal`: no backdrop, no focus trap. Pick a side with `PopoverSide` (top, bottom, left, right), optionally set a `title`, and fill the body closure with whatever you like. `Esc`, outside-click, or a second trigger-click dismiss.
 
@@ -970,7 +970,7 @@ Tooltip::new("Write the working tree to disk. Remote sync runs in the background
 
 ### Callout
 
-![Callouts — info, warning, success](https://raw.githubusercontent.com/stephenberry/egui-elegance/main/docs/images/callout.png)
+![Callouts — info, warning, success](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/callout.png)
 
 Full-width inline banner for persistent context: experimental features, unsaved changes, failed builds, maintenance windows. `CalloutTone` picks the accent (`Info`, `Success`, `Warning`, `Danger`, `Neutral`). The closure slot is a right-to-left action area — add primary button first. Opt into a trailing × with `.dismissable(&mut open)`. The default treatment is a card-colored banner with a leading accent stripe; call `.tinted()` for a louder severity-tinted background with a matching tinted border, when the banner needs to read as a discrete alert rather than inline page chrome.
 
@@ -990,7 +990,7 @@ Unlike [`Toast`](#toast--toasts) it does not auto-dismiss, and unlike [submit-fl
 
 ### Toast · Toasts
 
-![Toast](https://raw.githubusercontent.com/stephenberry/egui-elegance/main/docs/images/toast.png)
+![Toast](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/toast.png)
 
 Non-blocking notifications. `Toast::show(ctx)` enqueues from any callback that has `&Context`; `Toasts::new().render(ctx)` draws the stack once per frame. Auto-dismissed with fade-out after ~4 s (override with `.duration(…)` or `.persistent()`).
 
@@ -1028,7 +1028,7 @@ log.show(ui);
 
 ### Pairing
 
-![Pairing](https://raw.githubusercontent.com/stephenberry/egui-elegance/main/docs/images/pairing.png)
+![Pairing](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/pairing.png)
 
 One-to-one pairing between two lists, drawn as bezier curves between port circles. Click a port to start a connection, then click an opposite-side port to complete it. Hovering an opposite-side node during selection latches the ghost line to its port. Clicking a paired node breaks its connection *and* starts a new pairing from it — one-click reconnection. Clicking a line unpairs. Optional `.align_left()` / `.align_right()` auto-arranges the chosen side so every pairing renders as a straight horizontal line.
 
@@ -1064,7 +1064,7 @@ Pairing::new("client-server", &clients, &servers, &mut pairs)
 
 ### SortableList
 
-![Sortable list](https://raw.githubusercontent.com/stephenberry/egui-elegance/main/docs/images/sortable_list.png)
+![Sortable list](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/sortable_list.png)
 
 Drag-and-drop list of rows: press a row's grip handle, drag to a new position, release. The source row collapses out of layout and a ghost copy floats under the cursor; a focus-accent-tinted slot opens at the predicted drop position so the user sees where the row will land. Releasing on the source's own slot is a no-op; pressing Escape mid-drag cancels.
 
@@ -1136,7 +1136,7 @@ It reports that the *interaction* settled, not that the value differs from what 
 
 ## Bundled glyphs
 
-![Bundled glyphs](https://raw.githubusercontent.com/stephenberry/egui-elegance/main/docs/images/glyphs.png)
+![Bundled glyphs](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/glyphs.png)
 
 `Theme::install` registers the ~15 KB `Elegance Symbols` font as a Proportional and Monospace fallback, so inline glyphs like `→`, `⋯`, `⌘`, `⇧`, `⌫`, `⏎`, `↩`, `▾` render out of the box without egui's default font missing them.
 
@@ -1176,7 +1176,7 @@ ctx.set_fonts(fonts);
 
 ## Theming
 
-![Built-in themes — Slate, Frost, Charcoal, Paper](https://raw.githubusercontent.com/stephenberry/egui-elegance/main/docs/images/theming.png)
+![Built-in themes — Slate, Frost, Charcoal, Paper](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/theming.png)
 
 A `Theme` bundles a `Palette` of colours, a `Typography` of font sizes, and a few shape parameters (corner radius, padding). Calling `.install(ctx)` both stores the theme in `ctx` memory so elegance widgets can read it, and updates `egui::Style` so built-in widgets (labels, sliders, scroll bars) inherit the palette.
 
