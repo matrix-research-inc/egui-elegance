@@ -30,19 +30,19 @@ path = "src/lib.rs"
 warnings = "deny"
 
 [dependencies]
-egui = "0.36"
+egui = "0.36.2"
 
 [target.'cfg(target_family = "wasm")'.dependencies]
 js-sys = "0.3"
 
 [dev-dependencies]
-eframe = { version = "0.36", default-features = false, features = [
+eframe = { version = "0.36.2", default-features = false, features = [
     "default_fonts",
     "glow",
     "wayland",
     "x11",
 ] }
-egui_kittest = { version = "0.36", features = ["wgpu", "snapshot"] }
+egui_kittest = { version = "0.36.2", features = ["wgpu", "snapshot"] }
 image = { version = "0.25", default-features = false, features = ["png"] }
 
 [[example]]
