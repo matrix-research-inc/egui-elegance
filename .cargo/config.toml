@@ -1,3 +1,6 @@
+[build]
+incremental = false
+
 [alias]
 orbit = "run --example orbit"
 widgets = "run --example widgets"
