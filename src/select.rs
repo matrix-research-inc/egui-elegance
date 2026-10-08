@@ -148,8 +148,9 @@ impl<'a, T: PartialEq + Clone> Select<'a, T> {
         self
     }
 
-    /// Override the select width in points. Defaults to the intrinsic
-    /// size of the selected label plus padding.
+    /// Override the select width in points. By default the select is as
+    /// wide as its widest option label plus padding and the chevron, so the
+    /// width holds steady as the selection changes.
     pub fn width(mut self, width: f32) -> Self {
         self.width = Some(width);
         self
@@ -267,7 +268,24 @@ impl<'a, T: PartialEq + Clone> Widget for Select<'a, T> {
                     ui.add_space(2.0);
                 }
 
-                let width = self.width.unwrap_or(160.0);
+                let width = self.width.unwrap_or_else(|| {
+                    // Size to the widest option rather than the selected one,
+                    // so picking a different value never resizes the field and
+                    // shifts its neighbours. Mirrors the layout in egui's
+                    // `ComboBox`: text, icon spacing, icon, then the button
+                    // padding on both sides.
+                    let widest = self
+                        .options
+                        .iter()
+                        .map(|(_, l)| {
+                            crate::theme::placeholder_galley(ui, l, t.body, false, f32::INFINITY)
+                                .size()
+                                .x
+                        })
+                        .fold(0.0, f32::max);
+                    let sp = ui.spacing();
+                    widest + sp.icon_spacing + sp.icon_width + 2.0 * sp.button_padding.x
+                });
                 let chevron_color = p.text_muted;
 
                 // Resolve the displayed label for the current value. Owned so

@@ -4,6 +4,12 @@ Notable changes to `egui-elegance`. Where a version has [GitHub release notes](h
 
 Versions before 0.11.0 predate tagging; see the git history for those.
 
+## Unreleased
+
+### Changed
+
+- **`Select` sizes to its widest option by default.** Without `.width(...)`, every select was a fixed 160pt wide, contradicting its docs. It now fits its longest option label plus the chevron, and its width doesn't change with the selection. Pass `.width(160.0)` to keep the old size.
+
 ## [0.16.1](https://github.com/stephenberry/egui-elegance/releases/tag/v0.16.1) — 2026-09-30
 
 ### Added
