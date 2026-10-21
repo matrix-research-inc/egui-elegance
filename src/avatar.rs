@@ -2,8 +2,7 @@
 //! and an [`AvatarGroup`] for stacked overlap with a `+N` overflow indicator.
 
 use egui::{
-    Color32, FontSelection, Response, Sense, Stroke, Ui, Vec2, Widget, WidgetInfo, WidgetText,
-    WidgetType,
+    Color32, FontSelection, Response, Role, Sense, Stroke, Ui, Vec2, Widget, WidgetInfo, WidgetText,
 };
 
 use crate::theme::{Theme, with_alpha};
@@ -302,7 +301,7 @@ impl Widget for Avatar {
         } else {
             label.to_string()
         };
-        response.widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, &owned));
+        response.widget_info(|| WidgetInfo::labeled(Role::Label, true, &owned));
         response
     }
 }
@@ -436,7 +435,7 @@ impl Widget for AvatarGroup {
             avatar.paint(ui, cell);
         }
 
-        response.widget_info(|| WidgetInfo::labeled(WidgetType::Other, true, "avatar group"));
+        response.widget_info(|| WidgetInfo::labeled(Role::Unknown, true, "avatar group"));
         response
     }
 }

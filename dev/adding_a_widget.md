@@ -65,7 +65,7 @@ Match the conventions in [`Button`](../src/button.rs):
 //! A short paragraph describing the visual treatment, when to use it, and
 //! anything callers need to know up front.
 
-use egui::{Response, Sense, Ui, Widget, WidgetInfo, WidgetText, WidgetType};
+use egui::{Response, Role, Sense, Ui, Widget, WidgetInfo, WidgetText};
 
 use crate::theme::Theme;
 
@@ -134,7 +134,7 @@ impl Widget for MyWidget {
 
         // 4. Accessibility.
         response.widget_info(|| {
-            WidgetInfo::labeled(WidgetType::Button, self.enabled, self.text.text())
+            WidgetInfo::labeled(Role::Button, self.enabled, self.text.text())
         });
 
         response
@@ -168,7 +168,7 @@ See [`Card`](../src/card.rs) for the full pattern, including how to render an op
 
 ### 3.4 Owned-state widgets — caller holds the struct
 
-The caller stores the widget in their app struct (`my_widget: MyWidget`) and renders it with `widget.show(ui)`. Internal state lives on the struct itself; transient *interaction* state (current drag, last hover) goes in `ctx.data_mut()` keyed by an `Id::new(self.id_salt)`. See [`Pairing`](../src/pairing.rs) for the full treatment, and [`LogBar`](../src/log_bar.rs) for a simpler one.
+The caller stores the widget in their app struct (`my_widget: MyWidget`) and renders it with `widget.show(ui)`. Internal state lives on the struct itself; transient *interaction* state (current drag, last hover) goes in `ctx.data_mut()` keyed by an `Id::unique(self.id_salt)`. See [`Pairing`](../src/pairing.rs) for the full treatment, and [`LogBar`](../src/log_bar.rs) for a simpler one.
 
 Owned-state widgets typically take an `id_salt: impl Hash` in their constructor so multiple instances coexist.
 
@@ -224,7 +224,7 @@ Every widget that takes focus or accepts input must emit `WidgetInfo` so screen 
 
 ```rust
 response.widget_info(|| {
-    WidgetInfo::labeled(WidgetType::Button, self.enabled, self.text.text())
+    WidgetInfo::labeled(Role::Button, self.enabled, self.text.text())
 });
 ```
 
@@ -232,13 +232,13 @@ response.widget_info(|| {
 
 ```rust
 response.widget_info(|| {
-    WidgetInfo::selected(WidgetType::Checkbox, self.enabled, *self.value, self.label)
+    WidgetInfo::selected(Role::CheckBox, self.enabled, *self.value, self.label)
 });
 ```
 
 `Switch` and `Checkbox` are good references — both call `selected(...)` so a screen reader announces "on" / "off" as the user toggles.
 
-**Text-bearing input (text input, text area):** use `WidgetInfo::labeled` with `WidgetType::TextEdit` and supply the *label* as the third argument, not the input contents — the contents are spoken separately by the OS.
+**Text-bearing input (text input, text area):** use `WidgetInfo::labeled` with `Role::TextInput` and supply the *label* as the third argument, not the input contents — the contents are spoken separately by the OS.
 
 **Overlay (modal, toast, menu):** set the matching accesskit role (`Dialog`, `AlertDialog`, `Menu`) on the containing `Area`/`Frame` so assistive tech treats the overlay as a focus boundary. `Modal` traps focus inside while open and restores it on close — mirror that if your overlay is dismissable.
 

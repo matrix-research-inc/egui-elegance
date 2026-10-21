@@ -22,8 +22,8 @@ use std::f32::consts::PI;
 use std::ops::RangeInclusive;
 
 use egui::{
-    Align2, Color32, FontId, Pos2, Response, Sense, Stroke, Ui, Vec2, Widget, WidgetInfo,
-    WidgetText, WidgetType,
+    Align2, Color32, FontId, Pos2, Response, Role, Sense, Stroke, Ui, Vec2, Widget, WidgetInfo,
+    WidgetText,
     emath::Numeric,
     epaint::{PathShape, PathStroke},
     pos2, vec2,
@@ -819,7 +819,7 @@ impl<'a, T: Numeric> Widget for Knob<'a, T> {
                 ui.add(egui::Label::new(rich).wrap_mode(egui::TextWrapMode::Extend));
             }
 
-            response.widget_info(|| WidgetInfo::labeled(WidgetType::Slider, true, &label_text));
+            response.widget_info(|| WidgetInfo::labeled(Role::Slider, true, &label_text));
             response
         })
         .inner

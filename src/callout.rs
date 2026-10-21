@@ -14,8 +14,8 @@
 //! like a discrete alert rather than part of the surrounding card.
 
 use egui::{
-    Align, Color32, CornerRadius, InnerResponse, Layout, Margin, Rect, Response, Sense, Stroke,
-    StrokeKind, Ui, Vec2, WidgetInfo, WidgetText, WidgetType,
+    Align, Color32, CornerRadius, InnerResponse, Layout, Margin, Rect, Response, Role, Sense,
+    Stroke, StrokeKind, Ui, Vec2, WidgetInfo, WidgetText,
 };
 
 use crate::theme::Theme;
@@ -412,7 +412,7 @@ impl<'a> Callout<'a> {
 
         frame_response
             .response
-            .widget_info(|| WidgetInfo::labeled(WidgetType::Other, true, &a11y_label));
+            .widget_info(|| WidgetInfo::labeled(Role::Unknown, true, &a11y_label));
 
         frame_response
     }
@@ -436,6 +436,6 @@ fn dismiss_button(ui: &mut Ui, theme: &Theme) -> Response {
         painter.line_segment([c + Vec2::new(-r, -r), c + Vec2::new(r, r)], stroke);
         painter.line_segment([c + Vec2::new(r, -r), c + Vec2::new(-r, r)], stroke);
     }
-    response.widget_info(|| WidgetInfo::labeled(WidgetType::Button, true, "Dismiss"));
+    response.widget_info(|| WidgetInfo::labeled(Role::Button, true, "Dismiss"));
     response
 }

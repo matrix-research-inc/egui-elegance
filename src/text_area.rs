@@ -7,8 +7,8 @@
 //! flash feedback via [`ResponseFlashExt`](crate::ResponseFlashExt).
 
 use egui::{
-    CornerRadius, FontId, FontSelection, Response, Stroke, TextEdit, Ui, Vec2, Widget, WidgetInfo,
-    WidgetText, WidgetType,
+    CornerRadius, FontId, FontSelection, Response, Role, Stroke, TextEdit, Ui, Vec2, Widget,
+    WidgetInfo, WidgetText,
 };
 
 use crate::{flash, theme::Theme};
@@ -113,7 +113,7 @@ impl<'a> TextArea<'a> {
     /// Supply a stable id salt. Required if you plan to flash this widget
     /// via [`ResponseFlashExt`](crate::ResponseFlashExt).
     pub fn id_salt(mut self, id: impl crate::IdSalt) -> Self {
-        self.id_salt = Some(egui::Id::new(id));
+        self.id_salt = Some(egui::Id::unique(id));
         self
     }
 }
@@ -135,7 +135,7 @@ impl<'a> Widget for TextArea<'a> {
             }
 
             let id_salt = self.id_salt.unwrap_or_else(|| ui.next_auto_id());
-            let widget_id = ui.make_persistent_id(egui::Id::new(id_salt));
+            let widget_id = ui.make_persistent_id(egui::Id::unique(id_salt));
 
             let flash = flash::active_flash(ui.ctx(), widget_id);
             let bg_fill = flash::background_fill(&theme, p.input_bg, flash);
@@ -198,7 +198,7 @@ impl<'a> Widget for TextArea<'a> {
 
             if let Some(label) = &self.label {
                 let label = label.text().to_string();
-                response.widget_info(|| WidgetInfo::labeled(WidgetType::TextEdit, true, &label));
+                response.widget_info(|| WidgetInfo::labeled(Role::TextInput, true, &label));
             }
 
             response

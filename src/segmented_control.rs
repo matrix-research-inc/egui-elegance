@@ -10,8 +10,8 @@
 use std::sync::Arc;
 
 use egui::{
-    Color32, CornerRadius, FontId, FontSelection, Galley, Id, Rect, Response, Sense, Stroke,
-    StrokeKind, TextWrapMode, Ui, Vec2, Widget, WidgetInfo, WidgetText, WidgetType, pos2,
+    Color32, CornerRadius, FontId, FontSelection, Galley, Id, Rect, Response, Role, Sense, Stroke,
+    StrokeKind, TextWrapMode, Ui, Vec2, Widget, WidgetInfo, WidgetText, pos2,
 };
 
 use crate::theme::{Accent, Theme, placeholder_galley, with_alpha};
@@ -469,7 +469,7 @@ impl<'a> SegmentedControl<'a> {
     /// frames.
     #[inline]
     pub fn id_salt(mut self, id: impl crate::IdSalt) -> Self {
-        self.id_salt = Some(Id::new(id));
+        self.id_salt = Some(Id::unique(id));
         self
     }
 }
@@ -963,14 +963,14 @@ impl<'a> Widget for SegmentedControl<'a> {
         // in a RadioGroup; multi-select reads as Checkbox(es) in a Group
         // so a screen reader announces the right semantics.
         let segment_role = if multi {
-            WidgetType::Checkbox
+            Role::CheckBox
         } else {
-            WidgetType::RadioButton
+            Role::RadioButton
         };
         let group_role = if multi {
-            WidgetType::Other
+            Role::Unknown
         } else {
-            WidgetType::RadioGroup
+            Role::RadioGroup
         };
         for (i, (cell_resp, prep)) in cell_responses.iter().zip(prepared.iter()).enumerate() {
             let label = prep.a11y.clone();

@@ -335,7 +335,7 @@ Two layers:
 
 ## 8. Accessibility
 
-- Each rendered node calls `widget_info` with a labelled `WidgetType::Other` (the heading text becomes the label).
+- Each rendered node calls `widget_info` with a labelled `Role::Unknown` (the heading text becomes the label).
 - Each port emits its own `WidgetInfo` so screen readers can describe port directions.
 - Tab cycles between nodes (sorted by world position, top-to-bottom then left-to-right).
 - Arrow keys move the focused node by 8 px (or 1 px with Shift) when no input field is focused.

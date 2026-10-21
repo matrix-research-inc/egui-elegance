@@ -24,8 +24,8 @@
 //! ```
 
 use egui::{
-    Color32, CornerRadius, Event, EventFilter, FontSelection, Id, Key, Pos2, Rect, Response, Sense,
-    Shape, Stroke, StrokeKind, TextEdit, Ui, Vec2, Widget, WidgetInfo, WidgetText, WidgetType,
+    Color32, CornerRadius, Event, EventFilter, FontSelection, Id, Key, Pos2, Rect, Response, Role,
+    Sense, Shape, Stroke, StrokeKind, TextEdit, Ui, Vec2, Widget, WidgetInfo, WidgetText,
     ecolor::{Hsva, HsvaGamma},
     epaint::Mesh,
     lerp, pos2, vec2,
@@ -87,7 +87,7 @@ impl<'a> ColorPicker<'a> {
     /// recents tracked, opens below the trigger.
     pub fn new(id_salt: impl crate::IdSalt, color: &'a mut Color32) -> Self {
         Self {
-            id_salt: Id::new(id_salt),
+            id_salt: Id::unique(id_salt),
             color,
             label: None,
             palette: Vec::new(),
@@ -380,8 +380,7 @@ impl<'a> Widget for ColorPicker<'a> {
                 .as_ref()
                 .map(|l| l.text().to_string())
                 .unwrap_or_else(|| "Color".to_string());
-            response
-                .widget_info(|| WidgetInfo::labeled(WidgetType::ColorButton, true, &label_text));
+            response.widget_info(|| WidgetInfo::labeled(Role::ColorWell, true, &label_text));
             response
         })
         .inner
@@ -495,7 +494,7 @@ fn paint_palette_grid(
         let y = rect.min.y + row as f32 * (cell + gap);
         let cell_rect = Rect::from_min_size(pos2(x, y), Vec2::splat(cell));
         let id = ui
-            .id()
+            .scope_id()
             .with(("color_picker_palette", i, color.r(), color.g(), color.b()));
         let resp = ui.interact(cell_rect, id, Sense::click());
         let selected = color == current;
@@ -529,7 +528,7 @@ fn paint_recents_row(
         let y = rect.min.y;
         let cell_rect = Rect::from_min_size(pos2(x, y), Vec2::splat(cell));
         if let Some(color) = recents.get(col).copied() {
-            let id = ui.id().with(("color_picker_recents", col));
+            let id = ui.scope_id().with(("color_picker_recents", col));
             let resp = ui.interact(cell_rect, id, Sense::click());
             let selected = color == current;
             paint_palette_swatch(ui, cell_rect, color, selected, &resp, p.is_dark, theme);
@@ -916,7 +915,7 @@ fn paint_sv_plane(ui: &mut Ui, theme: &Theme, hsv: &mut HsvaGamma) -> (bool, Set
 
     // Two channels, so there is no single value to announce; the label carries
     // what the surface adjusts.
-    response.widget_info(|| WidgetInfo::labeled(WidgetType::Slider, true, "Saturation and value"));
+    response.widget_info(|| WidgetInfo::labeled(Role::Slider, true, "Saturation and value"));
 
     (changed, settled)
 }
@@ -1119,7 +1118,7 @@ fn paint_hex_input(ui: &mut Ui, theme: &Theme, id_salt: Id, current: Color32) ->
                 .text_color(p.text)
                 .margin(vec2(8.0, 4.0))
                 .desired_width(ui.available_width());
-            ui.add(edit)
+            ui.add(edit).accessible_name("Hex color")
         });
 
         // Try to parse on every change. Accept on commit only.

@@ -238,7 +238,7 @@ impl<'a> Pairing<'a> {
         pairs: &'a mut Vec<(String, String)>,
     ) -> Self {
         Self {
-            id_salt: Id::new(("elegance_pairing", id_salt)),
+            id_salt: Id::unique(("elegance_pairing", id_salt)),
             left,
             right,
             pairs,

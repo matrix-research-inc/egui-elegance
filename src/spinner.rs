@@ -8,7 +8,7 @@
 use std::f32::consts::TAU;
 
 use egui::{
-    Color32, Response, Sense, Ui, Vec2, Widget, WidgetInfo, WidgetType,
+    Color32, Response, Role, Sense, Ui, Vec2, Widget, WidgetInfo,
     epaint::{PathShape, PathStroke},
     pos2,
 };
@@ -134,8 +134,7 @@ impl Widget for Spinner {
             painter.add(PathShape::line(points, PathStroke::new(thickness, color)));
         }
 
-        response
-            .widget_info(|| WidgetInfo::labeled(WidgetType::ProgressIndicator, true, "loading"));
+        response.widget_info(|| WidgetInfo::labeled(Role::ProgressIndicator, true, "loading"));
         response
     }
 }

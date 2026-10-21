@@ -27,7 +27,7 @@ fn picker_harness(initial: Color32) -> Harness<'static, Probe> {
                 Theme::slate().install(ui.ctx());
                 egui::Popup::open_id(
                     &ui.ctx().clone(),
-                    elegance::Popover::popup_id(("elegance::color_picker", egui::Id::new(ID))),
+                    elegance::Popover::popup_id(("elegance::color_picker", egui::Id::unique(ID))),
                 );
                 ui.set_min_size(egui::vec2(360.0, 400.0));
                 ui.add(ColorPicker::new(ID, &mut probe.color));
@@ -50,7 +50,7 @@ fn hsv(probe: &Probe) -> HsvaGamma {
 fn recents(harness: &Harness<'_, Probe>) -> Vec<Color32> {
     harness
         .ctx
-        .data(|d| d.get_temp::<Vec<Color32>>(egui::Id::new(ID).with("color_picker::recents")))
+        .data(|d| d.get_temp::<Vec<Color32>>(egui::Id::unique(ID).with("color_picker::recents")))
         .unwrap_or_default()
 }
 

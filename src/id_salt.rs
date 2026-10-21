@@ -11,7 +11,7 @@ use std::hash::Hash;
 /// supply a *salt* — a string, integer, tuple, or any other hashable value —
 /// which the widget hashes together with its location into that id.
 ///
-/// egui builds an id from a salt with [`egui::Id::new`], which requires the
+/// egui builds an id from a salt with [`egui::Id::unique`], which requires the
 /// source to be both [`Hash`] (to derive the id) and [`Debug`] (so egui can
 /// name the source when it reports an id collision in debug builds).
 /// `IdSalt` bundles exactly that bound, so every widget can spell its

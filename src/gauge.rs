@@ -22,8 +22,8 @@
 use std::f32::consts::PI;
 
 use egui::{
-    Color32, CornerRadius, Pos2, Rect, Response, Sense, Stroke, StrokeKind, Ui, Vec2, Widget,
-    WidgetInfo, WidgetType,
+    Color32, CornerRadius, Pos2, Rect, Response, Role, Sense, Stroke, StrokeKind, Ui, Vec2, Widget,
+    WidgetInfo,
     epaint::{PathShape, PathStroke},
     pos2,
 };
@@ -355,7 +355,7 @@ impl Widget for RadialGauge {
             }
         }
 
-        response.widget_info(|| WidgetInfo::labeled(WidgetType::ProgressIndicator, true, "gauge"));
+        response.widget_info(|| WidgetInfo::labeled(Role::ProgressIndicator, true, "gauge"));
         response
     }
 }
@@ -578,7 +578,7 @@ impl Widget for LinearGauge {
             }
         }
 
-        response.widget_info(|| WidgetInfo::labeled(WidgetType::ProgressIndicator, true, "meter"));
+        response.widget_info(|| WidgetInfo::labeled(Role::ProgressIndicator, true, "meter"));
         response
     }
 }

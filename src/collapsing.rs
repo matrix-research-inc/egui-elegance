@@ -2,8 +2,8 @@
 //! that hides or reveals a body of content.
 
 use egui::{
-    Color32, Id, InnerResponse, Pos2, Response, Sense, Stroke, Ui, Vec2, WidgetInfo, WidgetText,
-    WidgetType, pos2,
+    Color32, Id, InnerResponse, Pos2, Response, Role, Sense, Stroke, Ui, Vec2, WidgetInfo,
+    WidgetText, pos2,
 };
 
 use crate::theme::Theme;
@@ -42,7 +42,7 @@ impl<'a> CollapsingSection<'a> {
     /// The section is closed by default.
     pub fn new(id_salt: impl crate::IdSalt, label: impl Into<WidgetText>) -> Self {
         Self {
-            id_salt: Id::new(("elegance_collapsing", id_salt)),
+            id_salt: Id::unique(("elegance_collapsing", id_salt)),
             label: label.into(),
             open: None,
             default_open: false,
@@ -84,7 +84,7 @@ impl<'a> CollapsingSection<'a> {
         let trigger = trigger_row(ui, self.label.text(), &theme, is_open);
         let label_text = self.label.text().to_string();
         trigger.widget_info(|| {
-            WidgetInfo::selected(WidgetType::CollapsingHeader, true, is_open, &label_text)
+            WidgetInfo::selected(Role::DisclosureTriangle, true, is_open, &label_text)
         });
         if trigger.clicked() {
             is_open = !is_open;

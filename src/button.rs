@@ -8,8 +8,8 @@
 //! icon-only button.
 
 use egui::{
-    Color32, CornerRadius, Response, Sense, Shape, Stroke, Ui, Vec2, Widget, WidgetInfo,
-    WidgetText, WidgetType, pos2, vec2,
+    Color32, CornerRadius, Response, Role, Sense, Shape, Stroke, Ui, Vec2, Widget, WidgetInfo,
+    WidgetText, pos2, vec2,
 };
 
 use crate::theme::{Accent, Theme, mix};
@@ -286,8 +286,7 @@ impl Widget for Button {
                 .galley(rect.center() - offset, galley, text_color);
         }
 
-        response
-            .widget_info(|| WidgetInfo::labeled(WidgetType::Button, interactive, self.text.text()));
+        response.widget_info(|| WidgetInfo::labeled(Role::Button, interactive, self.text.text()));
         response
     }
 }

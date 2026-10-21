@@ -11,8 +11,8 @@
 //!   [`ResponseFlashExt`](crate::ResponseFlashExt)
 
 use egui::{
-    Color32, CornerRadius, FontId, FontSelection, Margin, Response, Sense, Shape, Stroke,
-    StrokeKind, TextEdit, Ui, Vec2, Widget, WidgetInfo, WidgetText, WidgetType,
+    Color32, CornerRadius, FontId, FontSelection, Margin, Response, Role, Sense, Shape, Stroke,
+    StrokeKind, TextEdit, Ui, Vec2, Widget, WidgetInfo, WidgetText,
 };
 
 use crate::{flash, theme::Theme};
@@ -137,7 +137,7 @@ impl<'a> TextInput<'a> {
 
     /// Supply a stable id salt. Useful when two inputs share the same label.
     pub fn id_salt(mut self, id: impl crate::IdSalt) -> Self {
-        self.id_salt = Some(egui::Id::new(id));
+        self.id_salt = Some(egui::Id::unique(id));
         self
     }
 
@@ -171,10 +171,10 @@ impl<'a> Widget for TextInput<'a> {
             // we need it to look up flash state before painting.
             //
             // `TextEdit::id_salt` internally wraps its input in
-            // `Id::new(...)` before calling `make_persistent_id`, so we
+            // `Id::unique(...)` before calling `make_persistent_id`, so we
             // mirror that step here to get the *same* widget id.
             let id_salt = self.id_salt.unwrap_or_else(|| ui.next_auto_id());
-            let widget_id = ui.make_persistent_id(egui::Id::new(id_salt));
+            let widget_id = ui.make_persistent_id(egui::Id::unique(id_salt));
 
             let flash = flash::active_flash(ui.ctx(), widget_id);
             let bg_fill = flash::background_fill(&theme, p.input_bg, flash);
@@ -286,7 +286,7 @@ impl<'a> Widget for TextInput<'a> {
             // the field queryable by its semantic label instead.
             if let Some(label) = &self.label {
                 let label = label.text().to_string();
-                response.widget_info(|| WidgetInfo::labeled(WidgetType::TextEdit, true, &label));
+                response.widget_info(|| WidgetInfo::labeled(Role::TextInput, true, &label));
             }
 
             response
@@ -452,7 +452,7 @@ fn render_revealable(args: RevealableArgs<'_, '_>) -> (Response, egui::Rect) {
     // both screen-reader-operable and unambiguous to query in tests.
     eye_resp.widget_info(|| {
         WidgetInfo::labeled(
-            WidgetType::Button,
+            Role::Button,
             true,
             if revealed {
                 "Hide password"

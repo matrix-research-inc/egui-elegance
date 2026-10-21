@@ -31,8 +31,8 @@
 use std::ops::RangeInclusive;
 
 use egui::{
-    Color32, CornerRadius, CursorIcon, Event, EventFilter, Key, Pos2, Rect, Response, Sense, Shape,
-    Stroke, StrokeKind, Ui, Vec2, Widget, WidgetInfo, WidgetText, WidgetType,
+    Color32, CornerRadius, CursorIcon, Event, EventFilter, Key, Pos2, Rect, Response, Role, Sense,
+    Shape, Stroke, StrokeKind, Ui, Vec2, Widget, WidgetInfo, WidgetText,
 };
 
 use crate::slider::{SliderHandle, paint_handle};
@@ -588,7 +588,7 @@ impl<'a> Widget for MetricSlider<'a> {
             .as_ref()
             .map(|l| l.text().to_string())
             .unwrap_or_default();
-        response.widget_info(|| WidgetInfo::labeled(WidgetType::Slider, true, &label_str));
+        response.widget_info(|| WidgetInfo::labeled(Role::Slider, true, &label_str));
         response
     }
 }

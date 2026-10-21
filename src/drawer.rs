@@ -120,7 +120,7 @@ impl<'a> Drawer<'a> {
     /// `Esc` and backdrop click.
     pub fn new(id_salt: impl crate::IdSalt, open: &'a mut bool) -> Self {
         Self {
-            id_salt: Id::new(id_salt),
+            id_salt: Id::unique(id_salt),
             open,
             side: DrawerSide::Right,
             width: 420.0,
@@ -184,7 +184,7 @@ impl<'a> Drawer<'a> {
     /// surface, and content that runs past the edge is clipped.
     pub fn show<R>(self, ctx: &Context, add_contents: impl FnOnce(&mut Ui) -> R) -> Option<R> {
         // --- Lifecycle: track open/closed transitions for focus restoration. ---
-        let focus_storage = Id::new(("elegance_drawer_focus", self.id_salt));
+        let focus_storage = Id::unique(("elegance_drawer_focus", self.id_salt));
         let mut focus_state = overlay::FocusState::load(ctx, focus_storage);
         let is_open = *self.open;
         let was_open = focus_state.was_open;
@@ -193,7 +193,7 @@ impl<'a> Drawer<'a> {
 
         // --- Slide animation. 0.0 = fully off-screen, 1.0 = fully on. ---
         let progress = ctx.animate_bool_with_time_and_easing(
-            Id::new(("elegance_drawer_progress", self.id_salt)),
+            Id::unique(("elegance_drawer_progress", self.id_salt)),
             is_open,
             ANIMATION_DURATION,
             emath::easing::cubic_in_out,
@@ -245,7 +245,7 @@ impl<'a> Drawer<'a> {
         // --- Surface ------------------------------------------------------
         // Backdrop and panel share one area. See `crate::overlay` for why the
         // backdrop doesn't get a lower-order area of its own.
-        let area_id = Id::new("elegance_drawer").with(self.id_salt);
+        let area_id = Id::unique("elegance_drawer").with(self.id_salt);
         let backdrop_alpha = (progress * 150.0).round() as u8;
         let title_text = self.title.as_ref().map(|t| t.text().to_string());
         let title = self.title;
@@ -268,7 +268,7 @@ impl<'a> Drawer<'a> {
                     CornerRadius::ZERO,
                     Color32::from_rgba_premultiplied(0, 0, 0, backdrop_alpha),
                 );
-                let backdrop = ui.interact(screen, ui.id().with("backdrop"), Sense::click());
+                let backdrop = ui.interact(screen, ui.scope_id().with("backdrop"), Sense::click());
 
                 // --- Panel ---
                 // Sensed as well, so clicks landing on the panel are consumed

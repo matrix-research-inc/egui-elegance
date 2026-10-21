@@ -572,7 +572,7 @@ fn color_picker_continuous_surfaces_expose_slider_roles() {
         Theme::slate().install(ui.ctx());
         egui::Popup::open_id(
             &ui.ctx().clone(),
-            elegance::Popover::popup_id(("elegance::color_picker", egui::Id::new(id))),
+            elegance::Popover::popup_id(("elegance::color_picker", egui::Id::unique(id))),
         );
         let mut color = egui::Color32::from_rgba_unmultiplied(0x38, 0xbd, 0xf8, 0x80);
         ui.set_min_size(egui::vec2(360.0, 400.0));

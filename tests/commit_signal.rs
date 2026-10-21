@@ -50,11 +50,13 @@ fn slider_harness() -> Harness<'static, Probe> {
         .build_ui_state(
             |ui, probe: &mut Probe| {
                 Theme::slate().install(ui.ctx());
-                let resp = ui.add(
-                    MetricSlider::new(&mut probe.value, 0.0..=32.0)
-                        .stops(STOPS)
-                        .desired_width(400.0),
-                );
+                let resp = ui
+                    .add(
+                        MetricSlider::new(&mut probe.value, 0.0..=32.0)
+                            .stops(STOPS)
+                            .desired_width(400.0),
+                    )
+                    .accessible_name("Value");
                 probe.rect = resp.rect;
                 if resp.changed() {
                     probe.changed += 1;
@@ -223,7 +225,9 @@ fn knob_harness() -> Harness<'static, Probe> {
         .build_ui_state(
             |ui, probe: &mut Probe| {
                 Theme::slate().install(ui.ctx());
-                let resp = ui.add(Knob::new(&mut probe.value, 0.0..=100.0));
+                let resp = ui
+                    .add(Knob::new(&mut probe.value, 0.0..=100.0))
+                    .accessible_name("Value");
                 probe.rect = resp.rect;
                 if resp.changed() {
                     probe.changed += 1;
@@ -295,6 +299,7 @@ fn knob_scroll_notch_commits_once_when_it_stops() {
         delta: egui::vec2(0.0, 1.0),
         modifiers: Modifiers::NONE,
         phase: egui::TouchPhase::Move,
+        source: egui::MouseWheelSource::Wheel,
     });
     for _ in 0..30 {
         harness.step();
@@ -439,6 +444,7 @@ fn unrelated_key_during_scroll_commits_once() {
         delta: egui::vec2(0.0, 1.0),
         modifiers: Modifiers::NONE,
         phase: egui::TouchPhase::Move,
+        source: egui::MouseWheelSource::Wheel,
     });
     harness.step();
     // A key the knob does not own, pressed while the smoothed delta is still
@@ -469,7 +475,9 @@ fn slider_keyboard_commits_once() {
         .build_ui_state(
             |ui, probe: &mut Probe| {
                 Theme::slate().install(ui.ctx());
-                let resp = ui.add(Slider::new(&mut probe.value, 0.0..=100.0));
+                let resp = ui
+                    .add(Slider::new(&mut probe.value, 0.0..=100.0))
+                    .accessible_name("Value");
                 probe.rect = resp.rect;
                 if resp.changed() {
                     probe.changed += 1;

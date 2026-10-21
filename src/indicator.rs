@@ -1,6 +1,6 @@
 //! Status indicator light — a small circle with three visual states.
 
-use egui::{CornerRadius, Response, Sense, Stroke, Ui, Vec2, Widget, WidgetInfo, WidgetType};
+use egui::{CornerRadius, Response, Role, Sense, Stroke, Ui, Vec2, Widget, WidgetInfo};
 
 use crate::theme::{Theme, with_alpha};
 
@@ -71,7 +71,7 @@ impl Widget for Indicator {
 
         response.widget_info(|| {
             WidgetInfo::labeled(
-                WidgetType::Other,
+                Role::Unknown,
                 true,
                 match self.state {
                     IndicatorState::On => "status: on",

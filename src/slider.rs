@@ -8,8 +8,7 @@ use std::ops::RangeInclusive;
 
 use egui::{
     Color32, CornerRadius, CursorIcon, Event, EventFilter, Key, Painter, Pos2, Rect, Response,
-    Sense, Stroke, StrokeKind, Ui, Vec2, Widget, WidgetInfo, WidgetText, WidgetType,
-    emath::Numeric,
+    Role, Sense, Stroke, StrokeKind, Ui, Vec2, Widget, WidgetInfo, WidgetText, emath::Numeric,
 };
 
 use crate::theme::{Accent, Theme, with_alpha};
@@ -441,7 +440,7 @@ impl<'a, T: Numeric> Widget for Slider<'a, T> {
                 }
             }
 
-            response.widget_info(|| WidgetInfo::labeled(WidgetType::Slider, true, &label_text));
+            response.widget_info(|| WidgetInfo::labeled(Role::Slider, true, &label_text));
             response
         })
         .inner

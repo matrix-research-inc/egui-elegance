@@ -918,7 +918,7 @@ fn knobs_ui(ui: &mut egui::Ui) {
     ui.add_space(14.0);
 
     // Stepped knob with labeled detents.
-    ui.label(theme.muted_text("Stepped Timebase"));
+    let caption = ui.label(theme.muted_text("Stepped Timebase"));
     let mut idx: u32 = 3;
     ui.add(
         Knob::new(&mut idx, 0u32..=8u32)
@@ -936,7 +936,8 @@ fn knobs_ui(ui: &mut egui::Ui) {
                 (8u32, "500µ"),
             ])
             .default(3_u32),
-    );
+    )
+    .labelled_by(caption.id);
     ui.add_space(14.0);
 
     // Bipolar knob.
@@ -1463,11 +1464,11 @@ fn sortable_list_ui(ui: &mut egui::Ui) {
             .status("idle", BadgeTone::Neutral),
         SortableItem::new("edge", "edge-proxy-01")
             .subtitle("8 instances · global")
-            .icon("◒")
+            .icon("◎")
             .status("degraded", BadgeTone::Warning),
         SortableItem::new("etl", "warehouse-etl")
             .subtitle("nightly batch · 02:00 UTC")
-            .icon("◓")
+            .icon("○")
             .status("offline", BadgeTone::Danger),
         SortableItem::new("logs", "log-ingestor")
             .subtitle("12 instances · kafka")
@@ -1693,7 +1694,7 @@ fn color_picker_palette_open_ui(ui: &mut egui::Ui) {
     let id = "cp_open_palette";
     egui::Popup::open_id(
         &ui.ctx().clone(),
-        elegance::Popover::popup_id(("elegance::color_picker", egui::Id::new(id))),
+        elegance::Popover::popup_id(("elegance::color_picker", egui::Id::unique(id))),
     );
     let mut color = egui::Color32::from_rgb(0x38, 0xbd, 0xf8);
     ui.set_min_size(egui::vec2(360.0, 540.0));
@@ -1710,7 +1711,7 @@ fn color_picker_continuous_open_ui(ui: &mut egui::Ui) {
     let id = "cp_open_continuous";
     egui::Popup::open_id(
         &ui.ctx().clone(),
-        elegance::Popover::popup_id(("elegance::color_picker", egui::Id::new(id))),
+        elegance::Popover::popup_id(("elegance::color_picker", egui::Id::unique(id))),
     );
     let mut color = egui::Color32::from_rgba_unmultiplied(0x38, 0xbd, 0xf8, 0xd9);
     ui.set_min_size(egui::vec2(360.0, 380.0));
@@ -2164,20 +2165,28 @@ fn modal_with_footer_ui(ui: &mut egui::Ui) {
             let _ = ui.add(Button::new("Cancel").outline());
         })
         .show(&ctx, |ui| {
-            ui.horizontal_wrapped(|ui| {
-                ui.add(egui::Label::new(theme.muted_text("Type")));
-                ui.add(egui::Label::new(
-                    egui::RichText::new("elegance-labs")
-                        .monospace()
-                        .color(theme.palette.red),
-                ));
-                ui.add(egui::Label::new(theme.muted_text("to confirm.")));
-            });
+            let caption = ui
+                .horizontal_wrapped(|ui| {
+                    [
+                        ui.add(egui::Label::new(theme.muted_text("Type"))).id,
+                        ui.add(egui::Label::new(
+                            egui::RichText::new("elegance-labs")
+                                .monospace()
+                                .color(theme.palette.red),
+                        ))
+                        .id,
+                        ui.add(egui::Label::new(theme.muted_text("to confirm."))).id,
+                    ]
+                })
+                .inner;
             ui.add_space(6.0);
-            ui.add(
-                TextInput::new(&mut text)
-                    .desired_width(f32::INFINITY)
-                    .id_salt("vis_modal_phrase"),
+            caption.into_iter().fold(
+                ui.add(
+                    TextInput::new(&mut text)
+                        .desired_width(f32::INFINITY)
+                        .id_salt("vis_modal_phrase"),
+                ),
+                |field, label| field.labelled_by(label),
             );
         });
 }
@@ -2200,7 +2209,7 @@ fn drawer_ui(ui: &mut egui::Ui) {
         .title("INC-2187")
         .subtitle("api-west-02 latency spike")
         .show(&ctx, |ui| {
-            ui.add(egui::Label::new(
+            let caption = ui.add(egui::Label::new(
                 Theme::current(ui.ctx()).muted_text("Owner"),
             ));
             ui.add_space(4.0);
@@ -2208,7 +2217,8 @@ fn drawer_ui(ui: &mut egui::Ui) {
                 TextInput::new(&mut owner)
                     .desired_width(f32::INFINITY)
                     .id_salt("vis_drawer_owner"),
-            );
+            )
+            .labelled_by(caption.id);
             ui.add_space(12.0);
             let _ = ui.add(Button::new("Acknowledge").accent(Accent::Blue));
         });

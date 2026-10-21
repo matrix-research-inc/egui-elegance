@@ -447,7 +447,7 @@ impl Theme {
     }
 
     fn storage_id() -> Id {
-        Id::new("elegance::theme")
+        Id::unique("elegance::theme")
     }
 }
 

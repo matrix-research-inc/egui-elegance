@@ -6,8 +6,8 @@
 use std::borrow::Cow;
 
 use egui::{
-    Color32, ComboBox, CornerRadius, Pos2, Response, Sense, Stroke, Ui, Vec2, Widget, WidgetInfo,
-    WidgetText, WidgetType,
+    Color32, ComboBox, CornerRadius, Pos2, Response, Role, Sense, Stroke, Ui, Vec2, Widget,
+    WidgetInfo, WidgetText,
 };
 
 use crate::theme::{Theme, with_alpha};
@@ -81,7 +81,7 @@ impl<'a, T: PartialEq + Clone> Select<'a, T> {
     /// Add selectable options via [`Select::options`].
     pub fn new(id_salt: impl crate::IdSalt, value: &'a mut T) -> Self {
         Self {
-            id_salt: egui::Id::new(id_salt),
+            id_salt: egui::Id::unique(id_salt),
             value,
             label: None,
             options: Vec::new(),
@@ -191,7 +191,7 @@ impl<'a> Select<'a, String> {
             })
             .collect();
         Self {
-            id_salt: egui::Id::new(id_salt),
+            id_salt: egui::Id::unique(id_salt),
             value,
             label: None,
             options,
@@ -251,9 +251,8 @@ impl<'a, T: PartialEq + Clone> Widget for Select<'a, T> {
                     // `egui::Label` would have emitted, which would drop the
                     // field label out of the tree — announce it explicitly so
                     // the tree does not change shape with the staged state.
-                    label_response.widget_info(|| {
-                        WidgetInfo::labeled(WidgetType::Label, enabled, label.text())
-                    });
+                    label_response
+                        .widget_info(|| WidgetInfo::labeled(Role::Label, enabled, label.text()));
                     if ui.is_rect_visible(rect) {
                         let painter = ui.painter();
                         painter.galley(rect.min, galley, p.text_muted);
@@ -342,8 +341,7 @@ impl<'a, T: PartialEq + Clone> Widget for Select<'a, T> {
                 if let Some(field_label) = field_label {
                     let selected_label = selected_label.clone();
                     response.widget_info(|| {
-                        let mut info =
-                            WidgetInfo::labeled(WidgetType::ComboBox, enabled, &field_label);
+                        let mut info = WidgetInfo::labeled(Role::ComboBox, enabled, &field_label);
                         info.current_text_value = Some(selected_label.clone());
                         info
                     });

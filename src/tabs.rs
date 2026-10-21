@@ -1,6 +1,6 @@
 //! Tab bar with a focus-accent underline on the active tab.
 
-use egui::{Response, Sense, Stroke, Ui, Vec2, Widget, WidgetInfo, WidgetText, WidgetType, vec2};
+use egui::{Response, Role, Sense, Stroke, Ui, Vec2, Widget, WidgetInfo, WidgetText, vec2};
 
 use crate::theme::Theme;
 
@@ -124,7 +124,7 @@ impl<'a> Widget for TabBar<'a> {
                 .line_segment([a, b], Stroke::new(1.0, p.border));
         }
 
-        response.widget_info(|| WidgetInfo::labeled(WidgetType::Other, true, "tab bar"));
+        response.widget_info(|| WidgetInfo::labeled(Role::Unknown, true, "tab bar"));
         if changed {
             response.mark_changed();
         }

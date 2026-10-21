@@ -94,7 +94,7 @@ impl<'a> Modal<'a> {
     /// Create a modal keyed by `id_salt` whose visibility is bound to `open`.
     pub fn new(id_salt: impl crate::IdSalt, open: &'a mut bool) -> Self {
         Self {
-            id_salt: Id::new(id_salt),
+            id_salt: Id::unique(id_salt),
             heading: None,
             subtitle: None,
             header_icon: None,
@@ -214,7 +214,7 @@ impl<'a> Modal<'a> {
         // focus when the modal closes. Without this the user's focus is
         // visually eclipsed by the modal but structurally remains behind it —
         // Tab would navigate widgets on the underlying page.
-        let focus_storage = Id::new(("elegance_modal_focus", self.id_salt));
+        let focus_storage = Id::unique(("elegance_modal_focus", self.id_salt));
         let mut focus_state = overlay::FocusState::load(ctx, focus_storage);
         let is_open = *self.open;
 
@@ -259,7 +259,7 @@ impl<'a> Modal<'a> {
         // --- Surface ------------------------------------------------------
         // Backdrop and card share one area. See `crate::overlay` for why the
         // backdrop doesn't get a lower-order area of its own.
-        let area_id = Id::new("elegance_modal").with(self.id_salt);
+        let area_id = Id::unique("elegance_modal").with(self.id_salt);
         let alert = self.alert;
         let heading_text: Option<String> = self.heading.as_ref().map(|h| h.text().to_string());
         let max_width = self.max_width;
@@ -278,7 +278,7 @@ impl<'a> Modal<'a> {
                     CornerRadius::ZERO,
                     Color32::from_rgba_premultiplied(0, 0, 0, 150),
                 );
-                let backdrop = ui.interact(screen, ui.id().with("backdrop"), Sense::click());
+                let backdrop = ui.interact(screen, ui.scope_id().with("backdrop"), Sense::click());
 
                 // --- Card ---
                 // Sensed as well, so clicks that land on the card are consumed

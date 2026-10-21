@@ -44,8 +44,8 @@
 //! ```
 
 use egui::{
-    Color32, CornerRadius, FontId, FontSelection, Id, Rect, Response, RichText, Sense, Stroke,
-    TextWrapMode, Ui, Vec2, WidgetInfo, WidgetText, WidgetType, pos2, vec2,
+    Color32, CornerRadius, FontId, FontSelection, Id, Rect, Response, RichText, Role, Sense,
+    Stroke, TextWrapMode, Ui, Vec2, WidgetInfo, WidgetText, pos2, vec2,
 };
 
 use crate::theme::{Theme, with_alpha};
@@ -168,7 +168,7 @@ impl BrowserTabs {
     /// need distinct salts.
     pub fn new(id_salt: impl crate::IdSalt) -> Self {
         Self {
-            id_salt: Id::new(("elegance::browser_tabs", id_salt)),
+            id_salt: Id::unique(("elegance::browser_tabs", id_salt)),
             tabs: Vec::new(),
             selected: None,
             show_new_button: true,
@@ -289,7 +289,7 @@ impl BrowserTabs {
             ui.allocate_exact_size(Vec2::new(avail_w, strip_height), Sense::hover());
 
         if !ui.is_rect_visible(strip_rect) {
-            response.widget_info(|| WidgetInfo::labeled(WidgetType::Other, true, "browser tabs"));
+            response.widget_info(|| WidgetInfo::labeled(Role::Unknown, true, "browser tabs"));
             return response;
         }
 
@@ -472,11 +472,10 @@ impl BrowserTabs {
             let info_active = is_active;
             let info_label = tab.label.clone();
             resp.widget_info(move || {
-                WidgetInfo::selected(WidgetType::Button, true, info_active, &info_label)
+                WidgetInfo::selected(Role::Button, true, info_active, &info_label)
             });
             let close_label = format!("Close {}", tab.label);
-            close_resp
-                .widget_info(move || WidgetInfo::labeled(WidgetType::Button, true, &close_label));
+            close_resp.widget_info(move || WidgetInfo::labeled(Role::Button, true, &close_label));
 
             if close_resp.clicked() {
                 close_target = Some(tab.id.clone());
@@ -521,7 +520,7 @@ impl BrowserTabs {
                 ],
                 stroke,
             );
-            new_resp.widget_info(|| WidgetInfo::labeled(WidgetType::Button, true, "New tab"));
+            new_resp.widget_info(|| WidgetInfo::labeled(Role::Button, true, "New tab"));
 
             if new_resp.clicked() {
                 new_clicked = true;
@@ -574,7 +573,7 @@ impl BrowserTabs {
             self.events.push(BrowserTabsEvent::NewRequested);
         }
 
-        response.widget_info(|| WidgetInfo::labeled(WidgetType::Other, true, "browser tabs"));
+        response.widget_info(|| WidgetInfo::labeled(Role::Unknown, true, "browser tabs"));
         response
     }
 }

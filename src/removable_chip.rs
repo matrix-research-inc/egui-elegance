@@ -8,8 +8,8 @@
 //! see [`TagInput`](crate::TagInput).
 
 use egui::{
-    Color32, CornerRadius, FontId, FontSelection, Id, Rect, Response, Sense, Shape, Stroke,
-    StrokeKind, TextEdit, Ui, Vec2, WidgetInfo, WidgetText, WidgetType, pos2, vec2,
+    Color32, CornerRadius, FontId, FontSelection, Id, Rect, Response, Role, Sense, Shape, Stroke,
+    StrokeKind, TextEdit, Ui, Vec2, WidgetInfo, WidgetText, pos2, vec2,
 };
 
 use crate::Accent;
@@ -122,7 +122,7 @@ impl<'a> RemovableChip<'a> {
     /// Stable id salt. Useful when several chips share a layout, or when
     /// you need to address the chip's state across frames.
     pub fn id_salt(mut self, id: impl crate::IdSalt) -> Self {
-        self.id_salt = Some(Id::new(id));
+        self.id_salt = Some(Id::unique(id));
         self
     }
 
@@ -156,7 +156,9 @@ impl<'a> RemovableChip<'a> {
         let p = &theme.palette;
         let t = &theme.typography;
 
-        let id_salt = self.id_salt.unwrap_or_else(|| Id::new(ui.next_auto_id()));
+        let id_salt = self
+            .id_salt
+            .unwrap_or_else(|| Id::unique(ui.next_auto_id()));
         let edit_id = ui.make_persistent_id(id_salt);
 
         // Honour `focus(true)` before the TextEdit is added so the
@@ -231,6 +233,9 @@ impl<'a> RemovableChip<'a> {
                     .font(FontSelection::FontId(FontId::proportional(t.body)))
                     .text_color(p.text)
                     .desired_width(editor_w)
+                    // Centre text and hint in the frame; egui otherwise
+                    // takes the parent layout's alignment.
+                    .align(egui::Align2::LEFT_CENTER)
                     .frame(
                         egui::Frame::new().inner_margin(egui::Margin::symmetric(0, pad_y as i8)),
                     );
@@ -339,9 +344,8 @@ impl<'a> RemovableChip<'a> {
             .map(str::to_owned)
             .unwrap_or_else(|| "Removable chip".to_string());
         let response = inner.response;
-        response.widget_info(|| {
-            WidgetInfo::labeled(WidgetType::TextEdit, self.enabled, &label_for_a11y)
-        });
+        response
+            .widget_info(|| WidgetInfo::labeled(Role::TextInput, self.enabled, &label_for_a11y));
 
         RemovableChipResponse { response, removed }
     }
