@@ -5,11 +5,13 @@
 //! available: Blue, Green, Red, Purple, Amber, and Sky. For secondary
 //! actions, [`Button::outline`] gives a transparent, bordered treatment.
 //! [`Button::icon`] renders one of the [`glyphs`](crate::glyphs) as a square
-//! icon-only button.
+//! icon-only button, and [`Button::icon_text`] puts one beside the label.
+
+use std::sync::Arc;
 
 use egui::{
-    Color32, CornerRadius, Response, Role, Sense, Shape, Stroke, Ui, Vec2, Widget, WidgetInfo,
-    WidgetText, pos2, vec2,
+    Color32, CornerRadius, Galley, Response, Role, Sense, Shape, Stroke, Ui, Vec2, Widget,
+    WidgetInfo, WidgetText, pos2, vec2,
 };
 
 use crate::theme::{Accent, Theme, mix};
@@ -55,6 +57,27 @@ impl ButtonSize {
 /// icon at roughly half the button's width, the usual icon-button proportion.
 const ICON_GLYPH_FRACTION: f32 = 0.68;
 
+/// Glyph size beside a label, as a multiple of the label's font size. A Lucide
+/// glyph inks well inside its em box, so at the label's own size it reads
+/// smaller than the text; this scale inks it at about the label's cap height.
+const LEADING_GLYPH_SCALE: f32 = 1.15;
+
+/// Gap between a leading glyph's ink and the label, as a multiple of the
+/// label's font size, so the spacing tracks the [`ButtonSize`] preset.
+const LEADING_GLYPH_GAP: f32 = 0.45;
+
+/// What a [`Button`] paints. Whatever is painted, the button's `text` is its
+/// accessible name.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Content {
+    /// The label alone.
+    Text,
+    /// A lone glyph in a square button; the label is not painted.
+    Icon(char),
+    /// A glyph followed by the label.
+    IconText(char),
+}
+
 /// A coloured, rounded button.
 ///
 /// ```no_run
@@ -67,10 +90,10 @@ const ICON_GLYPH_FRACTION: f32 = 0.68;
 /// ```
 #[must_use = "Call `ui.add(...)` to render the button."]
 pub struct Button {
-    /// Painted for a text button; for an icon button this is the accessible
-    /// name and `icon` is what gets painted.
+    /// The accessible name, and the painted label unless `content` is
+    /// [`Content::Icon`].
     text: WidgetText,
-    icon: Option<char>,
+    content: Content,
     accent: Accent,
     size: ButtonSize,
     outline: bool,
@@ -83,7 +106,7 @@ pub struct Button {
 impl std::fmt::Debug for Button {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Button")
-            .field("icon", &self.icon)
+            .field("content", &self.content)
             .field("accent", &self.accent)
             .field("size", &self.size)
             .field("outline", &self.outline)
@@ -105,7 +128,7 @@ impl Button {
     pub fn new(text: impl Into<WidgetText>) -> Self {
         Self {
             text: text.into(),
-            icon: None,
+            content: Content::Text,
             accent: Accent::Blue,
             size: ButtonSize::Medium,
             outline: false,
@@ -134,7 +157,30 @@ impl Button {
     /// ```
     pub fn icon(glyph: char, label: impl Into<WidgetText>) -> Self {
         Self {
-            icon: Some(glyph),
+            content: Content::Icon(glyph),
+            ..Self::new(label)
+        }
+    }
+
+    /// Create a button showing one [`glyph`](crate::glyphs) followed by a
+    /// label.
+    ///
+    /// The button is exactly as tall as a text button of the same
+    /// [`ButtonSize`], so it lines up with text and icon-only buttons in a
+    /// row. The glyph is drawn slightly larger than the label so the two read
+    /// at the same visual weight, and only the label reaches the
+    /// accessibility tree. As with [`Button::new`], only the string content of
+    /// `label` is used.
+    ///
+    /// ```no_run
+    /// # use elegance::{Accent, Button, glyphs};
+    /// # egui::__run_test_ui(|ui| {
+    /// ui.add(Button::icon_text(glyphs::DOWNLOAD, "Download").accent(Accent::Blue));
+    /// # });
+    /// ```
+    pub fn icon_text(glyph: char, label: impl Into<WidgetText>) -> Self {
+        Self {
+            content: Content::IconText(glyph),
             ..Self::new(label)
         }
     }
@@ -207,10 +253,13 @@ impl Widget for Button {
         let padding = self.padding(&theme);
         let font_size = self.font_size(&theme);
 
-        let (galley, mut desired) = match self.icon {
+        // The label row's height at this size preset: every arm below is at
+        // least this tall, so a row can mix them without stepping.
+        let min_height = font_size + 2.0 * padding.y;
+        let layout = match self.content {
             // Square, and exactly the height the text arm produces at this
-            // size preset, so a row can mix the two without stepping.
-            Some(glyph) => {
+            // size preset.
+            Content::Icon(glyph) => {
                 let row = ui
                     .ctx()
                     .fonts_mut(|f| f.row_height(&egui::FontId::proportional(font_size)));
@@ -222,22 +271,63 @@ impl Widget for Button {
                     false,
                     f32::INFINITY,
                 );
-                (galley, Vec2::splat(side))
+                Layout {
+                    glyph: Some(galley),
+                    label: None,
+                    gap: 0.0,
+                    desired: Vec2::splat(side),
+                }
             }
-            None => {
+            Content::Text => {
                 let wrap_width = (ui.available_width() - 2.0 * padding.x).max(0.0);
-                let galley = crate::theme::placeholder_galley(
+                let label = crate::theme::placeholder_galley(
                     ui,
                     self.text.text(),
                     font_size,
                     false,
                     wrap_width,
                 );
-                let mut desired = galley.size() + 2.0 * padding;
-                desired.y = desired.y.max(font_size + 2.0 * padding.y);
-                (galley, desired)
+                let mut desired = label.size() + 2.0 * padding;
+                desired.y = desired.y.max(min_height);
+                Layout {
+                    glyph: None,
+                    label: Some(label),
+                    gap: 0.0,
+                    desired,
+                }
+            }
+            Content::IconText(glyph) => {
+                let glyph = crate::theme::placeholder_galley(
+                    ui,
+                    &glyph.to_string(),
+                    font_size * LEADING_GLYPH_SCALE,
+                    false,
+                    f32::INFINITY,
+                );
+                let gap = font_size * LEADING_GLYPH_GAP;
+                let glyph_ink = ink_size(&glyph);
+                let wrap_width =
+                    (ui.available_width() - 2.0 * padding.x - glyph_ink.x - gap).max(0.0);
+                let label = crate::theme::placeholder_galley(
+                    ui,
+                    self.text.text(),
+                    font_size,
+                    false,
+                    wrap_width,
+                );
+                let desired = vec2(
+                    glyph_ink.x + gap + label.size().x + 2.0 * padding.x,
+                    (label.size().y.max(glyph_ink.y) + 2.0 * padding.y).max(min_height),
+                );
+                Layout {
+                    glyph: Some(glyph),
+                    label: Some(label),
+                    gap,
+                    desired,
+                }
             }
         };
+        let mut desired = layout.desired;
         if let Some(min_w) = self.min_width {
             desired.x = desired.x.max(min_w);
         }
@@ -274,20 +364,52 @@ impl Widget for Button {
             }
 
             // A label centres on its layout box, which lines its baseline up
-            // with neighbouring text. A lone glyph centres on its ink, which
-            // omits the font's unused ascent/descent and uneven side bearings.
-            let ink = galley.mesh_bounds;
-            let offset = if self.icon.is_some() && ink.is_positive() {
-                ink.center().to_vec2()
-            } else {
-                galley.size() * 0.5
-            };
-            ui.painter()
-                .galley(rect.center() - offset, galley, text_color);
+            // with neighbouring text. A glyph centres on its ink, which omits
+            // the font's unused ascent/descent and uneven side bearings. The
+            // glyph-and-label pair is centred as one block.
+            let glyph_w = layout.glyph.as_ref().map_or(0.0, |g| ink_size(g).x);
+            let label_w = layout.label.as_ref().map_or(0.0, |g| g.size().x);
+            let left = rect.center().x - (glyph_w + layout.gap + label_w) * 0.5;
+            if let Some(glyph) = layout.glyph {
+                let ink = glyph.mesh_bounds;
+                let pos = if ink.is_positive() {
+                    pos2(left - ink.min.x, rect.center().y - ink.center().y)
+                } else {
+                    pos2(left, rect.center().y - glyph.size().y * 0.5)
+                };
+                ui.painter().galley(pos, glyph, text_color);
+            }
+            if let Some(label) = layout.label {
+                let pos = pos2(
+                    left + glyph_w + layout.gap,
+                    rect.center().y - label.size().y * 0.5,
+                );
+                ui.painter().galley(pos, label, text_color);
+            }
         }
 
         response.widget_info(|| WidgetInfo::labeled(Role::Button, interactive, self.text.text()));
         response
+    }
+}
+
+/// The laid-out content of a [`Button`], before it is allocated.
+struct Layout {
+    glyph: Option<Arc<Galley>>,
+    label: Option<Arc<Galley>>,
+    /// Space between the glyph's ink and the label.
+    gap: f32,
+    desired: Vec2,
+}
+
+/// The size of a glyph's ink, falling back to its layout box when the font
+/// has no outline for it (the glyph then renders as nothing or a box).
+fn ink_size(galley: &Galley) -> Vec2 {
+    let ink = galley.mesh_bounds;
+    if ink.is_positive() {
+        ink.size()
+    } else {
+        galley.size()
     }
 }
 

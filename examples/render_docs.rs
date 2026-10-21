@@ -338,6 +338,13 @@ fn render_buttons() {
                 // Last, to show an icon button and a text button share a height.
                 ui.add(Button::new("Text button").outline());
             });
+            ui.add_space(6.0);
+            ui.horizontal_wrapped(|ui| {
+                ui.add(Button::icon_text(glyphs::DOWNLOAD, "Download").accent(Accent::Blue));
+                ui.add(Button::icon_text(glyphs::UPLOAD, "Upload").accent(Accent::Green));
+                ui.add(Button::icon_text(glyphs::TRASH, "Delete").accent(Accent::Red));
+                ui.add(Button::icon_text(glyphs::COPY, "Copy").outline());
+            });
         });
     });
 }

@@ -604,6 +604,25 @@ fn icon_button_announces_its_label_not_its_glyph() {
 }
 
 #[test]
+fn icon_text_button_announces_its_label_not_its_glyph() {
+    let harness = new_harness(|ui| {
+        Theme::slate().install(ui.ctx());
+        ui.add(elegance::Button::icon_text(
+            elegance::glyphs::DOWNLOAD,
+            "Download",
+        ));
+    });
+
+    let _ = harness.get_by_role_and_label(egui::accesskit::Role::Button, "Download");
+    assert!(
+        harness
+            .query_by_label_contains(&elegance::glyphs::DOWNLOAD.to_string())
+            .is_none(),
+        "the glyph itself must not reach the accessibility tree"
+    );
+}
+
+#[test]
 fn unlabelled_widgets_take_an_accessible_name_from_their_response() {
     // Every widget with an optional `.label` must return the response of its
     // accessible node, so an app that draws no label can still name it with

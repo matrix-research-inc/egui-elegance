@@ -81,7 +81,7 @@ Reference for each widget follows. Tiles are rendered headlessly by `cargo rende
 
 ![Buttons](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/buttons.png)
 
-Chunky rounded button in six accent colours plus an outline variant, in three sizes. `Button::icon` gives a square icon-only button, as tall as a text button of the same size so the two line up in a row.
+Chunky rounded button in six accent colours plus an outline variant, in three sizes. `Button::icon` gives a square icon-only button and `Button::icon_text` puts a glyph before the label; both are as tall as a text button of the same size, so they line up in a row.
 
 ```rust
 use elegance::{Accent, Button, ButtonSize, glyphs};
@@ -95,6 +95,7 @@ ui.add(Button::new("Disabled").accent(Accent::Blue).enabled(false));
 // The second argument is the accessible name, not a painted label:
 // an icon alone announces nothing to a screen reader.
 ui.add(Button::icon(glyphs::DOWNLOAD, "Download").accent(Accent::Blue));
+ui.add(Button::icon_text(glyphs::UPLOAD, "Upload").accent(Accent::Green));
 ```
 
 ### TextInput
