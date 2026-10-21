@@ -49,7 +49,7 @@ const KEY_RUN_SUFFIX: &str = "color_picker::key_run";
 /// slider, and a hex input.
 #[must_use = "Add with `ui.add(...)`."]
 pub struct ColorPicker<'a> {
-    id_salt: Id,
+    id_salt: egui::IdSalt,
     color: &'a mut Color32,
     label: Option<WidgetText>,
     palette: Vec<Color32>,
@@ -87,7 +87,7 @@ impl<'a> ColorPicker<'a> {
     /// recents tracked, opens below the trigger.
     pub fn new(id_salt: impl crate::IdSalt, color: &'a mut Color32) -> Self {
         Self {
-            id_salt: Id::unique(id_salt),
+            id_salt: egui::IdSalt::new(id_salt),
             color,
             label: None,
             palette: Vec::new(),
@@ -157,8 +157,9 @@ impl<'a> ColorPicker<'a> {
         self
     }
 
-    /// Toggle the recents row. The recent picks are persisted in egui
-    /// context memory keyed by the picker's `id_salt`. Default: on.
+    /// Toggle the recents row. The recent picks are kept in egui's
+    /// temporary memory, keyed by the picker's `id_salt` within its `Ui`, so
+    /// they last for the session. Default: on.
     #[inline]
     pub fn recents(mut self, on: bool) -> Self {
         self.show_recents = on;
@@ -227,7 +228,7 @@ impl<'a> Widget for ColorPicker<'a> {
         let t = &theme.typography;
 
         let label = self.label.clone();
-        let id_salt = self.id_salt;
+        let picker_id = ui.scope_id().with_salt(self.id_salt);
         let side = self.side;
         let show_palette = !self.palette.is_empty();
         let show_recents = self.show_recents;
@@ -247,7 +248,8 @@ impl<'a> Widget for ColorPicker<'a> {
                 ui.add_space(2.0);
             }
 
-            let mut response = paint_trigger(ui, &theme, id_salt, *self.color, self.show_hex_label);
+            let mut response =
+                paint_trigger(ui, &theme, picker_id, *self.color, self.show_hex_label);
 
             // `discrete_pick` is set when the user makes a deliberate choice
             // (palette swatch, recents swatch, hex committed). `continuous_pick`
@@ -265,13 +267,13 @@ impl<'a> Widget for ColorPicker<'a> {
             // the next nudge opens a fresh recents entry rather than amending
             // one the user has since moved on from.
             let focused = ui.ctx().memory(|m| m.focused());
-            if let Some(surface) = ui.ctx().data(|d| d.get_temp::<Id>(key_run_id(id_salt)))
+            if let Some(surface) = ui.ctx().data(|d| d.get_temp::<Id>(key_run_id(picker_id)))
                 && Some(surface) != focused
             {
-                end_key_run(ui.ctx(), id_salt);
+                end_key_run(ui.ctx(), picker_id);
             }
 
-            Popover::new(("elegance::color_picker", id_salt))
+            Popover::new("elegance::color_picker")
                 .side(side)
                 .arrow(false)
                 .min_width(248.0)
@@ -279,7 +281,7 @@ impl<'a> Widget for ColorPicker<'a> {
                     ui.spacing_mut().item_spacing = vec2(0.0, 8.0);
 
                     let cur = *self.color;
-                    let mut hsv = current_hsv(ui.ctx(), id_salt, cur);
+                    let mut hsv = current_hsv(ui.ctx(), picker_id, cur);
 
                     if show_palette {
                         ui.add(small_label(&theme, "Theme palette"));
@@ -294,7 +296,7 @@ impl<'a> Widget for ColorPicker<'a> {
                         ui.add(small_label(&theme, "Recent"));
                         let recents: Vec<Color32> = ui
                             .ctx()
-                            .data(|d| d.get_temp(recents_id(id_salt)))
+                            .data(|d| d.get_temp(recents_id(picker_id)))
                             .unwrap_or_default();
                         if let Some(picked) = paint_recents_row(
                             ui,
@@ -336,7 +338,7 @@ impl<'a> Widget for ColorPicker<'a> {
                     }
 
                     if show_hex_input
-                        && let Some(picked) = paint_hex_input(ui, &theme, id_salt, cur)
+                        && let Some(picked) = paint_hex_input(ui, &theme, picker_id, cur)
                     {
                         discrete_pick = Some(picked);
                     }
@@ -349,7 +351,7 @@ impl<'a> Widget for ColorPicker<'a> {
                         if discrete_pick.is_some() {
                             hsv = HsvaGamma::from(next);
                         }
-                        set_hsv(ui.ctx(), id_salt, hsv);
+                        set_hsv(ui.ctx(), picker_id, hsv);
                     }
                 });
 
@@ -372,11 +374,11 @@ impl<'a> Widget for ColorPicker<'a> {
             match settled {
                 Settled::No => {}
                 Settled::Gesture => {
-                    end_key_run(ui.ctx(), id_salt);
-                    push_recent(ui.ctx(), id_salt, *self.color, recents_max);
+                    end_key_run(ui.ctx(), picker_id);
+                    push_recent(ui.ctx(), picker_id, *self.color, recents_max);
                 }
                 Settled::KeyRun(surface) => {
-                    record_key_run(ui.ctx(), id_salt, surface, *self.color, recents_max);
+                    record_key_run(ui.ctx(), picker_id, surface, *self.color, recents_max);
                 }
             }
 
@@ -396,7 +398,7 @@ impl<'a> Widget for ColorPicker<'a> {
 fn paint_trigger(
     ui: &mut Ui,
     theme: &Theme,
-    id_salt: Id,
+    picker_id: Id,
     color: Color32,
     show_hex_label: bool,
 ) -> Response {
@@ -431,7 +433,7 @@ fn paint_trigger(
 
     let desired = vec2(content_w + 2.0 * pad_outer.x, content_h + 2.0 * pad_outer.y);
 
-    let id = id_salt.with("trigger");
+    let id = picker_id.with("trigger");
     let (rect, _) = ui.allocate_exact_size(desired, Sense::hover());
     let response = ui.interact(rect, id, Sense::click());
 
@@ -1071,12 +1073,12 @@ fn paint_alpha_slider(ui: &mut Ui, theme: &Theme, hsv: &mut HsvaGamma) -> (bool,
 
 // --- hex input -------------------------------------------------------------
 
-fn paint_hex_input(ui: &mut Ui, theme: &Theme, id_salt: Id, current: Color32) -> Option<Color32> {
+fn paint_hex_input(ui: &mut Ui, theme: &Theme, picker_id: Id, current: Color32) -> Option<Color32> {
     let p = &theme.palette;
     let t = &theme.typography;
 
-    let buf_id = id_salt.with(HEX_BUF_SUFFIX);
-    let edit_id = id_salt.with("color_picker::hex_edit");
+    let buf_id = picker_id.with(HEX_BUF_SUFFIX);
+    let edit_id = picker_id.with("color_picker::hex_edit");
 
     // Sync the buffer to the current color when the input doesn't have focus.
     let has_focus = ui.memory(|m| m.has_focus(edit_id));
@@ -1286,8 +1288,8 @@ fn lerp_color(a: Color32, b: Color32, t: f32) -> Color32 {
     )
 }
 
-fn current_hsv(ctx: &egui::Context, id_salt: Id, color: Color32) -> HsvaGamma {
-    let cache_id = id_salt.with(HSV_CACHE_SUFFIX);
+fn current_hsv(ctx: &egui::Context, picker_id: Id, color: Color32) -> HsvaGamma {
+    let cache_id = picker_id.with(HSV_CACHE_SUFFIX);
     let cached: Option<HsvaGamma> = ctx.data(|d| d.get_temp(cache_id));
     if let Some(c) = cached
         && Color32::from(c) == color
@@ -1297,17 +1299,17 @@ fn current_hsv(ctx: &egui::Context, id_salt: Id, color: Color32) -> HsvaGamma {
     HsvaGamma::from(Hsva::from(color))
 }
 
-fn set_hsv(ctx: &egui::Context, id_salt: Id, hsv: HsvaGamma) {
-    let cache_id = id_salt.with(HSV_CACHE_SUFFIX);
+fn set_hsv(ctx: &egui::Context, picker_id: Id, hsv: HsvaGamma) {
+    let cache_id = picker_id.with(HSV_CACHE_SUFFIX);
     ctx.data_mut(|d| d.insert_temp(cache_id, hsv));
 }
 
-fn recents_id(id_salt: Id) -> Id {
-    id_salt.with(RECENTS_SUFFIX)
+fn recents_id(picker_id: Id) -> Id {
+    picker_id.with(RECENTS_SUFFIX)
 }
 
-fn key_run_id(id_salt: Id) -> Id {
-    id_salt.with(KEY_RUN_SUFFIX)
+fn key_run_id(picker_id: Id) -> Id {
+    picker_id.with(KEY_RUN_SUFFIX)
 }
 
 /// Record a keyboard nudge in the recents row, amending the entry this run has
@@ -1317,12 +1319,12 @@ fn key_run_id(id_salt: Id) -> Id {
 /// speed a single held arrow key fills the whole row with shades a user cannot
 /// tell apart and evicts everything they had collected. The pointer path
 /// records one entry per gesture, and a keyboard run is one gesture too.
-fn record_key_run(ctx: &egui::Context, id_salt: Id, surface: Id, color: Color32, max: usize) {
-    let run = key_run_id(id_salt);
+fn record_key_run(ctx: &egui::Context, picker_id: Id, surface: Id, color: Color32, max: usize) {
+    let run = key_run_id(picker_id);
     if ctx.data(|d| d.get_temp::<Id>(run)) == Some(surface) {
         // Drop the head this run put there; the re-push below replaces it with
         // the colour the run has now reached.
-        let id = recents_id(id_salt);
+        let id = recents_id(picker_id);
         let mut list: Vec<Color32> = ctx.data(|d| d.get_temp(id)).unwrap_or_default();
         if !list.is_empty() {
             list.remove(0);
@@ -1331,15 +1333,15 @@ fn record_key_run(ctx: &egui::Context, id_salt: Id, surface: Id, color: Color32,
     } else {
         ctx.data_mut(|d| d.insert_temp(run, surface));
     }
-    push_recent(ctx, id_salt, color, max);
+    push_recent(ctx, picker_id, color, max);
 }
 
-fn end_key_run(ctx: &egui::Context, id_salt: Id) {
-    ctx.data_mut(|d| d.remove::<Id>(key_run_id(id_salt)));
+fn end_key_run(ctx: &egui::Context, picker_id: Id) {
+    ctx.data_mut(|d| d.remove::<Id>(key_run_id(picker_id)));
 }
 
-fn push_recent(ctx: &egui::Context, id_salt: Id, color: Color32, max: usize) {
-    let id = recents_id(id_salt);
+fn push_recent(ctx: &egui::Context, picker_id: Id, color: Color32, max: usize) {
+    let id = recents_id(picker_id);
     let mut list: Vec<Color32> = ctx.data(|d| d.get_temp(id)).unwrap_or_default();
     list.retain(|c| *c != color);
     list.insert(0, color);

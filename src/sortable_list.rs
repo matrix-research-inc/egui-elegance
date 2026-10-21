@@ -138,7 +138,7 @@ struct DragState {
 /// ```
 #[must_use = "Call `.show(ui)` to render the sortable list."]
 pub struct SortableList<'a> {
-    id_salt: Id,
+    id_salt: egui::IdSalt,
     items: &'a mut Vec<SortableItem>,
 }
 
@@ -155,12 +155,12 @@ impl<'a> SortableList<'a> {
     /// Create a sortable list.
     ///
     /// * `id_salt` — stable salt for this widget's transient drag state.
-    ///   Different `SortableList` widgets in the same window must use
+    ///   Different `SortableList` widgets in the same `Ui` must use
     ///   distinct salts.
     /// * `items` — caller-owned list of rows. Reordered in place on drop.
     pub fn new(id_salt: impl crate::IdSalt, items: &'a mut Vec<SortableItem>) -> Self {
         Self {
-            id_salt: Id::unique(("elegance_sortable_list", id_salt)),
+            id_salt: egui::IdSalt::new(("elegance_sortable_list", id_salt)),
             items,
         }
     }
@@ -169,9 +169,10 @@ impl<'a> SortableList<'a> {
     pub fn show(self, ui: &mut Ui) -> Response {
         let SortableList { id_salt, items } = self;
         let theme = Theme::current(ui.ctx());
+        let base_id = ui.scope_id().with_salt(id_salt);
 
         // Load and validate cross-frame drag state.
-        let mut drag: Option<DragState> = ui.ctx().data(|d| d.get_temp(id_salt));
+        let mut drag: Option<DragState> = ui.ctx().data(|d| d.get_temp(base_id));
         if let Some(s) = &drag
             && s.origin_idx >= items.len()
         {
@@ -237,7 +238,7 @@ impl<'a> SortableList<'a> {
         let mut new_drag: Option<DragState> = None;
         for (i, rect) in &row_rects {
             let item = &items[*i];
-            let row_id = id_salt.with(("row", &item.id));
+            let row_id = base_id.with(("row", &item.id));
 
             // Whole-row hover for the border tint, plus a smaller grip rect
             // that actually starts the drag — clicking the title or pill
@@ -296,7 +297,7 @@ impl<'a> SortableList<'a> {
                 s.target_idx = new_target;
 
                 let ghost_rect = Rect::from_min_size(p - s.grab_offset, s.row_size);
-                paint_ghost(ui, ghost_rect, &items[s.origin_idx], &theme, id_salt);
+                paint_ghost(ui, ghost_rect, &items[s.origin_idx], &theme, base_id);
             }
 
             ui.ctx().set_cursor_icon(egui::CursorIcon::Grabbing);
@@ -318,10 +319,10 @@ impl<'a> SortableList<'a> {
         // Persist drag state (or remove on cancel/drop).
         ui.ctx().data_mut(|d| match drag {
             Some(s) => {
-                d.insert_temp(id_salt, s);
+                d.insert_temp(base_id, s);
             }
             None => {
-                d.remove::<DragState>(id_salt);
+                d.remove::<DragState>(base_id);
             }
         });
 
@@ -506,8 +507,8 @@ fn paint_slot(ui: &Ui, rect: Rect, theme: &Theme) {
     painter.extend(egui::Shape::dashed_line(&pts, stroke, 6.0, 4.0));
 }
 
-fn paint_ghost(ui: &Ui, rect: Rect, item: &SortableItem, theme: &Theme, id_salt: Id) {
-    let layer = LayerId::new(Order::Tooltip, id_salt.with("ghost"));
+fn paint_ghost(ui: &Ui, rect: Rect, item: &SortableItem, theme: &Theme, base_id: Id) {
+    let layer = LayerId::new(Order::Tooltip, base_id.with("ghost"));
     let painter = ui.ctx().layer_painter(layer);
     let p = &theme.palette;
     let t = &theme.typography;

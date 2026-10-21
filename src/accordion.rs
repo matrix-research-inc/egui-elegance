@@ -43,7 +43,7 @@ const META_GAP: f32 = 10.0;
 /// a closure that declares the items via the [`AccordionUi`] handle.
 #[must_use = "Call `.show(ui, |acc| ...)` to render the accordion."]
 pub struct Accordion {
-    id_salt: Id,
+    id_salt: egui::IdSalt,
     exclusive: bool,
     flush: bool,
 }
@@ -60,11 +60,11 @@ impl std::fmt::Debug for Accordion {
 
 impl Accordion {
     /// Create an accordion keyed by `id_salt`. Per-item open state lives in
-    /// egui temp storage scoped under this salt, so different accordions on
-    /// the same page must use distinct salts.
+    /// egui temp storage scoped under this salt, so different accordions in
+    /// the same `Ui` must use distinct salts.
     pub fn new(id_salt: impl crate::IdSalt) -> Self {
         Self {
-            id_salt: Id::unique(("elegance_accordion", id_salt)),
+            id_salt: egui::IdSalt::new(("elegance_accordion", id_salt)),
             exclusive: false,
             flush: false,
         }
@@ -94,8 +94,9 @@ impl Accordion {
         let p = &theme.palette;
         let radius = CornerRadius::same(theme.card_radius as u8);
 
-        let exclusive_id = self.id_salt.with("__exclusive_open");
-        let seeded_id = self.id_salt.with("__seeded");
+        let base_id = ui.scope_id().with_salt(self.id_salt);
+        let exclusive_id = base_id.with("__exclusive_open");
+        let seeded_id = base_id.with("__seeded");
         let prev_open: Option<usize> = ui.ctx().data(|d| d.get_temp(exclusive_id));
         let already_seeded: bool = ui
             .ctx()
@@ -115,7 +116,7 @@ impl Accordion {
                 ui.spacing_mut().item_spacing.y = 0.0;
                 let mut handle = AccordionUi {
                     ui,
-                    id_salt: self.id_salt,
+                    base_id,
                     exclusive: self.exclusive,
                     flush: self.flush,
                     next_index: 0,
@@ -168,7 +169,7 @@ impl Accordion {
 /// that you finish with [`AccordionItem::show`] to render the row plus body.
 pub struct AccordionUi<'u> {
     ui: &'u mut Ui,
-    id_salt: Id,
+    base_id: Id,
     exclusive: bool,
     flush: bool,
     next_index: usize,
@@ -200,7 +201,7 @@ struct PendingHighlight {
 impl<'u> std::fmt::Debug for AccordionUi<'u> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("AccordionUi")
-            .field("id_salt", &self.id_salt)
+            .field("base_id", &self.base_id)
             .field("exclusive", &self.exclusive)
             .field("flush", &self.flush)
             .field("next_index", &self.next_index)
@@ -375,7 +376,7 @@ impl<'a, 'u> AccordionItem<'a, 'u> {
         let t = &theme.typography;
 
         // Resolve the open state from storage.
-        let item_id = owner.id_salt.with(("item", index));
+        let item_id = owner.base_id.with(("item", index));
         let mut is_open = if owner.exclusive {
             owner.next_open_exclusive == Some(index)
         } else {

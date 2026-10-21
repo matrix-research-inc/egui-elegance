@@ -26,7 +26,7 @@
 //! in this version.
 
 use egui::{
-    CornerRadius, Id, Popup, PopupCloseBehavior, Pos2, Response, Role, Sense, Ui, Vec2, Widget,
+    CornerRadius, Popup, PopupCloseBehavior, Pos2, Response, Role, Sense, Ui, Vec2, Widget,
     WidgetInfo, WidgetText,
 };
 
@@ -39,17 +39,17 @@ use crate::theme::{Theme, with_alpha};
 #[derive(Debug, Clone)]
 #[must_use = "Call `.show_below(&trigger, |ui| ...)` to render the menu."]
 pub struct Menu {
-    id_salt: Id,
+    id_salt: egui::IdSalt,
     min_width: f32,
 }
 
 impl Menu {
-    /// Create a menu keyed by `id_salt`. The salt is used to persist the
-    /// open/closed state across frames and must be stable for the trigger
-    /// it's attached to.
+    /// Create a menu keyed by `id_salt`. The salt is combined with the
+    /// trigger's id to persist the open/closed state across frames, so it
+    /// only needs to be unique among the menus on one trigger.
     pub fn new(id_salt: impl crate::IdSalt) -> Self {
         Self {
-            id_salt: Id::unique(("elegance::menu", Id::unique(id_salt))),
+            id_salt: egui::IdSalt::new(("elegance::menu", id_salt)),
             min_width: 180.0,
         }
     }
@@ -67,7 +67,7 @@ impl Menu {
         trigger: &Response,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> Option<R> {
-        let popup_id = Id::unique(self.id_salt);
+        let popup_id = trigger.id.with_salt(self.id_salt);
         Popup::menu(trigger)
             .id(popup_id)
             .close_behavior(PopupCloseBehavior::CloseOnClick)

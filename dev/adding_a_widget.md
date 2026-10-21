@@ -168,9 +168,9 @@ See [`Card`](../src/card.rs) for the full pattern, including how to render an op
 
 ### 3.4 Owned-state widgets — caller holds the struct
 
-The caller stores the widget in their app struct (`my_widget: MyWidget`) and renders it with `widget.show(ui)`. Internal state lives on the struct itself; transient *interaction* state (current drag, last hover) goes in `ctx.data_mut()` keyed by an `Id::unique(self.id_salt)`. See [`Pairing`](../src/pairing.rs) for the full treatment, and [`LogBar`](../src/log_bar.rs) for a simpler one.
+The caller stores the widget in their app struct (`my_widget: MyWidget`) and renders it with `widget.show(ui)`. Internal state lives on the struct itself; transient *interaction* state (current drag, last hover) goes in `ctx.data_mut()` keyed by `ui.scope_id().with_salt(self.id_salt)`. See [`Pairing`](../src/pairing.rs) for the full treatment, and [`LogBar`](../src/log_bar.rs) for a simpler one.
 
-Owned-state widgets typically take an `id_salt: impl Hash` in their constructor so multiple instances coexist.
+Owned-state widgets typically take an `id_salt: impl crate::IdSalt` in their constructor, stored as an `egui::IdSalt`, so multiple instances coexist. Combine it with the `Ui` at show time rather than hashing it into an `Id::unique` up front: a scoped salt only has to be unique among siblings, while an app-wide one collides whenever two parents pick the same name. Only widgets shown from a `Context`, such as `Modal`, keep app-wide ids.
 
 ---
 

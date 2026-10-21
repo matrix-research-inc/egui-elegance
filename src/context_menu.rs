@@ -36,7 +36,7 @@
 //! The popup is dismissed by clicking any item, clicking outside, or
 //! pressing `Esc`.
 
-use egui::{CornerRadius, Frame, Id, Margin, Popup, PopupCloseBehavior, Response, Stroke, Ui};
+use egui::{CornerRadius, Frame, Margin, Popup, PopupCloseBehavior, Response, Stroke, Ui};
 
 use crate::theme::Theme;
 
@@ -47,17 +47,17 @@ use crate::theme::Theme;
 #[derive(Debug, Clone)]
 #[must_use = "Call `.show(&target, |ui| ...)` to render the context menu."]
 pub struct ContextMenu {
-    id_salt: Id,
+    id_salt: egui::IdSalt,
     min_width: f32,
 }
 
 impl ContextMenu {
-    /// Create a context menu keyed by `id_salt`. The salt scopes the
-    /// popup's open/closed state in egui memory and must be stable for
-    /// the target it's attached to.
+    /// Create a context menu keyed by `id_salt`. The salt is combined with
+    /// the target's id to key the popup's open/closed state in egui memory,
+    /// so it only needs to be unique among the context menus on one target.
     pub fn new(id_salt: impl crate::IdSalt) -> Self {
         Self {
-            id_salt: Id::unique(("elegance::context_menu", Id::unique(id_salt))),
+            id_salt: egui::IdSalt::new(("elegance::context_menu", id_salt)),
             min_width: 200.0,
         }
     }
@@ -86,7 +86,7 @@ impl ContextMenu {
             .inner_margin(Margin::same(4));
 
         Popup::context_menu(target)
-            .id(self.id_salt)
+            .id(target.id.with_salt(self.id_salt))
             .frame(frame)
             .close_behavior(PopupCloseBehavior::CloseOnClick)
             .show(|ui| {

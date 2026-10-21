@@ -154,7 +154,7 @@ struct Brand {
 #[derive(Debug, Clone)]
 #[must_use = "Call `.show(ui, |bar| ...)` to render the menu bar."]
 pub struct MenuBar {
-    id_salt: Id,
+    id_salt: egui::IdSalt,
     brand: Option<Brand>,
     status: Option<StatusContent>,
     title_bar: bool,
@@ -165,7 +165,7 @@ impl MenuBar {
     /// open state in egui memory and must be stable across frames.
     pub fn new(id_salt: impl crate::IdSalt) -> Self {
         Self {
-            id_salt: Id::unique(("elegance::menu_bar", Id::unique(id_salt))),
+            id_salt: egui::IdSalt::new(("elegance::menu_bar", id_salt)),
             brand: None,
             status: None,
             title_bar: false,
@@ -257,8 +257,9 @@ impl MenuBar {
 
         // Read the previous frame's snapshot: which menus existed, where
         // their triggers were, and whether any was open.
-        let state_id = self.id_salt.with("__state");
-        let press_id = self.id_salt.with("__title_bar_press");
+        let base_id = ui.scope_id().with_salt(self.id_salt);
+        let state_id = base_id.with("__state");
+        let press_id = base_id.with("__title_bar_press");
         let prev_state: MenuBarFrameState = ui
             .ctx()
             .data(|d| d.get_temp::<MenuBarFrameState>(state_id))
@@ -322,7 +323,7 @@ impl MenuBar {
 
                         let mut bar = MenuBarUi {
                             ui,
-                            base_id: self.id_salt,
+                            base_id,
                             next_idx: 0,
                             any_open_prev: prev_state.any_open,
                             any_open_now: false,

@@ -44,8 +44,8 @@
 //! ```
 
 use egui::{
-    Color32, CornerRadius, FontId, FontSelection, Id, Rect, Response, RichText, Role, Sense,
-    Stroke, TextWrapMode, Ui, Vec2, WidgetInfo, WidgetText, pos2, vec2,
+    Color32, CornerRadius, FontId, FontSelection, Rect, Response, RichText, Role, Sense, Stroke,
+    TextWrapMode, Ui, Vec2, WidgetInfo, WidgetText, pos2, vec2,
 };
 
 use crate::theme::{Theme, with_alpha};
@@ -133,7 +133,7 @@ const DEFAULT_MAX_TAB_WIDTH: f32 = 220.0;
 /// See the module-level docs for an example.
 #[must_use = "Call `.show(ui)` to render the widget."]
 pub struct BrowserTabs {
-    id_salt: Id,
+    id_salt: egui::IdSalt,
     tabs: Vec<BrowserTab>,
     selected: Option<String>,
     show_new_button: bool,
@@ -164,11 +164,11 @@ impl std::fmt::Debug for BrowserTabs {
 
 impl BrowserTabs {
     /// Create an empty strip. `id_salt` scopes the widget's interaction
-    /// state in egui memory; two `BrowserTabs` strips on the same page
+    /// state in egui memory; two `BrowserTabs` strips in the same `Ui`
     /// need distinct salts.
     pub fn new(id_salt: impl crate::IdSalt) -> Self {
         Self {
-            id_salt: Id::unique(("elegance::browser_tabs", id_salt)),
+            id_salt: egui::IdSalt::new(("elegance::browser_tabs", id_salt)),
             tabs: Vec::new(),
             selected: None,
             show_new_button: true,
@@ -279,6 +279,7 @@ impl BrowserTabs {
         let theme = Theme::current(ui.ctx());
         let p = &theme.palette;
         let t = &theme.typography;
+        let base_id = ui.scope_id().with_salt(self.id_salt);
 
         let label_size = t.small + 0.5;
         let tab_height = TAB_PAD_Y * 2.0 + label_size.max(ICON_SIZE);
@@ -338,7 +339,7 @@ impl BrowserTabs {
             tab_w = tab_w.clamp(self.min_tab_width, self.max_tab_width);
             let tab_rect = Rect::from_min_size(pos2(x, tabs_top), vec2(tab_w, tab_height));
 
-            let tab_id = self.id_salt.with(("tab", tab.id.as_str()));
+            let tab_id = base_id.with(("tab", tab.id.as_str()));
             let resp = ui.interact(tab_rect, tab_id, Sense::click());
 
             let close_center = pos2(
@@ -346,7 +347,7 @@ impl BrowserTabs {
                 tab_rect.center().y,
             );
             let close_rect = Rect::from_center_size(close_center, Vec2::splat(CLOSE_SIZE));
-            let close_id = self.id_salt.with(("close", tab.id.as_str()));
+            let close_id = base_id.with(("close", tab.id.as_str()));
             let close_resp = ui.interact(close_rect, close_id, Sense::click());
 
             let is_active = active_id.as_deref() == Some(tab.id.as_str());
@@ -490,7 +491,7 @@ impl BrowserTabs {
             x += NEW_BTN_GAP;
             let btn_y = tabs_top + tab_height - NEW_BTN_SIZE - 2.0;
             let new_rect = Rect::from_min_size(pos2(x, btn_y), Vec2::splat(NEW_BTN_SIZE));
-            let new_id = self.id_salt.with("new_tab");
+            let new_id = base_id.with("new_tab");
             let new_resp = ui.interact(new_rect, new_id, Sense::click());
 
             let painter = ui.painter();

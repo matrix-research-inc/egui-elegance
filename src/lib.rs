@@ -112,6 +112,12 @@ pub use drawer::{Drawer, DrawerSide};
 /// The bound on a caller-supplied widget id salt: any `Hash + Debug` value,
 /// such as a string, integer, or tuple.
 ///
+/// A salt only needs to be unique among its siblings. Widgets shown in a
+/// [`egui::Ui`] combine it with that `Ui`'s id scope, and [`Popover`],
+/// [`Menu`], and [`ContextMenu`] combine it with their trigger's id, so the
+/// same salt can be reused under different parents. [`Modal`] and [`Drawer`]
+/// are shown from a [`egui::Context`], so their salts are app-wide.
+///
 /// An alias of [`egui::AsIdSalt`] under elegance's original name. Not to be
 /// confused with [`egui::IdSalt`], the hashed salt value itself.
 pub use egui::AsIdSalt as IdSalt;
