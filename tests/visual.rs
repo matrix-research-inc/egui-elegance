@@ -1692,31 +1692,33 @@ fn color_picker_triggers_ui(ui: &mut egui::Ui) {
 
 fn color_picker_palette_open_ui(ui: &mut egui::Ui) {
     let id = "cp_open_palette";
-    egui::Popup::open_id(
-        &ui.ctx().clone(),
-        elegance::Popover::popup_id(("elegance::color_picker", egui::Id::unique(id))),
-    );
     let mut color = egui::Color32::from_rgb(0x38, 0xbd, 0xf8);
     ui.set_min_size(egui::vec2(360.0, 540.0));
     ui.add_space(8.0);
-    ui.add(
+    let trigger = ui.add(
         ColorPicker::new(id, &mut color)
             .palette(ColorPicker::default_palette())
             .continuous(false)
             .recents(false),
     );
+    open_color_picker(ui, &trigger);
 }
 
 fn color_picker_continuous_open_ui(ui: &mut egui::Ui) {
     let id = "cp_open_continuous";
-    egui::Popup::open_id(
-        &ui.ctx().clone(),
-        elegance::Popover::popup_id(("elegance::color_picker", egui::Id::unique(id))),
-    );
     let mut color = egui::Color32::from_rgba_unmultiplied(0x38, 0xbd, 0xf8, 0xd9);
     ui.set_min_size(egui::vec2(360.0, 380.0));
     ui.add_space(8.0);
-    ui.add(ColorPicker::new(id, &mut color).recents(false));
+    let trigger = ui.add(ColorPicker::new(id, &mut color).recents(false));
+    open_color_picker(ui, &trigger);
+}
+
+/// Hold a color picker's popover open; it shows from the next frame.
+fn open_color_picker(ui: &egui::Ui, trigger: &egui::Response) {
+    egui::Popup::open_id(
+        ui.ctx(),
+        elegance::Popover::popup_id(trigger.id, "elegance::color_picker"),
+    );
 }
 
 // egui only allows one popup open at a time per viewport, so each side
@@ -1794,12 +1796,12 @@ fn context_menu_panel_ui(ui: &mut egui::Ui) {
 
 fn popover_bottom_ui(ui: &mut egui::Ui) {
     let theme = Theme::current(ui.ctx());
-    egui::Popup::open_id(&ui.ctx().clone(), Popover::popup_id("pop_bottom"));
     ui.set_min_size(egui::vec2(320.0, 260.0));
     ui.add_space(40.0);
     ui.horizontal(|ui| {
         ui.add_space(60.0);
         let bottom = ui.add(Button::new("Delete branch").outline());
+        egui::Popup::open_id(ui.ctx(), Popover::popup_id(bottom.id, "pop_bottom"));
         Popover::new("pop_bottom")
             .side(PopoverSide::Bottom)
             .title("Delete feature/snap-baseline?")
@@ -1822,12 +1824,12 @@ fn popover_bottom_ui(ui: &mut egui::Ui) {
 
 fn popover_top_ui(ui: &mut egui::Ui) {
     let theme = Theme::current(ui.ctx());
-    egui::Popup::open_id(&ui.ctx().clone(), Popover::popup_id("pop_top"));
     ui.set_min_size(egui::vec2(260.0, 180.0));
     ui.add_space(100.0);
     ui.horizontal(|ui| {
         ui.add_space(40.0);
         let top = ui.add(Button::new("What's a baseline?").outline());
+        egui::Popup::open_id(ui.ctx(), Popover::popup_id(top.id, "pop_top"));
         Popover::new("pop_top")
             .side(PopoverSide::Top)
             .title("Baselines")
@@ -1842,12 +1844,12 @@ fn popover_top_ui(ui: &mut egui::Ui) {
 
 fn popover_left_ui(ui: &mut egui::Ui) {
     let theme = Theme::current(ui.ctx());
-    egui::Popup::open_id(&ui.ctx().clone(), Popover::popup_id("pop_left"));
     ui.set_min_size(egui::vec2(420.0, 120.0));
     ui.add_space(40.0);
     ui.horizontal(|ui| {
         ui.add_space(260.0);
         let left = ui.add(Button::new("Details").outline());
+        egui::Popup::open_id(ui.ctx(), Popover::popup_id(left.id, "pop_left"));
         Popover::new("pop_left")
             .side(PopoverSide::Left)
             .show(&left, |ui| {
@@ -1858,12 +1860,12 @@ fn popover_left_ui(ui: &mut egui::Ui) {
 
 fn popover_right_ui(ui: &mut egui::Ui) {
     let theme = Theme::current(ui.ctx());
-    egui::Popup::open_id(&ui.ctx().clone(), Popover::popup_id("pop_right"));
     ui.set_min_size(egui::vec2(420.0, 120.0));
     ui.add_space(40.0);
     ui.horizontal(|ui| {
         ui.add_space(40.0);
         let right = ui.add(Button::new("Details").outline());
+        egui::Popup::open_id(ui.ctx(), Popover::popup_id(right.id, "pop_right"));
         Popover::new("pop_right")
             .side(PopoverSide::Right)
             .show(&right, |ui| {

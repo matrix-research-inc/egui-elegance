@@ -93,7 +93,7 @@ impl<'a> std::fmt::Debug for TagInput<'a> {
 impl<'a> TagInput<'a> {
     /// Create a tag input bound to `tags`. The `id_salt` keys the buffer,
     /// armed flag, and last-error in egui memory. Use a unique salt per
-    /// instance.
+    /// instance in the same `Ui`.
     pub fn new(id_salt: impl crate::IdSalt, tags: &'a mut Vec<String>) -> Self {
         Self {
             id_salt: Id::unique(id_salt),

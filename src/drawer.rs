@@ -116,7 +116,8 @@ impl<'a> std::fmt::Debug for Drawer<'a> {
 
 impl<'a> Drawer<'a> {
     /// Create a drawer keyed by `id_salt` whose visibility is bound to `open`.
-    /// Defaults: anchored to the right, 420 pt wide, no title, dismisses on
+    /// A drawer is shown from a [`egui::Context`], so `id_salt` must be
+    /// unique across the app. Defaults: anchored to the right, 420 pt wide, no title, dismisses on
     /// `Esc` and backdrop click.
     pub fn new(id_salt: impl crate::IdSalt, open: &'a mut bool) -> Self {
         Self {

@@ -48,7 +48,7 @@ pub struct RangeSlider<'a, T: Numeric> {
     accent: Accent,
     desired_width: Option<f32>,
     enabled: bool,
-    id_salt: Option<Id>,
+    id_salt: Option<egui::IdSalt>,
     handle: SliderHandle,
 }
 
@@ -187,7 +187,7 @@ impl<'a, T: Numeric> RangeSlider<'a, T> {
     /// on focus or drag state.
     #[inline]
     pub fn id_salt(mut self, id_salt: impl crate::IdSalt) -> Self {
-        self.id_salt = Some(Id::unique(id_salt));
+        self.id_salt = Some(egui::IdSalt::new(id_salt));
         self
     }
 
@@ -261,10 +261,11 @@ impl<'a, T: Numeric> Widget for RangeSlider<'a, T> {
             }
         }
 
-        let id_salt = self
-            .id_salt
-            .unwrap_or_else(|| Id::unique(ui.next_auto_id()));
-        let drag_state_id = id_salt.with("range_slider_drag_idx");
+        let base_id = match self.id_salt {
+            Some(salt) => ui.scope_id().with_salt(salt),
+            None => Id::unique(ui.next_auto_id()),
+        };
+        let drag_state_id = base_id.with("range_slider_drag_idx");
         let label_text = self
             .label
             .as_ref()
@@ -356,8 +357,8 @@ impl<'a, T: Numeric> Widget for RangeSlider<'a, T> {
                 Sense::hover()
             };
             let thumb_resp = [
-                ui.interact(thumb_rects[0], id_salt.with("low"), thumb_sense),
-                ui.interact(thumb_rects[1], id_salt.with("high"), thumb_sense),
+                ui.interact(thumb_rects[0], base_id.with("low"), thumb_sense),
+                ui.interact(thumb_rects[1], base_id.with("high"), thumb_sense),
             ];
 
             let mut new_low = low_v;

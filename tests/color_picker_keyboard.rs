@@ -16,6 +16,8 @@ const ID: &str = "cp_keys";
 
 struct Probe {
     color: Color32,
+    /// The picker's id in the `Ui` it is shown in, which keys its state.
+    picker_id: egui::Id,
 }
 
 /// A picker with its popover forced open, so the surfaces are live every frame.
@@ -25,14 +27,18 @@ fn picker_harness(initial: Color32) -> Harness<'static, Probe> {
         .build_ui_state(
             |ui, probe: &mut Probe| {
                 Theme::slate().install(ui.ctx());
-                egui::Popup::open_id(
-                    &ui.ctx().clone(),
-                    elegance::Popover::popup_id(("elegance::color_picker", egui::Id::unique(ID))),
-                );
                 ui.set_min_size(egui::vec2(360.0, 400.0));
-                ui.add(ColorPicker::new(ID, &mut probe.color));
+                probe.picker_id = ui.make_persistent_id(ID);
+                let trigger = ui.add(ColorPicker::new(ID, &mut probe.color));
+                egui::Popup::open_id(
+                    ui.ctx(),
+                    elegance::Popover::popup_id(trigger.id, "elegance::color_picker"),
+                );
             },
-            Probe { color: initial },
+            Probe {
+                color: initial,
+                picker_id: egui::Id::NULL,
+            },
         );
     harness.run();
     harness.run();
@@ -48,9 +54,10 @@ fn hsv(probe: &Probe) -> HsvaGamma {
 }
 
 fn recents(harness: &Harness<'_, Probe>) -> Vec<Color32> {
+    let recents_id = harness.state().picker_id.with("color_picker::recents");
     harness
         .ctx
-        .data(|d| d.get_temp::<Vec<Color32>>(egui::Id::unique(ID).with("color_picker::recents")))
+        .data(|d| d.get_temp::<Vec<Color32>>(recents_id))
         .unwrap_or_default()
 }
 
@@ -276,7 +283,7 @@ fn hue_end_is_not_a_second_home() {
     harness.key_press(Key::ArrowLeft);
     harness.step();
     assert!(
-        hsv(harness.state()).h < hsv(&Probe { color: at_end }).h,
+        hsv(harness.state()).h < HsvaGamma::from(at_end).h,
         "ArrowLeft should walk back down the strip from End"
     );
 }

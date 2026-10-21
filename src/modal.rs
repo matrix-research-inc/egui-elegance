@@ -92,6 +92,8 @@ impl<'a> std::fmt::Debug for Modal<'a> {
 
 impl<'a> Modal<'a> {
     /// Create a modal keyed by `id_salt` whose visibility is bound to `open`.
+    /// A modal is shown from a [`egui::Context`], so `id_salt` must be
+    /// unique across the app.
     pub fn new(id_salt: impl crate::IdSalt, open: &'a mut bool) -> Self {
         Self {
             id_salt: Id::unique(id_salt),

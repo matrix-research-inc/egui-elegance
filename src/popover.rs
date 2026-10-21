@@ -67,7 +67,7 @@ impl PopoverSide {
 #[derive(Debug, Clone)]
 #[must_use = "Call `.show(&trigger, |ui| ...)` to render the popover."]
 pub struct Popover {
-    id_salt: Id,
+    id_salt: egui::IdSalt,
     side: PopoverSide,
     title: Option<WidgetText>,
     width: Option<f32>,
@@ -77,12 +77,12 @@ pub struct Popover {
 }
 
 impl Popover {
-    /// Create a popover keyed by `id_salt`. The salt is used to persist
-    /// the open/closed state across frames and must be stable for the
-    /// trigger it's attached to.
+    /// Create a popover keyed by `id_salt`. The salt is combined with the
+    /// trigger's id to persist the open/closed state across frames, so it
+    /// only needs to be unique among the popovers on one trigger.
     pub fn new(id_salt: impl crate::IdSalt) -> Self {
         Self {
-            id_salt: Self::popup_id(id_salt),
+            id_salt: Self::salt(id_salt),
             side: PopoverSide::Bottom,
             title: None,
             width: None,
@@ -92,13 +92,18 @@ impl Popover {
         }
     }
 
-    /// The internal popup id for a given `id_salt`.
+    /// The internal popup id of the popover keyed by `id_salt` on the
+    /// trigger whose [`Response::id`] is `trigger_id`.
     ///
     /// Use this with [`egui::Popup::open_id`] / [`egui::Popup::close_id`]
     /// to open or close a popover programmatically (for example, from a
     /// keyboard shortcut or a test harness).
-    pub fn popup_id(id_salt: impl crate::IdSalt) -> Id {
-        Id::unique(("elegance::popover", Id::unique(id_salt)))
+    pub fn popup_id(trigger_id: Id, id_salt: impl crate::IdSalt) -> Id {
+        trigger_id.with_salt(Self::salt(id_salt))
+    }
+
+    fn salt(id_salt: impl crate::IdSalt) -> egui::IdSalt {
+        egui::IdSalt::new(("elegance::popover", id_salt))
     }
 
     /// Which side of the trigger to anchor on. Default: [`PopoverSide::Bottom`].
@@ -155,7 +160,7 @@ impl Popover {
         let theme = Theme::current(&trigger.ctx);
         let p = &theme.palette;
 
-        let popup_id = self.id_salt;
+        let popup_id = trigger.id.with_salt(self.id_salt);
         let side = self.side;
         let title = self.title;
         let arrow = self.arrow;

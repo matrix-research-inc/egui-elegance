@@ -3,8 +3,8 @@
 //! See [`Pairing`] for the full interaction model and an example.
 
 use egui::{
-    Align2, Color32, CornerRadius, FontId, Id, Pos2, Rect, Response, Sense, Shape, Stroke,
-    StrokeKind, Ui, Vec2, epaint::CubicBezierShape,
+    Align2, Color32, CornerRadius, FontId, Pos2, Rect, Response, Sense, Shape, Stroke, StrokeKind,
+    Ui, Vec2, epaint::CubicBezierShape,
 };
 
 use crate::badge::BadgeTone;
@@ -198,7 +198,7 @@ impl State {
 /// ```
 #[must_use = "Call `.show(ui)` to render the pairing widget."]
 pub struct Pairing<'a> {
-    id_salt: Id,
+    id_salt: egui::IdSalt,
     left: &'a [PairItem],
     right: &'a [PairItem],
     pairs: &'a mut Vec<(String, String)>,
@@ -227,7 +227,7 @@ impl<'a> Pairing<'a> {
     /// Create a new pairing widget.
     ///
     /// * `id_salt` — a stable salt for this widget's memory state. Different
-    ///   `Pairing` widgets on the same window must use distinct salts.
+    ///   `Pairing` widgets in the same `Ui` must use distinct salts.
     /// * `left`, `right` — items shown in each column.
     /// * `pairs` — the caller-owned list of `(left_id, right_id)` tuples. It
     ///   is mutated when the user creates or removes a pairing.
@@ -238,7 +238,7 @@ impl<'a> Pairing<'a> {
         pairs: &'a mut Vec<(String, String)>,
     ) -> Self {
         Self {
-            id_salt: Id::unique(("elegance_pairing", id_salt)),
+            id_salt: egui::IdSalt::new(("elegance_pairing", id_salt)),
             left,
             right,
             pairs,
@@ -296,6 +296,7 @@ impl<'a> Pairing<'a> {
             height,
             align,
         } = self;
+        let base_id = ui.scope_id().with_salt(id_salt);
 
         assert!(
             left.len() <= MAX_ROWS && right.len() <= MAX_ROWS,
@@ -342,7 +343,7 @@ impl<'a> Pairing<'a> {
         };
 
         // Load persistent state and prune stale selections.
-        let mut state: State = ui.ctx().data(|d| d.get_temp(id_salt).unwrap_or_default());
+        let mut state: State = ui.ctx().data(|d| d.get_temp(base_id).unwrap_or_default());
         if let Some((side, id)) = state.selection.clone() {
             let exists = match side {
                 Side::Left => left.iter().any(|i| i.id == id),
@@ -379,7 +380,7 @@ impl<'a> Pairing<'a> {
             let top = nodes_top + vis as f32 * (NODE_HEIGHT + NODE_GAP);
             let r = Rect::from_min_size(Pos2::new(left_x, top), Vec2::new(col_w, NODE_HEIGHT));
             let port = Pos2::new(r.right(), r.center().y);
-            let resp = ui.interact(r, id_salt.with(("L", &item.id)), Sense::click());
+            let resp = ui.interact(r, base_id.with(("L", &item.id)), Sense::click());
             hits.push(NodeHit {
                 side: Side::Left,
                 id: item.id.clone(),
@@ -393,7 +394,7 @@ impl<'a> Pairing<'a> {
             let top = nodes_top + vis as f32 * (NODE_HEIGHT + NODE_GAP);
             let r = Rect::from_min_size(Pos2::new(right_x, top), Vec2::new(col_w, NODE_HEIGHT));
             let port = Pos2::new(r.left(), r.center().y);
-            let resp = ui.interact(r, id_salt.with(("R", &item.id)), Sense::click());
+            let resp = ui.interact(r, base_id.with(("R", &item.id)), Sense::click());
             hits.push(NodeHit {
                 side: Side::Right,
                 id: item.id.clone(),
@@ -561,7 +562,7 @@ impl<'a> Pairing<'a> {
 
         // Save state.
         ui.ctx()
-            .data_mut(|d| d.insert_temp(id_salt, state.clone_for_storage()));
+            .data_mut(|d| d.insert_temp(base_id, state.clone_for_storage()));
         response
     }
 }

@@ -2,8 +2,8 @@
 //! that hides or reveals a body of content.
 
 use egui::{
-    Color32, Id, InnerResponse, Pos2, Response, Role, Sense, Stroke, Ui, Vec2, WidgetInfo,
-    WidgetText, pos2,
+    Color32, InnerResponse, Pos2, Response, Role, Sense, Stroke, Ui, Vec2, WidgetInfo, WidgetText,
+    pos2,
 };
 
 use crate::theme::Theme;
@@ -20,7 +20,7 @@ use crate::theme::Theme;
 /// ```
 #[must_use = "Call `.show(ui, |ui| ...)` to render."]
 pub struct CollapsingSection<'a> {
-    id_salt: Id,
+    id_salt: egui::IdSalt,
     label: WidgetText,
     open: Option<&'a mut bool>,
     default_open: bool,
@@ -42,7 +42,7 @@ impl<'a> CollapsingSection<'a> {
     /// The section is closed by default.
     pub fn new(id_salt: impl crate::IdSalt, label: impl Into<WidgetText>) -> Self {
         Self {
-            id_salt: Id::unique(("elegance_collapsing", id_salt)),
+            id_salt: egui::IdSalt::new(("elegance_collapsing", id_salt)),
             label: label.into(),
             open: None,
             default_open: false,
@@ -72,13 +72,13 @@ impl<'a> CollapsingSection<'a> {
         add_body: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<Option<R>> {
         let theme = Theme::current(ui.ctx());
+        let state_id = ui.scope_id().with_salt(self.id_salt);
 
         let mut is_open = match self.open.as_deref() {
             Some(flag) => *flag,
-            None => ui.ctx().data(|d| {
-                d.get_temp::<bool>(self.id_salt)
-                    .unwrap_or(self.default_open)
-            }),
+            None => ui
+                .ctx()
+                .data(|d| d.get_temp::<bool>(state_id).unwrap_or(self.default_open)),
         };
 
         let trigger = trigger_row(ui, self.label.text(), &theme, is_open);
@@ -93,7 +93,7 @@ impl<'a> CollapsingSection<'a> {
         match self.open {
             Some(flag) => *flag = is_open,
             None => {
-                ui.ctx().data_mut(|d| d.insert_temp(self.id_salt, is_open));
+                ui.ctx().data_mut(|d| d.insert_temp(state_id, is_open));
             }
         }
 
