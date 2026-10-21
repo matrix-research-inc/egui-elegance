@@ -73,6 +73,10 @@ impl<'a> TextArea<'a> {
     }
 
     /// Show a label above the text area.
+    ///
+    /// The label also names the text area for screen readers. Without one, name
+    /// the returned response with [`egui::Response::accessible_name`], or with
+    /// [`egui::Response::labelled_by`] when a caption is drawn beside it.
     pub fn label(mut self, text: impl Into<WidgetText>) -> Self {
         self.label = Some(text.into());
         self

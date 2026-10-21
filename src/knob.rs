@@ -187,6 +187,10 @@ impl<'a, T: Numeric> Knob<'a, T> {
     }
 
     /// Show a label above the knob.
+    ///
+    /// The label also names the knob for screen readers. Without one, name
+    /// the returned response with [`egui::Response::accessible_name`], or with
+    /// [`egui::Response::labelled_by`] when a caption is drawn beside it.
     pub fn label(mut self, label: impl Into<WidgetText>) -> Self {
         self.label = Some(label.into());
         self

@@ -240,6 +240,8 @@ response.widget_info(|| {
 
 **Text-bearing input (text input, text area):** use `WidgetInfo::labeled` with `Role::TextInput` and supply the *label* as the third argument, not the input contents — the contents are spoken separately by the OS.
 
+**Optional label:** a widget whose `.label(...)` is optional is unnamed without one, and `egui_kittest` fails any harness that leaves a widget unnamed. Return the response of the widget's accessible node (the one carrying its role) so callers can name it with egui's `Response::accessible_name` or `Response::labelled_by`, and add the widget to `unlabelled_widgets_take_an_accessible_name_from_their_response` in `tests/a11y.rs`.
+
 **Overlay (modal, toast, menu):** set the matching accesskit role (`Dialog`, `AlertDialog`, `Menu`) on the containing `Area`/`Frame` so assistive tech treats the overlay as a focus boundary. `Modal` traps focus inside while open and restores it on close — mirror that if your overlay is dismissable.
 
 **Keyboard interaction:** any widget that accepts pointer input also needs to work from the keyboard. At a minimum, `Sense::click()` already gives you Space/Enter activation when the widget is focused. For composite widgets (segmented buttons, tab bars, menus), handle arrow-key navigation between sub-elements explicitly — see `TabBar` and `SegmentedButton` for the pattern.

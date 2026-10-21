@@ -109,6 +109,10 @@ impl<'a> TagInput<'a> {
     }
 
     /// Show a label above the input.
+    ///
+    /// The label also names the input for screen readers. Without one, name
+    /// [`TagInputResponse::response`] with [`egui::Response::accessible_name`], or with
+    /// [`egui::Response::labelled_by`] when a caption is drawn beside it.
     pub fn label(mut self, text: impl Into<WidgetText>) -> Self {
         self.label = Some(text.into());
         self

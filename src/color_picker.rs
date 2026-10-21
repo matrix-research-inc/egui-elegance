@@ -103,6 +103,10 @@ impl<'a> ColorPicker<'a> {
     }
 
     /// Show a label above the trigger.
+    ///
+    /// The label also names the picker for screen readers. Without one, name
+    /// the returned response with [`egui::Response::accessible_name`], or with
+    /// [`egui::Response::labelled_by`] when a caption is drawn beside it.
     #[inline]
     pub fn label(mut self, label: impl Into<WidgetText>) -> Self {
         self.label = Some(label.into());

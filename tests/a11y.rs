@@ -602,3 +602,64 @@ fn icon_button_announces_its_label_not_its_glyph() {
         "the glyph itself must not reach the accessibility tree"
     );
 }
+
+#[test]
+fn unlabelled_widgets_take_an_accessible_name_from_their_response() {
+    // Every widget with an optional `.label` must return the response of its
+    // accessible node, so an app that draws no label can still name it with
+    // egui's `Response::accessible_name`. The harness's own check also fails
+    // if any of these is left unnamed.
+    let harness = new_harness(|ui| {
+        Theme::slate().install(ui.ctx());
+        ui.set_min_size(egui::vec2(560.0, 900.0));
+        let mut text = String::new();
+        let mut notes = String::new();
+        let mut value = 0.5_f32;
+        let (mut low, mut high) = (1.0_f32, 2.0_f32);
+        let mut color = egui::Color32::RED;
+        let mut choice = 0_usize;
+        let mut tags: Vec<String> = Vec::new();
+        ui.add(TextInput::new(&mut text)).accessible_name("Input");
+        ui.add(elegance::TextArea::new(&mut notes))
+            .accessible_name("Notes");
+        ui.add(elegance::Knob::new(&mut value, 0.0..=1.0))
+            .accessible_name("Knob");
+        ui.add(elegance::MetricSlider::new(&mut value, 0.0..=1.0))
+            .accessible_name("Metric");
+        ui.add(elegance::PercentSlider::new(&mut value))
+            .accessible_name("Percent");
+        ui.add(elegance::Slider::new(&mut value, 0.0..=1.0))
+            .accessible_name("Slider");
+        ui.add(elegance::RangeSlider::new(&mut low, &mut high, 0.0..=3.0))
+            .accessible_name("Range");
+        ui.add(elegance::ColorPicker::new(
+            "a11y_unlabelled_color",
+            &mut color,
+        ))
+        .accessible_name("Color");
+        ui.add(
+            Select::new("a11y_unlabelled_select", &mut choice).options([(0_usize, "A"), (1, "B")]),
+        )
+        .accessible_name("Choice");
+        elegance::TagInput::new("a11y_unlabelled_tags", &mut tags)
+            .show(ui)
+            .response
+            .accessible_name("Tags");
+    });
+
+    use egui::accesskit::Role;
+    for (role, name) in [
+        (Role::TextInput, "Input"),
+        (Role::MultilineTextInput, "Notes"),
+        (Role::Slider, "Knob"),
+        (Role::Slider, "Metric"),
+        (Role::Slider, "Percent"),
+        (Role::Slider, "Slider"),
+        (Role::ColorWell, "Color"),
+        (Role::ComboBox, "Choice"),
+        (Role::TextInput, "Tags"),
+    ] {
+        let _ = harness.get_by_role_and_label(role, name);
+    }
+    let _ = harness.get_by_label("Range");
+}

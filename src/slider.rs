@@ -134,6 +134,10 @@ impl<'a, T: Numeric> Slider<'a, T> {
     }
 
     /// Show a label above the slider.
+    ///
+    /// The label also names the slider for screen readers. Without one, name
+    /// the returned response with [`egui::Response::accessible_name`], or with
+    /// [`egui::Response::labelled_by`] when a caption is drawn beside it.
     pub fn label(mut self, label: impl Into<WidgetText>) -> Self {
         self.label = Some(label.into());
         self

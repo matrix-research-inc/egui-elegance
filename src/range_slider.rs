@@ -95,6 +95,10 @@ impl<'a, T: Numeric> RangeSlider<'a, T> {
     }
 
     /// Show a label on the left of the header row above the track.
+    ///
+    /// The label also names the slider for screen readers. Without one, name
+    /// the returned response with [`egui::Response::accessible_name`], or with
+    /// [`egui::Response::labelled_by`] when a caption is drawn beside it.
     #[inline]
     pub fn label(mut self, label: impl Into<WidgetText>) -> Self {
         self.label = Some(label.into());
