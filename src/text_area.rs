@@ -138,6 +138,8 @@ impl<'a> Widget for TextArea<'a> {
                 ui.add_space(2.0);
             }
 
+            // Pin the TextEdit to this id: flash state is stored under the
+            // returned response's id and read back here before painting.
             let id_salt = self.id_salt.unwrap_or_else(|| ui.next_auto_id());
             let widget_id = ui.make_persistent_id(egui::Id::unique(id_salt));
 
@@ -161,7 +163,7 @@ impl<'a> Widget for TextArea<'a> {
                 v.selection.stroke = Stroke::new(1.0, p.focus);
 
                 let mut edit = TextEdit::multiline(self.text)
-                    .id_salt(id_salt)
+                    .id(widget_id)
                     .font(FontSelection::FontId(font_id))
                     .text_color(p.text)
                     .margin(margin)

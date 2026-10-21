@@ -10,6 +10,7 @@ Versions before 0.11.0 predate tagging; see the git history for those.
 - **Emoji need a font now.** egui 0.37 no longer bundles emoji fonts, so emoji passed to elegance widgets (e.g. `.icon("🔔")`) render as empty boxes. Enable egui's `monochrome_emoji_fonts` feature or eframe's `system_fonts`, or switch to the bundled `glyphs`.
 - `IdSalt` is now an alias of egui's equivalent `AsIdSalt` trait. Code that uses it as a bound is unaffected.
 - `Select` is 1pt taller, because egui's `ComboBox` now shares `Button`'s layout.
+- Fixed `flash_success` / `flash_error` not tinting a non-revealable `TextInput` or a `TextArea` under egui 0.37.
 - `ColorPicker`'s hex field now has an accessible name.
 - `TagInput` and `RemovableChip` keep their placeholders vertically centered under egui 0.37.
 

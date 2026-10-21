@@ -171,12 +171,9 @@ impl<'a> Widget for TextInput<'a> {
                 ui.add_space(2.0);
             }
 
-            // Pin a stable id_salt so the TextEdit id is predictable —
-            // we need it to look up flash state before painting.
-            //
-            // `TextEdit::id_salt` internally wraps its input in
-            // `Id::unique(...)` before calling `make_persistent_id`, so we
-            // mirror that step here to get the *same* widget id.
+            // Derive the TextEdit's id here and pin it with `TextEdit::id`:
+            // flash state is stored under the returned response's id, and
+            // we read it back before painting, so the two must be the same.
             let id_salt = self.id_salt.unwrap_or_else(|| ui.next_auto_id());
             let widget_id = ui.make_persistent_id(egui::Id::unique(id_salt));
 
@@ -238,7 +235,7 @@ impl<'a> Widget for TextInput<'a> {
                     v.selection.stroke = Stroke::new(1.0, p.focus);
 
                     let mut edit = TextEdit::singleline(self.text)
-                        .id_salt(id_salt)
+                        .id(widget_id)
                         .font(FontSelection::FontId(FontId::proportional(t.body)))
                         .text_color(p.text)
                         .margin(margin)
