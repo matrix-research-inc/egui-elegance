@@ -57,7 +57,7 @@ const CLEAR_ALL_GAP: f32 = 6.0;
 const CLEAR_ALL_THRESHOLD: usize = 2;
 
 fn storage_id() -> Id {
-    Id::new("elegance::toasts")
+    Id::unique("elegance::toasts")
 }
 
 /// A single enqueued notification.
@@ -288,7 +288,7 @@ impl Toasts {
                 });
             }
 
-            let area_id = Id::new(("elegance::toast", entry.id));
+            let area_id = Id::unique(("elegance::toast", entry.id));
             let resp = Area::new(area_id)
                 .order(Order::Tooltip)
                 .fixed_pos(rect.min)
@@ -376,7 +376,7 @@ impl Toasts {
                 Vec2::new(self.width, CLEAR_ALL_HEIGHT),
             );
 
-            let area_id = Id::new("elegance::toast::clear_all");
+            let area_id = Id::unique("elegance::toast::clear_all");
             let resp = Area::new(area_id)
                 .order(Order::Tooltip)
                 .fixed_pos(pill_rect.min)

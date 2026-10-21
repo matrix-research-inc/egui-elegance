@@ -9,8 +9,8 @@
 
 use egui::{
     Align, Color32, CornerRadius, FontId, FontSelection, Frame, Layout, Margin, Pos2, Rect,
-    Response, Sense, Shape, Stroke, StrokeKind, TextWrapMode, Ui, Vec2, Widget, WidgetInfo,
-    WidgetText, WidgetType,
+    Response, Role, Sense, Shape, Stroke, StrokeKind, TextWrapMode, Ui, Vec2, Widget, WidgetInfo,
+    WidgetText,
     epaint::{Mesh, PathShape, PathStroke},
     pos2,
 };
@@ -362,7 +362,7 @@ impl Widget for StatCard<'_> {
             let text = tooltip.text().to_string();
             response = response.on_hover_text(text);
         }
-        response.widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, &a11y_label));
+        response.widget_info(|| WidgetInfo::labeled(Role::Label, true, &a11y_label));
         response
     }
 }

@@ -8,8 +8,7 @@ use std::ops::RangeInclusive;
 
 use egui::{
     Color32, CornerRadius, CursorIcon, Event, EventFilter, Key, Painter, Pos2, Rect, Response,
-    Sense, Stroke, StrokeKind, Ui, Vec2, Widget, WidgetInfo, WidgetText, WidgetType,
-    emath::Numeric,
+    Role, Sense, Stroke, StrokeKind, Ui, Vec2, Widget, WidgetInfo, WidgetText, emath::Numeric,
 };
 
 use crate::theme::{Accent, Theme, with_alpha};
@@ -135,6 +134,10 @@ impl<'a, T: Numeric> Slider<'a, T> {
     }
 
     /// Show a label above the slider.
+    ///
+    /// The label also names the slider for screen readers. Without one, name
+    /// the returned response with [`egui::Response::accessible_name`], or with
+    /// [`egui::Response::labelled_by`] when a caption is drawn beside it.
     pub fn label(mut self, label: impl Into<WidgetText>) -> Self {
         self.label = Some(label.into());
         self
@@ -441,7 +444,7 @@ impl<'a, T: Numeric> Widget for Slider<'a, T> {
                 }
             }
 
-            response.widget_info(|| WidgetInfo::labeled(WidgetType::Slider, true, &label_text));
+            response.widget_info(|| WidgetInfo::labeled(Role::Slider, true, &label_text));
             response
         })
         .inner

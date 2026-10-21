@@ -1,7 +1,7 @@
 //! Status pill — a rounded capsule of small labelled status lights.
 
 use egui::{
-    CornerRadius, Margin, Response, Stroke, Ui, Widget, WidgetInfo, WidgetText, WidgetType, vec2,
+    CornerRadius, Margin, Response, Role, Stroke, Ui, Widget, WidgetInfo, WidgetText, vec2,
 };
 
 use crate::{
@@ -86,7 +86,7 @@ impl Widget for StatusPill {
             })
             .response;
 
-        response.widget_info(|| WidgetInfo::labeled(WidgetType::Other, true, "status pill"));
+        response.widget_info(|| WidgetInfo::labeled(Role::Unknown, true, "status pill"));
         response
     }
 }

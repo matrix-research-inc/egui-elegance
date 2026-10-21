@@ -18,9 +18,8 @@
 //! ```
 
 use egui::{
-    Align2, Color32, CornerRadius, FontId, Frame, Id, InnerResponse, Key, Margin, Pos2, Rect,
-    Sense, Shape, Stroke, StrokeKind, Ui, Vec2, WidgetInfo, WidgetText, WidgetType,
-    layers::ShapeIdx, pos2,
+    Align2, Color32, CornerRadius, FontId, Frame, Id, InnerResponse, Key, Margin, Pos2, Rect, Role,
+    Sense, Shape, Stroke, StrokeKind, Ui, Vec2, WidgetInfo, WidgetText, layers::ShapeIdx, pos2,
 };
 
 use crate::Accent;
@@ -65,7 +64,7 @@ impl Accordion {
     /// the same page must use distinct salts.
     pub fn new(id_salt: impl crate::IdSalt) -> Self {
         Self {
-            id_salt: Id::new(("elegance_accordion", id_salt)),
+            id_salt: Id::unique(("elegance_accordion", id_salt)),
             exclusive: false,
             flush: false,
         }
@@ -567,12 +566,7 @@ impl<'a, 'u> AccordionItem<'a, 'u> {
         // Accessibility.
         let title_text = title.text().to_string();
         row_resp.widget_info(|| {
-            WidgetInfo::selected(
-                WidgetType::CollapsingHeader,
-                !disabled,
-                is_open,
-                &title_text,
-            )
+            WidgetInfo::selected(Role::DisclosureTriangle, !disabled, is_open, &title_text)
         });
 
         // --- Body --------------------------------------------------------

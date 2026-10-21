@@ -78,8 +78,8 @@
 
 use egui::{
     Align, Color32, Context, CornerRadius, Frame, Id, ImageSource, Layout, Margin, PointerButton,
-    Popup, PopupCloseBehavior, Pos2, Rect, Response, Sense, SetOpenCommand, Stroke, Ui, UiBuilder,
-    Vec2, ViewportCommand, WidgetInfo, WidgetText, WidgetType, emath::RectAlign,
+    Popup, PopupCloseBehavior, Pos2, Rect, Response, Role, Sense, SetOpenCommand, Stroke, Ui,
+    UiBuilder, Vec2, ViewportCommand, WidgetInfo, WidgetText, emath::RectAlign,
 };
 
 use crate::theme::{Accent, Theme, mix, with_alpha};
@@ -165,7 +165,7 @@ impl MenuBar {
     /// open state in egui memory and must be stable across frames.
     pub fn new(id_salt: impl crate::IdSalt) -> Self {
         Self {
-            id_salt: Id::new(("elegance::menu_bar", Id::new(id_salt))),
+            id_salt: Id::unique(("elegance::menu_bar", Id::unique(id_salt))),
             brand: None,
             status: None,
             title_bar: false,
@@ -624,7 +624,7 @@ impl<'u> MenuBarUi<'u> {
             .inner_margin(Margin::same(4));
 
         let label_text = label.text().to_string();
-        response.widget_info(|| WidgetInfo::labeled(WidgetType::Button, true, &label_text));
+        response.widget_info(|| WidgetInfo::labeled(Role::Button, true, &label_text));
 
         let result = Popup::menu(&response)
             .id(popup_id)

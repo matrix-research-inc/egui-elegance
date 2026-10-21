@@ -2,8 +2,8 @@
 //! "Pending", "Error".
 
 use egui::{
-    Color32, CornerRadius, FontSelection, Response, Sense, Stroke, Ui, Vec2, Widget, WidgetInfo,
-    WidgetText, WidgetType,
+    Color32, CornerRadius, FontSelection, Response, Role, Sense, Stroke, Ui, Vec2, Widget,
+    WidgetInfo, WidgetText,
 };
 
 use crate::theme::{Palette, Theme, with_alpha};
@@ -154,7 +154,7 @@ impl Widget for Badge {
             ui.painter().galley(text_pos, galley, fg);
         }
 
-        response.widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, self.text.text()));
+        response.widget_info(|| WidgetInfo::labeled(Role::Label, true, self.text.text()));
         response
     }
 }

@@ -13,7 +13,7 @@
 use std::f32::consts::{PI, TAU};
 
 use egui::{
-    Color32, Pos2, Response, Sense, Ui, Vec2, Widget, WidgetInfo, WidgetType,
+    Color32, Pos2, Response, Role, Sense, Ui, Vec2, Widget, WidgetInfo,
     epaint::{PathShape, PathStroke},
     pos2,
 };
@@ -311,8 +311,7 @@ impl Widget for ProgressRing {
             }
         }
 
-        response
-            .widget_info(|| WidgetInfo::labeled(WidgetType::ProgressIndicator, true, "progress"));
+        response.widget_info(|| WidgetInfo::labeled(Role::ProgressIndicator, true, "progress"));
         response
     }
 }

@@ -8,8 +8,8 @@
 //! own app state.
 
 use egui::{
-    Color32, CornerRadius, DroppedFileHandle, FontSelection, Pos2, Rect, Response, Sense, Stroke,
-    StrokeKind, Ui, Vec2, WidgetInfo, WidgetText, WidgetType, pos2, vec2,
+    Color32, CornerRadius, DroppedFileHandle, FontSelection, Pos2, Rect, Response, Role, Sense,
+    Stroke, StrokeKind, Ui, Vec2, WidgetInfo, WidgetText, pos2, vec2,
 };
 
 use crate::glyphs::UPLOAD as UPLOAD_GLYPH;
@@ -169,7 +169,7 @@ impl FileDropZone {
             );
         }
 
-        response.widget_info(|| WidgetInfo::labeled(WidgetType::Button, self.enabled, &a11y_label));
+        response.widget_info(|| WidgetInfo::labeled(Role::Button, self.enabled, &a11y_label));
 
         FileDropResponse {
             response,

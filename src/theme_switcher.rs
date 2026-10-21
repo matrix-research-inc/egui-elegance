@@ -51,7 +51,7 @@ impl<'a> ThemeSwitcher<'a> {
     pub fn new(current: &'a mut BuiltInTheme) -> Self {
         Self {
             current,
-            id_salt: Id::new("elegance_theme_switcher"),
+            id_salt: Id::unique("elegance_theme_switcher"),
             width: 110.0,
             auto_install: true,
         }
@@ -60,7 +60,7 @@ impl<'a> ThemeSwitcher<'a> {
     /// Override the id salt. Only needed if multiple switchers coexist
     /// in the same UI.
     pub fn id_salt(mut self, id_salt: impl crate::IdSalt) -> Self {
-        self.id_salt = Id::new(id_salt);
+        self.id_salt = Id::unique(id_salt);
         self
     }
 

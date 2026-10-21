@@ -14,8 +14,8 @@
 //! by the supplied `id_salt`.
 
 use egui::{
-    Color32, CornerRadius, Event, FontId, FontSelection, Id, Key, Rect, Response, Sense, Stroke,
-    StrokeKind, TextEdit, Ui, Vec2, WidgetInfo, WidgetText, WidgetType, pos2, vec2,
+    Color32, CornerRadius, Event, FontId, FontSelection, Id, Key, Rect, Response, Role, Sense,
+    Stroke, StrokeKind, TextEdit, Ui, Vec2, WidgetInfo, WidgetText, pos2, vec2,
 };
 
 use crate::Accent;
@@ -96,7 +96,7 @@ impl<'a> TagInput<'a> {
     /// instance.
     pub fn new(id_salt: impl crate::IdSalt, tags: &'a mut Vec<String>) -> Self {
         Self {
-            id_salt: Id::new(id_salt),
+            id_salt: Id::unique(id_salt),
             tags,
             label: None,
             placeholder: None,
@@ -109,6 +109,10 @@ impl<'a> TagInput<'a> {
     }
 
     /// Show a label above the input.
+    ///
+    /// The label also names the input for screen readers. Without one, name
+    /// [`TagInputResponse::response`] with [`egui::Response::accessible_name`], or with
+    /// [`egui::Response::labelled_by`] when a caption is drawn beside it.
     pub fn label(mut self, text: impl Into<WidgetText>) -> Self {
         self.label = Some(text.into());
         self
@@ -256,6 +260,9 @@ impl<'a> TagInput<'a> {
                                             )))
                                             .text_color(p.text)
                                             .desired_width(avail)
+                                            // Centre text and hint in the frame; egui otherwise
+                                            // takes the parent layout's alignment.
+                                            .align(egui::Align2::LEFT_CENTER)
                                             // `.margin()` is ignored when
                                             // a custom frame is set, so
                                             // bake the indent into the
@@ -439,7 +446,7 @@ impl<'a> TagInput<'a> {
             .data_mut(|d| d.insert_temp(widget_id, state.clone()));
 
         if let Some(label) = label_text {
-            outer.widget_info(|| WidgetInfo::labeled(WidgetType::TextEdit, self.enabled, &label));
+            outer.widget_info(|| WidgetInfo::labeled(Role::TextInput, self.enabled, &label));
         }
 
         TagInputResponse {
@@ -558,7 +565,7 @@ fn paint_pill(
     } else {
         Sense::hover()
     };
-    let close_resp = ui.interact(close_rect, ui.id().with(("tag_close", tag)), sense);
+    let close_resp = ui.interact(close_rect, ui.scope_id().with(("tag_close", tag)), sense);
 
     let close_bg = if close_resp.hovered() && enabled {
         with_alpha(p.text, 24)

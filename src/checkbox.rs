@@ -1,8 +1,8 @@
 //! A checkbox with a focus accent.
 
 use egui::{
-    Color32, CornerRadius, FontSelection, Response, Sense, Stroke, Ui, Vec2, Widget, WidgetInfo,
-    WidgetText, WidgetType, vec2,
+    Color32, CornerRadius, FontSelection, Response, Role, Sense, Stroke, Ui, Vec2, Widget,
+    WidgetInfo, WidgetText, vec2,
 };
 
 use crate::theme::Theme;
@@ -112,7 +112,7 @@ impl<'a> Widget for Checkbox<'a> {
             ui.painter().galley(text_pos, galley, p.text);
         }
 
-        response.widget_info(|| WidgetInfo::labeled(WidgetType::Checkbox, true, self.label.text()));
+        response.widget_info(|| WidgetInfo::labeled(Role::CheckBox, true, self.label.text()));
         response
     }
 }

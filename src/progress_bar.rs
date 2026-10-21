@@ -6,8 +6,8 @@
 //! label stays legible regardless of the fill level.
 
 use egui::{
-    Color32, CornerRadius, Pos2, Rect, Response, Sense, Stroke, StrokeKind, Ui, Vec2, Widget,
-    WidgetInfo, WidgetType,
+    Color32, CornerRadius, Pos2, Rect, Response, Role, Sense, Stroke, StrokeKind, Ui, Vec2, Widget,
+    WidgetInfo,
 };
 
 use crate::theme::{Accent, Theme};
@@ -152,8 +152,7 @@ impl Widget for ProgressBar {
             }
         }
 
-        response
-            .widget_info(|| WidgetInfo::labeled(WidgetType::ProgressIndicator, true, "progress"));
+        response.widget_info(|| WidgetInfo::labeled(Role::ProgressIndicator, true, "progress"));
         response
     }
 }

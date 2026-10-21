@@ -3,8 +3,8 @@
 //! See [`SortableList`] for the full interaction model and an example.
 
 use egui::{
-    Align2, Color32, CornerRadius, FontId, Id, LayerId, Order, Pos2, Rect, Response, Sense, Stroke,
-    StrokeKind, Ui, Vec2, WidgetInfo, WidgetType,
+    Align2, Color32, CornerRadius, FontId, Id, LayerId, Order, Pos2, Rect, Response, Role, Sense,
+    Stroke, StrokeKind, Ui, Vec2, WidgetInfo,
 };
 
 use crate::badge::BadgeTone;
@@ -160,7 +160,7 @@ impl<'a> SortableList<'a> {
     /// * `items` — caller-owned list of rows. Reordered in place on drop.
     pub fn new(id_salt: impl crate::IdSalt, items: &'a mut Vec<SortableItem>) -> Self {
         Self {
-            id_salt: Id::new(("elegance_sortable_list", id_salt)),
+            id_salt: Id::unique(("elegance_sortable_list", id_salt)),
             items,
         }
     }
@@ -266,7 +266,7 @@ impl<'a> SortableList<'a> {
                 paint_row(ui, *rect, item, &theme, row_resp.hovered(), false);
             }
 
-            row_resp.widget_info(|| WidgetInfo::labeled(WidgetType::Other, true, &item.title));
+            row_resp.widget_info(|| WidgetInfo::labeled(Role::Unknown, true, &item.title));
         }
 
         // Apply drag started this frame so the slot/ghost render immediately.
@@ -325,7 +325,7 @@ impl<'a> SortableList<'a> {
             }
         });
 
-        response.widget_info(|| WidgetInfo::labeled(WidgetType::Other, true, "sortable list"));
+        response.widget_info(|| WidgetInfo::labeled(Role::Unknown, true, "sortable list"));
         response
     }
 }

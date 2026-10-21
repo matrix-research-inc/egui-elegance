@@ -327,11 +327,11 @@ impl Default for App {
                     .status("idle", BadgeTone::Neutral),
                 SortableItem::new("edge", "edge-proxy-01")
                     .subtitle("8 instances · global")
-                    .icon("◒")
+                    .icon("◎")
                     .status("degraded", BadgeTone::Warning),
                 SortableItem::new("etl", "warehouse-etl")
                     .subtitle("nightly batch · 02:00 UTC")
-                    .icon("◓")
+                    .icon("○")
                     .status("offline", BadgeTone::Danger),
                 SortableItem::new("logs", "log-ingestor")
                     .subtitle("12 instances · kafka")

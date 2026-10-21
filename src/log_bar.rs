@@ -46,7 +46,7 @@
 use std::collections::VecDeque;
 
 use egui::{
-    Color32, CornerRadius, Id, Pos2, Response, Sense, Stroke, Vec2, WidgetInfo, WidgetType, pos2,
+    Color32, CornerRadius, Id, Pos2, Response, Role, Sense, Stroke, Vec2, WidgetInfo, pos2,
 };
 
 use crate::theme::Theme;
@@ -107,7 +107,7 @@ impl LogBar {
             entries: VecDeque::new(),
             open: false,
             capacity: DEFAULT_CAPACITY,
-            id_salt: Id::new("elegance::log_bar"),
+            id_salt: Id::unique("elegance::log_bar"),
             heading: "Message Log".into(),
         }
     }
@@ -132,7 +132,7 @@ impl LogBar {
     /// Override the id used for the panel and collapse state. Set this if
     /// you want more than one `LogBar` in a single app.
     pub fn id_salt(mut self, salt: impl crate::IdSalt) -> Self {
-        self.id_salt = Id::new(("elegance::log_bar", salt));
+        self.id_salt = Id::unique(("elegance::log_bar", salt));
         self
     }
 
@@ -222,7 +222,7 @@ impl LogBar {
 
                 let trigger = panel_header(ui, &theme, &label, was_open);
                 trigger.widget_info(|| {
-                    WidgetInfo::selected(WidgetType::CollapsingHeader, true, was_open, &label)
+                    WidgetInfo::selected(Role::DisclosureTriangle, true, was_open, &label)
                 });
                 if trigger.clicked() {
                     self.open = !self.open;

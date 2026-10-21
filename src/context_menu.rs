@@ -57,7 +57,7 @@ impl ContextMenu {
     /// the target it's attached to.
     pub fn new(id_salt: impl crate::IdSalt) -> Self {
         Self {
-            id_salt: Id::new(("elegance::context_menu", Id::new(id_salt))),
+            id_salt: Id::unique(("elegance::context_menu", Id::unique(id_salt))),
             min_width: 200.0,
         }
     }

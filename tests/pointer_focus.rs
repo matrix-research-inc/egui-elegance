@@ -56,8 +56,9 @@ fn metric_slider_click_then_arrow_key_nudges() {
         .build_ui_state(
             |ui, probe: &mut Probe| {
                 Theme::slate().install(ui.ctx());
-                let resp =
-                    ui.add(MetricSlider::new(&mut probe.value, 0.0..=100.0).desired_width(400.0));
+                let resp = ui
+                    .add(MetricSlider::new(&mut probe.value, 0.0..=100.0).desired_width(400.0))
+                    .accessible_name("Value");
                 probe.rect = resp.rect;
             },
             Probe::default(),
@@ -87,7 +88,9 @@ fn slider_click_then_arrow_key_nudges() {
         .build_ui_state(
             |ui, probe: &mut Probe| {
                 Theme::slate().install(ui.ctx());
-                let resp = ui.add(Slider::new(&mut probe.value, 0.0..=100.0));
+                let resp = ui
+                    .add(Slider::new(&mut probe.value, 0.0..=100.0))
+                    .accessible_name("Value");
                 probe.rect = resp.rect;
             },
             Probe::default(),
@@ -120,7 +123,9 @@ fn knob_click_then_arrow_key_nudges() {
         .build_ui_state(
             |ui, probe: &mut Probe| {
                 Theme::slate().install(ui.ctx());
-                let resp = ui.add(Knob::new(&mut probe.value, 0.0..=100.0));
+                let resp = ui
+                    .add(Knob::new(&mut probe.value, 0.0..=100.0))
+                    .accessible_name("Value");
                 probe.rect = resp.rect;
             },
             Probe {
@@ -242,9 +247,12 @@ fn knob_arrow_keys_do_not_leak_focus_to_a_neighbour() {
             |ui, probe: &mut PairProbe| {
                 Theme::slate().install(ui.ctx());
                 ui.horizontal(|ui| {
-                    let left = ui.add(Knob::new(&mut probe.left, 0.0..=100.0));
+                    let left = ui
+                        .add(Knob::new(&mut probe.left, 0.0..=100.0))
+                        .accessible_name("Left");
                     probe.left_rect = left.rect;
-                    ui.add(Knob::new(&mut probe.right, 0.0..=100.0));
+                    ui.add(Knob::new(&mut probe.right, 0.0..=100.0))
+                        .accessible_name("Right");
                 });
             },
             PairProbe {
@@ -296,7 +304,9 @@ fn space_after_a_grab_does_not_reset_a_knob() {
         .build_ui_state(
             |ui, probe: &mut Probe| {
                 Theme::slate().install(ui.ctx());
-                let resp = ui.add(Knob::new(&mut probe.value, 0.0..=100.0).default(0.0));
+                let resp = ui
+                    .add(Knob::new(&mut probe.value, 0.0..=100.0).default(0.0))
+                    .accessible_name("Value");
                 probe.rect = resp.rect;
             },
             Probe {
@@ -344,7 +354,9 @@ fn a_grab_behind_a_modal_does_not_hold_focus() {
         .build_ui_state(
             |ui, probe: &mut ModalProbe| {
                 Theme::slate().install(ui.ctx());
-                let resp = ui.add(Slider::new(&mut probe.value, 0.0..=100.0));
+                let resp = ui
+                    .add(Slider::new(&mut probe.value, 0.0..=100.0))
+                    .accessible_name("Value");
                 probe.rect = resp.rect;
                 probe.id = Some(resp.id);
                 if probe.open {
@@ -407,8 +419,9 @@ fn a_widget_disabled_mid_drag_does_not_hold_focus() {
         .build_ui_state(
             |ui, probe: &mut EnabledProbe| {
                 Theme::slate().install(ui.ctx());
-                let resp =
-                    ui.add_enabled(probe.enabled, Slider::new(&mut probe.value, 0.0..=100.0));
+                let resp = ui
+                    .add_enabled(probe.enabled, Slider::new(&mut probe.value, 0.0..=100.0))
+                    .accessible_name("Value");
                 probe.rect = resp.rect;
                 probe.id = Some(resp.id);
             },

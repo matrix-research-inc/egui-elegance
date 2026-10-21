@@ -1,8 +1,7 @@
 //! A "segmented" toggle button with an LED dot.
 
 use egui::{
-    Color32, CornerRadius, Response, Sense, Stroke, Ui, Vec2, Widget, WidgetInfo, WidgetText,
-    WidgetType,
+    Color32, CornerRadius, Response, Role, Sense, Stroke, Ui, Vec2, Widget, WidgetInfo, WidgetText,
 };
 
 use crate::button::ButtonSize;
@@ -219,7 +218,7 @@ impl<'a> Widget for SegmentedButton<'a> {
         }
 
         response.widget_info(|| {
-            WidgetInfo::selected(WidgetType::Checkbox, true, *self.on, self.label.text())
+            WidgetInfo::selected(Role::CheckBox, true, *self.on, self.label.text())
         });
         response
     }

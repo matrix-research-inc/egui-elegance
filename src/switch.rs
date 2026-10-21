@@ -16,8 +16,8 @@
 //! The knob transition is animated via [`egui::Context::animate_bool_responsive`].
 
 use egui::{
-    Color32, CornerRadius, FontSelection, Response, Sense, Stroke, Ui, Vec2, Widget, WidgetInfo,
-    WidgetText, WidgetType, pos2, vec2,
+    Color32, CornerRadius, FontSelection, Response, Role, Sense, Stroke, Ui, Vec2, Widget,
+    WidgetInfo, WidgetText, pos2, vec2,
 };
 
 use crate::Accent;
@@ -177,9 +177,8 @@ impl<'a> Widget for Switch<'a> {
             }
         }
 
-        response.widget_info(|| {
-            WidgetInfo::labeled(WidgetType::Checkbox, self.enabled, self.label.text())
-        });
+        response
+            .widget_info(|| WidgetInfo::labeled(Role::CheckBox, self.enabled, self.label.text()));
         response
     }
 }

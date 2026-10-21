@@ -98,7 +98,7 @@ impl Popover {
     /// to open or close a popover programmatically (for example, from a
     /// keyboard shortcut or a test harness).
     pub fn popup_id(id_salt: impl crate::IdSalt) -> Id {
-        Id::new(("elegance::popover", Id::new(id_salt)))
+        Id::unique(("elegance::popover", Id::unique(id_salt)))
     }
 
     /// Which side of the trigger to anchor on. Default: [`PopoverSide::Bottom`].

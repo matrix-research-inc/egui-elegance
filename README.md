@@ -18,7 +18,7 @@ or, in `Cargo.toml`:
 
 ```toml
 [dependencies]
-egui          = "0.36"
+egui          = "0.37"
 egui-elegance = "0.16"
 ```
 

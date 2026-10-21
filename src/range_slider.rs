@@ -8,8 +8,8 @@
 use std::ops::RangeInclusive;
 
 use egui::{
-    CornerRadius, CursorIcon, Event, EventFilter, Id, Key, Pos2, Rect, Response, Sense, Stroke,
-    StrokeKind, Ui, Vec2, Widget, WidgetInfo, WidgetText, WidgetType, emath::Numeric,
+    CornerRadius, CursorIcon, Event, EventFilter, Id, Key, Pos2, Rect, Response, Role, Sense,
+    Stroke, StrokeKind, Ui, Vec2, Widget, WidgetInfo, WidgetText, emath::Numeric,
 };
 
 use crate::slider::{SliderHandle, paint_handle};
@@ -95,6 +95,10 @@ impl<'a, T: Numeric> RangeSlider<'a, T> {
     }
 
     /// Show a label on the left of the header row above the track.
+    ///
+    /// The label also names the slider for screen readers. Without one, name
+    /// the returned response with [`egui::Response::accessible_name`], or with
+    /// [`egui::Response::labelled_by`] when a caption is drawn beside it.
     #[inline]
     pub fn label(mut self, label: impl Into<WidgetText>) -> Self {
         self.label = Some(label.into());
@@ -183,7 +187,7 @@ impl<'a, T: Numeric> RangeSlider<'a, T> {
     /// on focus or drag state.
     #[inline]
     pub fn id_salt(mut self, id_salt: impl crate::IdSalt) -> Self {
-        self.id_salt = Some(Id::new(id_salt));
+        self.id_salt = Some(Id::unique(id_salt));
         self
     }
 
@@ -257,7 +261,9 @@ impl<'a, T: Numeric> Widget for RangeSlider<'a, T> {
             }
         }
 
-        let id_salt = self.id_salt.unwrap_or_else(|| Id::new(ui.next_auto_id()));
+        let id_salt = self
+            .id_salt
+            .unwrap_or_else(|| Id::unique(ui.next_auto_id()));
         let drag_state_id = id_salt.with("range_slider_drag_idx");
         let label_text = self
             .label
@@ -598,7 +604,7 @@ impl<'a, T: Numeric> Widget for RangeSlider<'a, T> {
                 };
                 let resp = thumb_resp[i].clone();
                 resp.widget_info(|| {
-                    let mut info = WidgetInfo::labeled(WidgetType::Slider, self.enabled, &label);
+                    let mut info = WidgetInfo::labeled(Role::Slider, self.enabled, &label);
                     info.value = Some(v);
                     info
                 });

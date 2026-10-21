@@ -26,8 +26,8 @@
 //! in this version.
 
 use egui::{
-    CornerRadius, Id, Popup, PopupCloseBehavior, Pos2, Response, Sense, Ui, Vec2, Widget,
-    WidgetInfo, WidgetText, WidgetType,
+    CornerRadius, Id, Popup, PopupCloseBehavior, Pos2, Response, Role, Sense, Ui, Vec2, Widget,
+    WidgetInfo, WidgetText,
 };
 
 use crate::theme::{Theme, with_alpha};
@@ -49,7 +49,7 @@ impl Menu {
     /// it's attached to.
     pub fn new(id_salt: impl crate::IdSalt) -> Self {
         Self {
-            id_salt: Id::new(("elegance::menu", Id::new(id_salt))),
+            id_salt: Id::unique(("elegance::menu", Id::unique(id_salt))),
             min_width: 180.0,
         }
     }
@@ -67,7 +67,7 @@ impl Menu {
         trigger: &Response,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> Option<R> {
-        let popup_id = Id::new(self.id_salt);
+        let popup_id = Id::unique(self.id_salt);
         Popup::menu(trigger)
             .id(popup_id)
             .close_behavior(PopupCloseBehavior::CloseOnClick)
@@ -361,15 +361,12 @@ impl Widget for MenuItem {
 
         response.widget_info(|| match &self.leading {
             Some(Leading::Checked(on)) => {
-                WidgetInfo::selected(WidgetType::Checkbox, self.enabled, *on, self.label.text())
+                WidgetInfo::selected(Role::CheckBox, self.enabled, *on, self.label.text())
             }
-            Some(Leading::Radio(on)) => WidgetInfo::selected(
-                WidgetType::RadioButton,
-                self.enabled,
-                *on,
-                self.label.text(),
-            ),
-            _ => WidgetInfo::labeled(WidgetType::Button, self.enabled, self.label.text()),
+            Some(Leading::Radio(on)) => {
+                WidgetInfo::selected(Role::RadioButton, self.enabled, *on, self.label.text())
+            }
+            _ => WidgetInfo::labeled(Role::Button, self.enabled, self.label.text()),
         });
         response
     }
@@ -495,7 +492,8 @@ fn sub_menu_show<R>(
     let frame = Frame::menu(ui.style()).inner_margin(Margin::same(4));
     let id = button_response.id.with("submenu");
 
-    let (open_item, menu_id) = MenuState::from_ui(ui, |state, stack| (state.open_item, stack.id));
+    let (open_item, menu_id) =
+        MenuState::from_ui(ui, |state, stack| (state.open_item, stack.unique_id));
     // `MenuConfig::find` walks the stack from the parent menu (we haven't
     // shown the submenu yet, so the current ui's stack tail is the
     // parent). The submenu inherits the parent's close behavior and
@@ -712,7 +710,7 @@ impl Widget for MenuSection {
             ui.painter().galley(pos, galley, p.text_faint);
         }
 
-        response.widget_info(|| WidgetInfo::labeled(WidgetType::Label, true, &text));
+        response.widget_info(|| WidgetInfo::labeled(Role::Label, true, &text));
         response
     }
 }

@@ -65,7 +65,7 @@
 //! twice: immediately, and again on the following frame via a pending flag.
 //! The second attempt is the one that survives.
 
-use egui::{Context, Id, Key, LayerId, Modifiers, Order, Response, Ui, WidgetInfo, WidgetType};
+use egui::{Context, Id, Key, LayerId, Modifiers, Order, Response, Role, Ui, WidgetInfo};
 
 use crate::{Button, ButtonSize};
 
@@ -115,7 +115,7 @@ pub(crate) fn register_open(ctx: &Context, layer: LayerId) -> bool {
         let order: Vec<LayerId> = m.layer_ids().collect();
         let reg: &mut OpenOverlays = m
             .data
-            .get_temp_mut_or_default(Id::new("elegance_open_overlays"));
+            .get_temp_mut_or_default(Id::unique("elegance_open_overlays"));
         if reg.pass != pass {
             reg.previous = std::mem::take(&mut reg.current);
             reg.pass = pass;
@@ -179,7 +179,7 @@ pub(crate) fn close_button(ui: &mut Ui, id_salt: &'static str) -> Response {
         })
         .inner;
     let enabled = inner.enabled();
-    inner.widget_info(|| WidgetInfo::labeled(WidgetType::Button, enabled, "Close"));
+    inner.widget_info(|| WidgetInfo::labeled(Role::Button, enabled, "Close"));
     inner
 }
 

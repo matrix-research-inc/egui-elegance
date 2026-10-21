@@ -7,8 +7,8 @@
 //! flash feedback via [`ResponseFlashExt`](crate::ResponseFlashExt).
 
 use egui::{
-    CornerRadius, FontId, FontSelection, Response, Stroke, TextEdit, Ui, Vec2, Widget, WidgetInfo,
-    WidgetText, WidgetType,
+    CornerRadius, FontId, FontSelection, Response, Role, Stroke, TextEdit, Ui, Vec2, Widget,
+    WidgetInfo, WidgetText,
 };
 
 use crate::{flash, theme::Theme};
@@ -73,6 +73,10 @@ impl<'a> TextArea<'a> {
     }
 
     /// Show a label above the text area.
+    ///
+    /// The label also names the text area for screen readers. Without one, name
+    /// the returned response with [`egui::Response::accessible_name`], or with
+    /// [`egui::Response::labelled_by`] when a caption is drawn beside it.
     pub fn label(mut self, text: impl Into<WidgetText>) -> Self {
         self.label = Some(text.into());
         self
@@ -113,7 +117,7 @@ impl<'a> TextArea<'a> {
     /// Supply a stable id salt. Required if you plan to flash this widget
     /// via [`ResponseFlashExt`](crate::ResponseFlashExt).
     pub fn id_salt(mut self, id: impl crate::IdSalt) -> Self {
-        self.id_salt = Some(egui::Id::new(id));
+        self.id_salt = Some(egui::Id::unique(id));
         self
     }
 }
@@ -134,8 +138,10 @@ impl<'a> Widget for TextArea<'a> {
                 ui.add_space(2.0);
             }
 
+            // Pin the TextEdit to this id: flash state is stored under the
+            // returned response's id and read back here before painting.
             let id_salt = self.id_salt.unwrap_or_else(|| ui.next_auto_id());
-            let widget_id = ui.make_persistent_id(egui::Id::new(id_salt));
+            let widget_id = ui.make_persistent_id(egui::Id::unique(id_salt));
 
             let flash = flash::active_flash(ui.ctx(), widget_id);
             let bg_fill = flash::background_fill(&theme, p.input_bg, flash);
@@ -157,7 +163,7 @@ impl<'a> Widget for TextArea<'a> {
                 v.selection.stroke = Stroke::new(1.0, p.focus);
 
                 let mut edit = TextEdit::multiline(self.text)
-                    .id_salt(id_salt)
+                    .id(widget_id)
                     .font(FontSelection::FontId(font_id))
                     .text_color(p.text)
                     .margin(margin)
@@ -198,7 +204,7 @@ impl<'a> Widget for TextArea<'a> {
 
             if let Some(label) = &self.label {
                 let label = label.text().to_string();
-                response.widget_info(|| WidgetInfo::labeled(WidgetType::TextEdit, true, &label));
+                response.widget_info(|| WidgetInfo::labeled(Role::TextInput, true, &label));
             }
 
             response

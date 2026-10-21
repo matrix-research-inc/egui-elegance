@@ -20,8 +20,8 @@
 //! step failed.
 
 use egui::{
-    Color32, CornerRadius, Painter, Pos2, Rect, Response, Sense, Stroke, StrokeKind, Ui, Vec2,
-    Widget, WidgetInfo, WidgetType,
+    Color32, CornerRadius, Painter, Pos2, Rect, Response, Role, Sense, Stroke, StrokeKind, Ui,
+    Vec2, Widget, WidgetInfo,
 };
 
 use crate::theme::{Theme, with_alpha};
@@ -267,7 +267,7 @@ fn paint_cells(ui: &mut Ui, s: &Steps) -> Response {
         }
     }
 
-    response.widget_info(|| WidgetInfo::labeled(WidgetType::ProgressIndicator, true, "progress"));
+    response.widget_info(|| WidgetInfo::labeled(Role::ProgressIndicator, true, "progress"));
     response
 }
 
@@ -300,8 +300,7 @@ fn paint_numbered(ui: &mut Ui, s: &Steps) -> Response {
     let (rect, response) = ui.allocate_exact_size(Vec2::new(width, total_h), Sense::hover());
 
     if !ui.is_rect_visible(rect) {
-        response
-            .widget_info(|| WidgetInfo::labeled(WidgetType::ProgressIndicator, true, "progress"));
+        response.widget_info(|| WidgetInfo::labeled(Role::ProgressIndicator, true, "progress"));
         return response;
     }
 
@@ -393,7 +392,7 @@ fn paint_numbered(ui: &mut Ui, s: &Steps) -> Response {
         }
     }
 
-    response.widget_info(|| WidgetInfo::labeled(WidgetType::ProgressIndicator, true, "progress"));
+    response.widget_info(|| WidgetInfo::labeled(Role::ProgressIndicator, true, "progress"));
     response
 }
 
@@ -516,7 +515,7 @@ fn paint_labeled(ui: &mut Ui, s: &Steps) -> Response {
         }
     }
 
-    response.widget_info(|| WidgetInfo::labeled(WidgetType::ProgressIndicator, true, "progress"));
+    response.widget_info(|| WidgetInfo::labeled(Role::ProgressIndicator, true, "progress"));
     response
 }
 

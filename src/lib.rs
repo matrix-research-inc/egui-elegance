@@ -62,7 +62,6 @@ mod file_drop_zone;
 mod flash;
 mod focus;
 mod gauge;
-mod id_salt;
 mod indicator;
 mod input;
 mod knob;
@@ -110,10 +109,15 @@ pub use color_picker::ColorPicker;
 pub use commit::ResponseCommitExt;
 pub use context_menu::ContextMenu;
 pub use drawer::{Drawer, DrawerSide};
+/// The bound on a caller-supplied widget id salt: any `Hash + Debug` value,
+/// such as a string, integer, or tuple.
+///
+/// An alias of [`egui::AsIdSalt`] under elegance's original name. Not to be
+/// confused with [`egui::IdSalt`], the hashed salt value itself.
+pub use egui::AsIdSalt as IdSalt;
 pub use file_drop_zone::{FileDropResponse, FileDropZone};
 pub use flash::{FLASH_DURATION, FlashKind, ResponseFlashExt, flash_error, flash_success};
 pub use gauge::{GaugeZones, LinearGauge, RadialGauge};
-pub use id_salt::IdSalt;
 pub use indicator::{Indicator, IndicatorState};
 pub use input::TextInput;
 pub use knob::{Knob, KnobScale, KnobSize};

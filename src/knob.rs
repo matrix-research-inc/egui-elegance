@@ -22,8 +22,8 @@ use std::f32::consts::PI;
 use std::ops::RangeInclusive;
 
 use egui::{
-    Align2, Color32, FontId, Pos2, Response, Sense, Stroke, Ui, Vec2, Widget, WidgetInfo,
-    WidgetText, WidgetType,
+    Align2, Color32, FontId, Pos2, Response, Role, Sense, Stroke, Ui, Vec2, Widget, WidgetInfo,
+    WidgetText,
     emath::Numeric,
     epaint::{PathShape, PathStroke},
     pos2, vec2,
@@ -187,6 +187,10 @@ impl<'a, T: Numeric> Knob<'a, T> {
     }
 
     /// Show a label above the knob.
+    ///
+    /// The label also names the knob for screen readers. Without one, name
+    /// the returned response with [`egui::Response::accessible_name`], or with
+    /// [`egui::Response::labelled_by`] when a caption is drawn beside it.
     pub fn label(mut self, label: impl Into<WidgetText>) -> Self {
         self.label = Some(label.into());
         self
@@ -819,7 +823,7 @@ impl<'a, T: Numeric> Widget for Knob<'a, T> {
                 ui.add(egui::Label::new(rich).wrap_mode(egui::TextWrapMode::Extend));
             }
 
-            response.widget_info(|| WidgetInfo::labeled(WidgetType::Slider, true, &label_text));
+            response.widget_info(|| WidgetInfo::labeled(Role::Slider, true, &label_text));
             response
         })
         .inner
