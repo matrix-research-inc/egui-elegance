@@ -10,6 +10,7 @@ Versions before 0.11.0 predate tagging; see the git history for those.
 - **Breaking:** id salts are scoped, so the same salt can be reused under different parents. Widgets shown in a `Ui` scope it with the `Ui`; `Popover`, `Menu`, and `ContextMenu` scope it with their trigger. `Modal` and `Drawer` salts stay app-wide.
 - **Breaking:** `Popover::popup_id(salt)` is now `Popover::popup_id(trigger.id, salt)`.
 - **Emoji need a font now.** egui 0.37 no longer bundles emoji fonts, so emoji passed to elegance widgets (e.g. `.icon("🔔")`) render as empty boxes. Enable egui's `monochrome_emoji_fonts` feature or eframe's `system_fonts`, or switch to the bundled `glyphs`.
+- **`Button::icon_text(glyph, label)`** draws one of the bundled `glyphs` before the label, at the same height as a text button of the same size.
 - `IdSalt` is now an alias of egui's equivalent `AsIdSalt` trait. Code that uses it as a bound is unaffected.
 - `Select` is 1pt taller, because egui's `ComboBox` now shares `Button`'s layout.
 - Fixed `flash_success` / `flash_error` not tinting a non-revealable `TextInput` or a `TextArea` under egui 0.37.

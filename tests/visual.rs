@@ -208,6 +208,38 @@ fn icon_buttons_ui(ui: &mut egui::Ui) {
     });
 }
 
+fn icon_text_buttons_ui(ui: &mut egui::Ui) {
+    // Each size between a text button and an icon button of the same size:
+    // all three must share a height.
+    for (size, lbl) in [
+        (ButtonSize::Small, "Small"),
+        (ButtonSize::Medium, "Medium"),
+        (ButtonSize::Large, "Large"),
+    ] {
+        ui.horizontal(|ui| {
+            ui.add(Button::new(lbl).size(size));
+            ui.add(Button::icon_text(glyphs::DOWNLOAD, "Download").size(size));
+            ui.add(Button::icon(glyphs::TRASH, format!("Delete {lbl}")).size(size));
+        });
+        ui.add_space(8.0);
+    }
+    ui.horizontal_wrapped(|ui| {
+        for (glyph, name, accent) in [
+            (glyphs::UPLOAD, "Upload", Accent::Green),
+            (glyphs::TRASH, "Delete", Accent::Red),
+            (glyphs::PENCIL, "Edit", Accent::Purple),
+            (glyphs::REFRESH, "Refresh", Accent::Amber),
+            (glyphs::SEARCH, "Search", Accent::Sky),
+        ] {
+            ui.add(Button::icon_text(glyph, name).accent(accent));
+        }
+        ui.add(Button::icon_text(glyphs::COPY, "Copy").outline());
+        ui.add(Button::icon_text(glyphs::POWER, "Power").enabled(false));
+        ui.add(Button::icon_text(glyphs::NETWORK, "Connect").loading(true));
+        ui.add(Button::icon_text(glyphs::SEARCH, "Wide").min_width(140.0));
+    });
+}
+
 fn text_inputs_ui(ui: &mut egui::Ui) {
     let mut normal = "steve@example.com".to_string();
     let mut hint = String::new();
@@ -1922,6 +1954,7 @@ fn tooltip_below_ui(ui: &mut egui::Ui) {
 
 theme_tests!(buttons, buttons_ui);
 theme_tests!(icon_buttons, icon_buttons_ui);
+theme_tests!(icon_text_buttons, icon_text_buttons_ui);
 theme_tests!(text_inputs, text_inputs_ui);
 theme_tests!(tag_inputs, tag_inputs_ui);
 theme_tests!(removable_chips, removable_chips_ui);

@@ -572,6 +572,26 @@ impl App {
                     ui.add(Button::icon(glyphs::REFRESH, "Refresh").loading(true));
                 });
             });
+
+            labeled(ui, "Icon + text", |ui| {
+                ui.horizontal_wrapped(|ui| {
+                    ui.add(
+                        Button::icon_text(glyphs::DOWNLOAD, "Download")
+                            .size(ButtonSize::Large)
+                            .accent(Accent::Blue),
+                    );
+                    ui.add(Button::icon_text(glyphs::UPLOAD, "Upload").accent(Accent::Green));
+                    ui.add(Button::icon_text(glyphs::TRASH, "Delete").accent(Accent::Red));
+                    ui.add(
+                        Button::icon_text(glyphs::PENCIL, "Edit")
+                            .size(ButtonSize::Small)
+                            .accent(Accent::Purple),
+                    );
+                    ui.add(Button::icon_text(glyphs::COPY, "Copy").outline());
+                    ui.add(Button::icon_text(glyphs::POWER, "Power").enabled(false));
+                    ui.add(Button::icon_text(glyphs::REFRESH, "Refresh").loading(true));
+                });
+            });
         });
     }
 
