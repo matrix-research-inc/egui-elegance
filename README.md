@@ -324,6 +324,44 @@ impl App {
 }
 ```
 
+### Dock
+
+![Dock](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/dock.png)
+
+Tabbed split panes. Drag tabs to reorder them, move them between panes, or drop them on a pane's edge to split it; drag the gutters to resize. The layout is a `DockLayout` of tab ids that your app owns, and a `DockViewer` supplies each tab's label and content. Enable the optional `serde` feature to persist the layout. Floating windows are not supported.
+
+```rust
+use elegance::{Dock, DockLayout, DockNode, DockTab, DockViewer};
+
+struct Viewer;
+
+impl DockViewer for Viewer {
+    fn tab(&mut self, id: &str) -> DockTab {
+        DockTab::new(id)
+    }
+    fn ui(&mut self, ui: &mut egui::Ui, id: &str) {
+        ui.label(format!("Contents of {id}"));
+    }
+}
+
+struct App { layout: DockLayout }
+
+impl App {
+    fn new() -> Self {
+        let layout = DockLayout::from_node(DockNode::row(
+            0.3,
+            DockNode::tabs(["files"]),
+            DockNode::tabs(["editor", "preview"]),
+        ));
+        Self { layout }
+    }
+
+    fn ui(&mut self, ui: &mut egui::Ui) {
+        Dock::new("workspace").show(ui, &mut self.layout, &mut Viewer);
+    }
+}
+```
+
 ### StatusPill · Indicator · Badge
 
 ![Status](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/status.png)

@@ -29,8 +29,13 @@ path = "src/lib.rs"
 [lints.rust]
 warnings = "deny"
 
+[features]
+# Derive `Serialize`/`Deserialize` for `DockLayout` so apps can persist it.
+serde = ["dep:serde"]
+
 [dependencies]
 egui = "0.37"
+serde = { version = "1", features = ["derive"], optional = true }
 
 [target.'cfg(target_family = "wasm")'.dependencies]
 js-sys = "0.3"
@@ -47,6 +52,7 @@ eframe = { version = "0.37", default-features = false, features = [
 ] }
 egui_kittest = { version = "0.37", features = ["wgpu", "snapshot"] }
 image = { version = "0.25", default-features = false, features = ["png"] }
+serde_json = "1"
 
 [[example]]
 name = "orbit"

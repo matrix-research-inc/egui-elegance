@@ -9,8 +9,8 @@ use eframe::egui;
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable as _;
 use elegance::{
-    Accordion, BrowserTab, BrowserTabs, Button, CollapsingSection, ColorPicker, ContextMenu, Menu,
-    MenuBar, MenuItem, Popover, Theme,
+    Accordion, BrowserTab, BrowserTabs, Button, CollapsingSection, ColorPicker, ContextMenu, Dock,
+    DockLayout, DockTab, DockViewer, Menu, MenuBar, MenuItem, Popover, Theme,
 };
 
 const SALT: &str = "shared";
@@ -154,5 +154,81 @@ fn browser_tab_strips_select_separately() {
         strips[1].selected().map(str::to_owned),
         before,
         "clicking a tab in strip a should leave strip b's selection alone"
+    );
+}
+
+/// Records the `Ui` id of every tab body it is asked to draw.
+#[derive(Default)]
+struct IdViewer {
+    body_ids: Vec<egui::Id>,
+}
+
+impl DockViewer for IdViewer {
+    fn tab(&mut self, id: &str) -> DockTab {
+        DockTab::new(id)
+    }
+
+    fn ui(&mut self, ui: &mut egui::Ui, _id: &str) {
+        self.body_ids.push(ui.scope_id());
+    }
+}
+
+/// Both docks hold the same tab ids under the same salt, so anything keyed
+/// only by tab id or salt would collide.
+#[test]
+fn docks_activate_tabs_separately() {
+    let layouts = std::rc::Rc::new(std::cell::RefCell::new(
+        SIDES.map(|_| DockLayout::single(["one", "two"])),
+    ));
+    let shown = layouts.clone();
+    let mut harness = harness(move |ui, side| {
+        let index = SIDES.iter().position(|s| *s == side).unwrap();
+        ui.allocate_ui(egui::vec2(300.0, 300.0), |ui| {
+            let mut viewer = IdViewer::default();
+            Dock::new(SALT).show(ui, &mut shown.borrow_mut()[index], &mut viewer);
+        });
+    });
+
+    // Both docks label their second tab "two"; click dock a's.
+    harness.get_all_by_label("two").next().unwrap().click();
+    harness.run();
+
+    let layouts = layouts.borrow();
+    assert_eq!(layouts[0].active_tab_ids(), ["two"]);
+    assert_eq!(
+        layouts[1].active_tab_ids(),
+        ["one"],
+        "clicking a tab in dock a should leave dock b's active tab alone"
+    );
+}
+
+/// Two docks side by side in one `Ui` are told apart only by their salts, so
+/// a tab with the same id in each must still get its own body `Ui` id.
+#[test]
+fn sibling_docks_give_tab_bodies_distinct_ids() {
+    let ids = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
+    let seen = ids.clone();
+    let mut layouts = [DockLayout::single(["tab"]), DockLayout::single(["tab"])];
+    let mut harness = Harness::builder()
+        .with_size(egui::Vec2::new(640.0, 480.0))
+        .build_ui(move |ui| {
+            Theme::slate().install(ui.ctx());
+            ui.horizontal_top(|ui| {
+                for (salt, layout) in layouts.iter_mut().enumerate() {
+                    ui.allocate_ui(egui::vec2(300.0, 300.0), |ui| {
+                        let mut viewer = IdViewer::default();
+                        Dock::new(salt).show(ui, layout, &mut viewer);
+                        seen.borrow_mut().extend(viewer.body_ids);
+                    });
+                }
+            });
+        });
+    harness.run();
+
+    let ids = ids.borrow();
+    let last_two = &ids[ids.len() - 2..];
+    assert_ne!(
+        last_two[0], last_two[1],
+        "same tab id in two sibling docks must not share a Ui id"
     );
 }
