@@ -1819,7 +1819,8 @@ impl App {
                             (8u32, "500µ"),
                         ])
                         .default(3_u32),
-                );
+                )
+                .accessible_name("Timebase");
             });
 
             labeled(ui, "Bipolar (fill from zero)", |ui| {
