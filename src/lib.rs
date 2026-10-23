@@ -57,6 +57,7 @@ mod collapsing;
 mod color_picker;
 mod commit;
 mod context_menu;
+mod dock;
 mod drawer;
 mod file_drop_zone;
 mod flash;
@@ -88,6 +89,7 @@ mod spinner;
 mod stat_card;
 mod steps;
 mod switch;
+mod tab_paint;
 mod tabs;
 mod tag_input;
 mod text_area;
@@ -108,6 +110,9 @@ pub use collapsing::CollapsingSection;
 pub use color_picker::ColorPicker;
 pub use commit::ResponseCommitExt;
 pub use context_menu::ContextMenu;
+pub use dock::{
+    Dock, DockEvent, DockLayout, DockNode, DockResponse, DockTab, DockViewer, SplitDirection,
+};
 pub use drawer::{Drawer, DrawerSide};
 /// The bound on a caller-supplied widget id salt: any `Hash + Debug` value,
 /// such as a string, integer, or tuple.

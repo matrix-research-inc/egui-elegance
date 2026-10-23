@@ -16,13 +16,13 @@ use egui_kittest::kittest::Queryable;
 use elegance::{
     Accent, Accordion, Avatar, AvatarGroup, AvatarPresence, AvatarSize, AvatarTone, Badge,
     BadgeTone, BrowserTab, BrowserTabs, Button, ButtonSize, Callout, CalloutTone, Card, Checkbox,
-    CollapsingSection, ColorPicker, Drawer, DrawerSide, FileDropZone, GaugeZones, Indicator,
-    IndicatorState, Knob, KnobSize, LinearGauge, LogBar, MenuBar, MenuItem, MenuSection,
-    MetricSlider, Modal, PairItem, Pairing, PercentSlider, Popover, PopoverSide, ProgressBar,
-    ProgressRing, RadialGauge, RangeSlider, RemovableChip, Segment, SegmentDot, SegmentedButton,
-    SegmentedControl, SegmentedSize, Select, Slider, SliderHandle, SortableItem, SortableList,
-    Spinner, StatCard, StatusPill, Steps, StepsStyle, Switch, TabBar, TagInput, TextArea,
-    TextInput, Theme, Tooltip, TooltipSide, glyphs,
+    CollapsingSection, ColorPicker, Dock, DockLayout, DockNode, DockTab, DockViewer, Drawer,
+    DrawerSide, FileDropZone, GaugeZones, Indicator, IndicatorState, Knob, KnobSize, LinearGauge,
+    LogBar, MenuBar, MenuItem, MenuSection, MetricSlider, Modal, PairItem, Pairing, PercentSlider,
+    Popover, PopoverSide, ProgressBar, ProgressRing, RadialGauge, RangeSlider, RemovableChip,
+    Segment, SegmentDot, SegmentedButton, SegmentedControl, SegmentedSize, Select, Slider,
+    SliderHandle, SortableItem, SortableList, Spinner, StatCard, StatusPill, Steps, StepsStyle,
+    Switch, TabBar, TagInput, TextArea, TextInput, Theme, Tooltip, TooltipSide, glyphs,
 };
 
 fn snap(name: &str, theme: Theme, ui_fn: fn(&mut egui::Ui)) {
@@ -582,6 +582,93 @@ fn browser_tabs_ui(ui: &mut egui::Ui) {
     tabs.set_selected("theme");
     ui.set_min_width(720.0);
     tabs.show(ui);
+}
+
+struct DockDemoViewer;
+
+impl DockViewer for DockDemoViewer {
+    fn tab(&mut self, id: &str) -> DockTab {
+        match id {
+            "files" => DockTab::new("Files").icon(glyphs::FOLDER),
+            "editor" => DockTab::new("theme.rs").dirty(true),
+            "preview" => DockTab::new("Preview"),
+            "console" => DockTab::new("Console")
+                .icon(glyphs::TERMINAL)
+                .dirty(true)
+                .closable(false),
+            "long" => DockTab::new("a_really_long_file_name.rs").dirty(true),
+            "search" => DockTab::new("Search").icon(glyphs::SEARCH).dirty(true),
+            other => DockTab::new(other),
+        }
+    }
+
+    fn ui(&mut self, ui: &mut egui::Ui, id: &str) {
+        let theme = Theme::current(ui.ctx());
+        ui.label(theme.muted_text(format!("Contents of {id}")));
+        ui.add_space(6.0);
+        ui.add(Button::new("Action"));
+    }
+}
+
+fn dock_layout() -> DockLayout {
+    let mut layout = DockLayout::from_node(DockNode::row(
+        0.28,
+        DockNode::tabs(["files"]),
+        DockNode::column(
+            0.62,
+            DockNode::tabs(["editor", "preview"]),
+            DockNode::tabs(["console"]),
+        ),
+    ));
+    layout.activate("editor");
+    layout
+}
+
+fn dock_ui(ui: &mut egui::Ui) {
+    let mut layout = dock_layout();
+    ui.allocate_ui(egui::vec2(720.0, 360.0), |ui| {
+        Dock::new("vis_dock").show(ui, &mut layout, &mut DockDemoViewer);
+    });
+}
+
+/// A narrow dock whose strip overflows, so tabs shrink to their minimum width.
+fn dock_overflow_ui(ui: &mut egui::Ui) {
+    let mut layout = DockLayout::single(["files", "editor", "preview", "long", "search"]);
+    layout.activate("files");
+    ui.allocate_ui(egui::vec2(300.0, 140.0), |ui| {
+        Dock::new("vis_dock_overflow").show(ui, &mut layout, &mut DockDemoViewer);
+    });
+}
+
+/// Snapshot a dock mid-drag: `from` and `to` are tab / pane labels resolved
+/// to their on-screen centres once the first frame has been laid out.
+fn snap_dock_drag(name: &str, theme: Theme, grab: &str, drop_at: fn(egui::Rect) -> egui::Pos2) {
+    let mut harness = Harness::builder()
+        .with_size(egui::Vec2::new(760.0, 400.0))
+        .with_pixels_per_point(2.0)
+        .wgpu()
+        .build_ui(move |ui| {
+            theme.clone().install(ui.ctx());
+            let t = Theme::current(ui.ctx());
+            let screen = ui.ctx().content_rect();
+            ui.painter().rect_filled(screen, 0.0, t.palette.bg);
+            egui::Frame::new()
+                .inner_margin(egui::Margin::same(16))
+                .show(ui, dock_ui);
+        });
+    harness.run();
+    let from = harness.get_by_label(grab).rect().center();
+    let target = harness.get_by_label("Contents of editor").rect();
+    harness.hover_at(from);
+    harness.run_steps(2);
+    harness.drag_at(from);
+    harness.run_steps(2);
+    let to = drop_at(target);
+    harness.hover_at(from.lerp(to, 0.5));
+    harness.run_steps(2);
+    harness.hover_at(to);
+    harness.run_steps(3);
+    harness.snapshot(name);
 }
 
 fn status_ui(ui: &mut egui::Ui) {
@@ -1964,6 +2051,8 @@ theme_tests!(toggles, toggles_ui);
 theme_tests!(tabs, tabs_ui);
 theme_tests!(segmented_control, segmented_control_ui);
 theme_tests!(browser_tabs, browser_tabs_ui);
+theme_tests!(dock, dock_ui);
+theme_tests!(dock_overflow, dock_overflow_ui);
 theme_tests!(status, status_ui);
 theme_tests!(stat_cards, stat_cards_ui);
 theme_tests!(avatars, avatars_ui);
@@ -2385,4 +2474,26 @@ fn icon_button_centres_its_glyph() {
         off.length() <= 0.5,
         "glyph ink off centre by {off:?} pt — button {button:?}, ink centre {ink:?}"
     );
+}
+
+mod dock_drag {
+    use super::*;
+
+    fn left_of(r: egui::Rect) -> egui::Pos2 {
+        egui::pos2(r.left() + 24.0, r.center().y + 60.0)
+    }
+
+    fn centre_of(r: egui::Rect) -> egui::Pos2 {
+        egui::pos2(r.center().x + 120.0, r.center().y + 60.0)
+    }
+
+    #[test]
+    fn edge_slate() {
+        snap_dock_drag("dock_drag_edge_slate", Theme::slate(), "Preview", left_of);
+    }
+
+    #[test]
+    fn group_slate() {
+        snap_dock_drag("dock_drag_group_slate", Theme::slate(), "Files", centre_of);
+    }
 }
