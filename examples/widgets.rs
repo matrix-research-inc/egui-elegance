@@ -9,14 +9,15 @@ use eframe::egui;
 use elegance::{
     Accent, Accordion, Avatar, AvatarGroup, AvatarPresence, AvatarSize, AvatarTone, Badge,
     BadgeTone, BrowserTab, BrowserTabs, BrowserTabsEvent, BuiltInTheme, Button, ButtonSize,
-    Callout, CalloutTone, Card, Checkbox, CollapsingSection, ColorPicker, ContextMenu, Drawer,
-    DrawerSide, FileDropZone, GaugeZones, Indicator, IndicatorState, Knob, KnobSize, LinearGauge,
-    LogBar, Menu, MenuBar, MenuItem, MenuSection, MetricSlider, Modal, PairItem, Pairing,
-    PercentSlider, Popover, PopoverSide, ProgressBar, ProgressRing, RadialGauge, RangeSlider,
-    RemovableChip, Segment, SegmentDot, SegmentedButton, SegmentedControl, SegmentedSize, Select,
-    Slider, SliderHandle, SortableItem, SortableList, Spinner, StatCard, StatusPill, Steps,
-    StepsStyle, SubMenuItem, Switch, TabBar, TagInput, TextArea, TextInput, Theme, ThemeSwitcher,
-    Toast, Toasts, Tooltip, TooltipSide, glyphs,
+    Callout, CalloutTone, Card, Checkbox, CollapsingSection, ColorPicker, ContextMenu, Dock,
+    DockEvent, DockLayout, DockNode, DockTab, DockViewer, Drawer, DrawerSide, FileDropZone,
+    GaugeZones, Indicator, IndicatorState, Knob, KnobSize, LinearGauge, LogBar, Menu, MenuBar,
+    MenuItem, MenuSection, MetricSlider, Modal, PairItem, Pairing, PercentSlider, Popover,
+    PopoverSide, ProgressBar, ProgressRing, RadialGauge, RangeSlider, RemovableChip, Segment,
+    SegmentDot, SegmentedButton, SegmentedControl, SegmentedSize, Select, Slider, SliderHandle,
+    SortableItem, SortableList, Spinner, StatCard, StatusPill, Steps, StepsStyle, SubMenuItem,
+    Switch, TabBar, TagInput, TextArea, TextInput, Theme, ThemeSwitcher, Toast, Toasts, Tooltip,
+    TooltipSide, glyphs,
 };
 
 fn main() -> eframe::Result<()> {
@@ -142,6 +143,10 @@ struct App {
 
     browser_tabs: BrowserTabs,
     browser_tabs_untitled: u32,
+
+    dock: DockLayout,
+    dock_untitled: u32,
+    dock_log: Vec<String>,
 
     seg_ctrl_size: usize,
     seg_ctrl_density: usize,
@@ -347,6 +352,9 @@ impl Default for App {
                     "cargo output \u{2014} a longer title",
                 )),
             browser_tabs_untitled: 0,
+            dock: demo_dock_layout(),
+            dock_untitled: 0,
+            dock_log: Vec::new(),
             seg_ctrl_size: 1,
             seg_ctrl_density: 1,
             seg_ctrl_lang: 0,
@@ -468,6 +476,7 @@ impl eframe::App for App {
                             self.section_containers(ui);
                             self.section_accordion(ui);
                             self.section_menu_bar(ui);
+                            self.section_dock(ui);
                         }
                         7 => {
                             self.section_modal(ui);
@@ -1023,6 +1032,47 @@ impl App {
                     self.browser_tabs.add_tab(BrowserTab::new(id, label));
                 }
             }
+        });
+    }
+
+    fn section_dock(&mut self, ui: &mut egui::Ui) {
+        Card::new().heading("Dock").show(ui, |ui| {
+            ui.horizontal(|ui| {
+                if ui
+                    .add(Button::new("New tab").size(ButtonSize::Small))
+                    .clicked()
+                {
+                    self.dock_untitled += 1;
+                    self.dock
+                        .add_tab(format!("untitled-{}", self.dock_untitled));
+                }
+                if ui
+                    .add(
+                        Button::new("Reset layout")
+                            .accent(Accent::Sky)
+                            .size(ButtonSize::Small),
+                    )
+                    .clicked()
+                {
+                    self.dock = demo_dock_layout();
+                }
+            });
+            ui.add_space(6.0);
+            let size = egui::vec2(ui.available_width(), 360.0);
+            ui.allocate_ui(size, |ui| {
+                let out = Dock::new("ref_dock").show(ui, &mut self.dock, &mut DemoDockViewer);
+                for ev in out.events {
+                    match ev {
+                        DockEvent::TabClosed(id) => self.dock_log.push(format!("closed {id}")),
+                        DockEvent::TabMoved(id) => self.dock_log.push(format!("moved {id}")),
+                        DockEvent::TabActivated(_) | DockEvent::LayoutChanged => {}
+                    }
+                }
+            });
+            let theme = Theme::current(ui.ctx());
+            ui.add_space(6.0);
+            let last = self.dock_log.last().map_or("no events yet", String::as_str);
+            ui.label(theme.faint_text(format!("Last event: {last}")));
         });
     }
 
@@ -3062,6 +3112,44 @@ impl App {
             self.show_drawer_form = false;
         }
     }
+}
+
+struct DemoDockViewer;
+
+impl DockViewer for DemoDockViewer {
+    fn tab(&mut self, id: &str) -> DockTab {
+        match id {
+            "files" => DockTab::new("Files").icon(glyphs::FOLDER),
+            "editor" => DockTab::new("theme.rs").dirty(true),
+            "preview" => DockTab::new("Preview"),
+            "console" => DockTab::new("Console").icon(glyphs::TERMINAL),
+            other => DockTab::new(other),
+        }
+    }
+
+    fn ui(&mut self, ui: &mut egui::Ui, id: &str) {
+        let theme = Theme::current(ui.ctx());
+        ui.label(theme.muted_text(format!("Contents of {id}")));
+        ui.add_space(6.0);
+        ui.label(theme.faint_text("Drag a tab to reorder it, move it to another pane,"));
+        ui.label(
+            theme.faint_text("or drop it on a pane edge to split. Drag the gutters to resize."),
+        );
+    }
+}
+
+fn demo_dock_layout() -> DockLayout {
+    let mut layout = DockLayout::from_node(DockNode::row(
+        0.28,
+        DockNode::tabs(["files"]),
+        DockNode::column(
+            0.62,
+            DockNode::tabs(["editor", "preview"]),
+            DockNode::tabs(["console"]),
+        ),
+    ));
+    layout.activate("editor");
+    layout
 }
 
 fn labeled(ui: &mut egui::Ui, label: &str, body: impl FnOnce(&mut egui::Ui)) {

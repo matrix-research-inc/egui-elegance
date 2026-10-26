@@ -16,12 +16,12 @@ use egui_kittest::Harness;
 use elegance::{
     Accent, Avatar, AvatarGroup, AvatarPresence, AvatarSize, AvatarTone, Badge, BadgeTone,
     BrowserTab, BrowserTabs, Button, ButtonSize, Callout, CalloutTone, Card, Checkbox,
-    CollapsingSection, ColorPicker, FileDropZone, GaugeZones, Indicator, IndicatorState, Knob,
-    KnobSize, LinearGauge, MenuBar, MenuItem, MenuSection, MetricSlider, PairItem, Pairing,
-    PercentSlider, ProgressBar, ProgressRing, RadialGauge, RangeSlider, RemovableChip, Segment,
-    SegmentDot, SegmentedButton, SegmentedControl, SegmentedSize, Select, Slider, SortableItem,
-    SortableList, Spinner, StatusPill, Steps, StepsStyle, Switch, TabBar, TagInput, TextArea,
-    TextInput, Theme, glyphs,
+    CollapsingSection, ColorPicker, Dock, DockLayout, DockNode, DockTab, DockViewer, FileDropZone,
+    GaugeZones, Indicator, IndicatorState, Knob, KnobSize, LinearGauge, MenuBar, MenuItem,
+    MenuSection, MetricSlider, PairItem, Pairing, PercentSlider, ProgressBar, ProgressRing,
+    RadialGauge, RangeSlider, RemovableChip, Segment, SegmentDot, SegmentedButton,
+    SegmentedControl, SegmentedSize, Select, Slider, SortableItem, SortableList, Spinner,
+    StatusPill, Steps, StepsStyle, Switch, TabBar, TagInput, TextArea, TextInput, Theme, glyphs,
 };
 
 const OUTPUT_DIR: &str = "docs/images";
@@ -45,6 +45,7 @@ fn main() {
     render_tabs();
     render_segmented_control();
     render_browser_tabs();
+    render_dock();
     render_status();
     render_avatar();
     render_feedback();
@@ -718,6 +719,46 @@ fn render_browser_tabs() {
         background(ui, |ui| {
             ui.set_min_width(720.0);
             tabs.show(ui);
+        });
+    });
+}
+
+fn render_dock() {
+    struct Viewer;
+    impl DockViewer for Viewer {
+        fn tab(&mut self, id: &str) -> DockTab {
+            match id {
+                "files" => DockTab::new("Files").icon(glyphs::FOLDER),
+                "editor" => DockTab::new("theme.rs").dirty(true),
+                "preview" => DockTab::new("Preview"),
+                "console" => DockTab::new("Console").icon(glyphs::TERMINAL),
+                other => DockTab::new(other),
+            }
+        }
+
+        fn ui(&mut self, ui: &mut egui::Ui, id: &str) {
+            let theme = Theme::current(ui.ctx());
+            ui.label(theme.muted_text(format!("Contents of {id}")));
+        }
+    }
+
+    let mut layout = DockLayout::from_node(DockNode::row(
+        0.28,
+        DockNode::tabs(["files"]),
+        DockNode::column(
+            0.62,
+            DockNode::tabs(["editor", "preview"]),
+            DockNode::tabs(["console"]),
+        ),
+    ));
+    layout.activate("editor");
+
+    render("dock", move |ui| {
+        background(ui, |ui| {
+            // The dock fills its space, so the tile needs an explicit size.
+            ui.allocate_ui(egui::vec2(720.0, 360.0), |ui| {
+                Dock::new("docs_dock").show(ui, &mut layout, &mut Viewer);
+            });
         });
     });
 }

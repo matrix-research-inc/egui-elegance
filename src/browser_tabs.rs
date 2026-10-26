@@ -43,12 +43,10 @@
 //! # }
 //! ```
 
-use egui::{
-    Color32, CornerRadius, FontId, FontSelection, Rect, Response, RichText, Role, Sense, Stroke,
-    TextWrapMode, Ui, Vec2, WidgetInfo, WidgetText, pos2, vec2,
-};
+use egui::{CornerRadius, Rect, Response, Role, Sense, Stroke, Ui, Vec2, WidgetInfo, pos2, vec2};
 
-use crate::theme::{Theme, with_alpha};
+use crate::tab_paint::{self, TAB_GAP, TabContent, TabState};
+use crate::theme::Theme;
 
 /// A single tab cell rendered by [`BrowserTabs`].
 #[derive(Clone, Debug)]
@@ -109,17 +107,6 @@ pub enum BrowserTabsEvent {
 
 const STRIP_PAD_X: f32 = 8.0;
 const STRIP_PAD_Y: f32 = 8.0;
-const TAB_PAD_X: f32 = 10.0;
-const TAB_PAD_Y: f32 = 7.0;
-const TAB_GAP: f32 = 2.0;
-const TAB_RADIUS: f32 = 7.0;
-const ICON_SIZE: f32 = 12.0;
-const INNER_GAP: f32 = 8.0;
-const DIRTY_SIZE: f32 = 7.0;
-const DIRTY_TO_CLOSE_GAP: f32 = 5.0;
-const CLOSE_SIZE: f32 = 16.0;
-const CLOSE_INNER: f32 = 9.0;
-const CLOSE_RADIUS: u8 = 4;
 const NEW_BTN_SIZE: f32 = 28.0;
 const NEW_BTN_INNER: f32 = 14.0;
 const NEW_BTN_RADIUS: u8 = 5;
@@ -278,11 +265,9 @@ impl BrowserTabs {
     pub fn show(&mut self, ui: &mut Ui) -> Response {
         let theme = Theme::current(ui.ctx());
         let p = &theme.palette;
-        let t = &theme.typography;
         let base_id = ui.scope_id().with_salt(self.id_salt);
 
-        let label_size = t.small + 0.5;
-        let tab_height = TAB_PAD_Y * 2.0 + label_size.max(ICON_SIZE);
+        let tab_height = tab_paint::tab_height(&theme);
         let strip_height = STRIP_PAD_Y + tab_height;
 
         let avail_w = ui.available_width();
@@ -294,7 +279,7 @@ impl BrowserTabs {
             return response;
         }
 
-        let strip_bg = p.input_bg;
+        let strip_bg = tab_paint::strip_bg(&theme);
         ui.painter()
             .rect_filled(strip_rect, CornerRadius::ZERO, strip_bg);
 
@@ -308,163 +293,38 @@ impl BrowserTabs {
         let mut x = strip_rect.min.x + STRIP_PAD_X;
 
         for tab in self.tabs.iter() {
-            let icon_w = if tab.icon.is_some() {
-                ICON_SIZE + INNER_GAP
-            } else {
-                0.0
+            let content = TabContent {
+                label: &tab.label,
+                icon: tab.icon.as_deref(),
+                dirty: tab.dirty,
+                closable: true,
             };
-            let dirty_block_w = if tab.dirty {
-                INNER_GAP + DIRTY_SIZE + DIRTY_TO_CLOSE_GAP
-            } else {
-                INNER_GAP
-            };
-            let close_w = CLOSE_SIZE;
-            let max_label_w =
-                (self.max_tab_width - 2.0 * TAB_PAD_X - icon_w - dirty_block_w - close_w).max(0.0);
-
-            let label_galley = WidgetText::from(
-                RichText::new(&tab.label)
-                    .size(label_size)
-                    .color(Color32::PLACEHOLDER),
-            )
-            .into_galley(
+            let measured = tab_paint::measure_tab(
                 ui,
-                Some(TextWrapMode::Truncate),
-                max_label_w,
-                FontSelection::FontId(FontId::proportional(label_size)),
+                &theme,
+                &content,
+                self.min_tab_width,
+                self.max_tab_width,
             );
-            let label_w = label_galley.size().x.min(max_label_w);
-
-            let mut tab_w = 2.0 * TAB_PAD_X + icon_w + label_w + dirty_block_w + close_w;
-            tab_w = tab_w.clamp(self.min_tab_width, self.max_tab_width);
+            let tab_w = measured.width;
             let tab_rect = Rect::from_min_size(pos2(x, tabs_top), vec2(tab_w, tab_height));
 
             let tab_id = base_id.with(("tab", tab.id.as_str()));
             let resp = ui.interact(tab_rect, tab_id, Sense::click());
 
-            let close_center = pos2(
-                tab_rect.max.x - TAB_PAD_X - CLOSE_SIZE * 0.5,
-                tab_rect.center().y,
-            );
-            let close_rect = Rect::from_center_size(close_center, Vec2::splat(CLOSE_SIZE));
+            let close_rect = tab_paint::close_rect(tab_rect);
             let close_id = base_id.with(("close", tab.id.as_str()));
             let close_resp = ui.interact(close_rect, close_id, Sense::click());
 
             let is_active = active_id.as_deref() == Some(tab.id.as_str());
-            let any_hover = resp.hovered() || close_resp.hovered();
-
-            let radius = CornerRadius {
-                nw: TAB_RADIUS as u8,
-                ne: TAB_RADIUS as u8,
-                sw: 0,
-                se: 0,
+            let state = TabState {
+                active: is_active,
+                hovered: resp.hovered() || close_resp.hovered(),
+                close_hovered: close_resp.hovered(),
+                close_enabled: true,
+                strip_bg,
             };
-            let painter = ui.painter();
-
-            let (fill, label_color, icon_color) = if is_active {
-                (p.card, p.text, p.focus)
-            } else if any_hover {
-                (p.depth_tint(strip_bg, 0.06), p.text, p.text_muted)
-            } else {
-                (p.depth_tint(strip_bg, 0.02), p.text_muted, p.text_faint)
-            };
-            painter.rect_filled(tab_rect, radius, fill);
-
-            // Active tab gets a 1px top edge in the border colour plus side
-            // highlights so it reads as the lifted "merged with the panel
-            // below" cell. Inactive tabs get a suppressed outline (alpha
-            // ~110/255) so each cell stays distinct without competing.
-            let (top_color, side_color) = if is_active {
-                (p.border, p.depth_tint(p.card, 0.04))
-            } else {
-                let outline = with_alpha(p.border, 110);
-                (outline, outline)
-            };
-            painter.line_segment(
-                [
-                    pos2(tab_rect.min.x + TAB_RADIUS, tab_rect.min.y + 0.5),
-                    pos2(tab_rect.max.x - TAB_RADIUS, tab_rect.min.y + 0.5),
-                ],
-                Stroke::new(1.0, top_color),
-            );
-            painter.line_segment(
-                [
-                    pos2(tab_rect.min.x + 0.5, tab_rect.min.y + TAB_RADIUS),
-                    pos2(tab_rect.min.x + 0.5, tab_rect.max.y),
-                ],
-                Stroke::new(1.0, side_color),
-            );
-            painter.line_segment(
-                [
-                    pos2(tab_rect.max.x - 0.5, tab_rect.min.y + TAB_RADIUS),
-                    pos2(tab_rect.max.x - 0.5, tab_rect.max.y),
-                ],
-                Stroke::new(1.0, side_color),
-            );
-
-            let mut cursor_x = tab_rect.min.x + TAB_PAD_X;
-            let cy = tab_rect.center().y;
-
-            if let Some(icon) = &tab.icon {
-                let icon_galley = WidgetText::from(
-                    RichText::new(icon)
-                        .size(ICON_SIZE)
-                        .color(Color32::PLACEHOLDER),
-                )
-                .into_galley(
-                    ui,
-                    Some(TextWrapMode::Extend),
-                    f32::INFINITY,
-                    FontSelection::FontId(FontId::proportional(ICON_SIZE)),
-                );
-                let painter = ui.painter();
-                painter.galley(
-                    pos2(cursor_x, cy - icon_galley.size().y * 0.5),
-                    icon_galley,
-                    icon_color,
-                );
-                cursor_x += ICON_SIZE + INNER_GAP;
-            }
-
-            let painter = ui.painter();
-            let label_pos = pos2(cursor_x, cy - label_galley.size().y * 0.5);
-            painter.galley(label_pos, label_galley, label_color);
-
-            if tab.dirty {
-                let dot_x = close_rect.min.x - DIRTY_TO_CLOSE_GAP - DIRTY_SIZE * 0.5;
-                painter.circle_filled(pos2(dot_x, cy), DIRTY_SIZE * 0.5, p.focus);
-            }
-
-            let close_visible = is_active || any_hover;
-            if close_visible {
-                if close_resp.hovered() {
-                    let close_bg = p.depth_tint(if is_active { p.card } else { strip_bg }, 0.10);
-                    painter.rect_filled(close_rect, CornerRadius::same(CLOSE_RADIUS), close_bg);
-                }
-                let cross_color = if close_resp.hovered() {
-                    p.text
-                } else if is_active {
-                    p.text_muted
-                } else {
-                    p.text_faint
-                };
-                let half = CLOSE_INNER * 0.5;
-                let stroke = Stroke::new(1.5, cross_color);
-                painter.line_segment(
-                    [
-                        pos2(close_center.x - half, close_center.y - half),
-                        pos2(close_center.x + half, close_center.y + half),
-                    ],
-                    stroke,
-                );
-                painter.line_segment(
-                    [
-                        pos2(close_center.x + half, close_center.y - half),
-                        pos2(close_center.x - half, close_center.y + half),
-                    ],
-                    stroke,
-                );
-            }
+            tab_paint::paint_tab(ui.painter(), &theme, tab_rect, &content, measured, state);
 
             if is_active {
                 active_rect = Some(tab_rect);
@@ -506,7 +366,7 @@ impl BrowserTabs {
             let cross_color = if hovered { p.text } else { p.text_faint };
             let center = new_rect.center();
             let half = NEW_BTN_INNER * 0.5;
-            let stroke = Stroke::new(2.0, cross_color);
+            let stroke = Stroke::new(1.5, cross_color);
             painter.line_segment(
                 [
                     pos2(center.x, center.y - half),
@@ -528,33 +388,7 @@ impl BrowserTabs {
             }
         }
 
-        let border_y = strip_rect.bottom() - 0.5;
-        let stroke = Stroke::new(1.0, p.border);
-        let painter = ui.painter();
-        if let Some(active) = active_rect {
-            painter.line_segment(
-                [
-                    pos2(strip_rect.min.x, border_y),
-                    pos2(active.min.x, border_y),
-                ],
-                stroke,
-            );
-            painter.line_segment(
-                [
-                    pos2(active.max.x, border_y),
-                    pos2(strip_rect.max.x, border_y),
-                ],
-                stroke,
-            );
-        } else {
-            painter.line_segment(
-                [
-                    pos2(strip_rect.min.x, border_y),
-                    pos2(strip_rect.max.x, border_y),
-                ],
-                stroke,
-            );
-        }
+        tab_paint::paint_strip_border(ui.painter(), &theme, strip_rect, active_rect);
 
         if let Some(id) = activate_target
             && self.selected.as_deref() != Some(id.as_str())
