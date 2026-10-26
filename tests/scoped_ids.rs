@@ -164,11 +164,13 @@ struct IdViewer {
 }
 
 impl DockViewer for IdViewer {
-    fn tab(&mut self, id: &str) -> DockTab {
-        DockTab::new(id)
+    type Tab = String;
+
+    fn tab(&mut self, id: &String) -> DockTab {
+        DockTab::new(id.as_str())
     }
 
-    fn ui(&mut self, ui: &mut egui::Ui, _id: &str) {
+    fn ui(&mut self, ui: &mut egui::Ui, _id: &String) {
         self.body_ids.push(ui.scope_id());
     }
 }
@@ -178,7 +180,7 @@ impl DockViewer for IdViewer {
 #[test]
 fn docks_activate_tabs_separately() {
     let layouts = std::rc::Rc::new(std::cell::RefCell::new(
-        SIDES.map(|_| DockLayout::single(["one", "two"])),
+        SIDES.map(|_| DockLayout::<String>::single(["one", "two"])),
     ));
     let shown = layouts.clone();
     let mut harness = harness(move |ui, side| {
@@ -194,9 +196,9 @@ fn docks_activate_tabs_separately() {
     harness.run();
 
     let layouts = layouts.borrow();
-    assert_eq!(layouts[0].active_tab_ids(), ["two"]);
+    assert_eq!(layouts[0].active_tabs(), ["two"]);
     assert_eq!(
-        layouts[1].active_tab_ids(),
+        layouts[1].active_tabs(),
         ["one"],
         "clicking a tab in dock a should leave dock b's active tab alone"
     );
@@ -208,7 +210,8 @@ fn docks_activate_tabs_separately() {
 fn sibling_docks_give_tab_bodies_distinct_ids() {
     let ids = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
     let seen = ids.clone();
-    let mut layouts = [DockLayout::single(["tab"]), DockLayout::single(["tab"])];
+    let mut layouts: [DockLayout<String>; 2] =
+        [DockLayout::single(["tab"]), DockLayout::single(["tab"])];
     let mut harness = Harness::builder()
         .with_size(egui::Vec2::new(640.0, 480.0))
         .build_ui(move |ui| {

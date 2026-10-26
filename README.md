@@ -388,7 +388,7 @@ impl App {
 
 ![Dock](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/dock.png)
 
-Tabbed split panes. Drag tabs to reorder them, move them between panes, or drop them on a pane's edge to split it; drag the gutters to resize. The layout is a `DockLayout` of tab ids that your app owns, and a `DockViewer` supplies each tab's label and content. Enable the optional `serde` feature to persist the layout. Floating windows are not supported.
+Tabbed split panes. Drag tabs to reorder them, move them between panes, or drop them on a pane's edge to split it; drag the gutters to resize. Tabs are values of your own type, such as an enum whose variants carry data, held in a `DockLayout` your app owns; a `DockViewer` supplies each tab's label and content. Crowded tab strips scroll and offer a menu of every tab, and a tab can scroll its content with `DockTab::scroll`. Enable the optional `serde` feature to persist the layout. Floating windows are not supported.
 
 <details>
 <summary>Example</summary>
@@ -396,25 +396,39 @@ Tabbed split panes. Drag tabs to reorder them, move them between panes, or drop 
 ```rust
 use elegance::{Dock, DockLayout, DockNode, DockTab, DockViewer};
 
+#[derive(Clone, PartialEq, Eq, Hash)]
+enum Tab {
+    Files,
+    Channel(u8),
+}
+
 struct Viewer;
 
 impl DockViewer for Viewer {
-    fn tab(&mut self, id: &str) -> DockTab {
-        DockTab::new(id)
+    type Tab = Tab;
+
+    fn tab(&mut self, tab: &Tab) -> DockTab {
+        match tab {
+            Tab::Files => DockTab::new("Files"),
+            Tab::Channel(n) => DockTab::new(format!("Channel {n}")).scroll([false, true]),
+        }
     }
-    fn ui(&mut self, ui: &mut egui::Ui, id: &str) {
-        ui.label(format!("Contents of {id}"));
+    fn ui(&mut self, ui: &mut egui::Ui, tab: &Tab) {
+        match tab {
+            Tab::Files => ui.label("Files"),
+            Tab::Channel(n) => ui.label(format!("Samples from channel {n}")),
+        };
     }
 }
 
-struct App { layout: DockLayout }
+struct App { layout: DockLayout<Tab> }
 
 impl App {
     fn new() -> Self {
         let layout = DockLayout::from_node(DockNode::row(
             0.3,
-            DockNode::tabs(["files"]),
-            DockNode::tabs(["editor", "preview"]),
+            DockNode::tabs([Tab::Files]),
+            DockNode::tabs([Tab::Channel(1), Tab::Channel(2)]),
         ));
         Self { layout }
     }

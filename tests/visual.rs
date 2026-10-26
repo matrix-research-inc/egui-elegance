@@ -587,8 +587,10 @@ fn browser_tabs_ui(ui: &mut egui::Ui) {
 struct DockDemoViewer;
 
 impl DockViewer for DockDemoViewer {
-    fn tab(&mut self, id: &str) -> DockTab {
-        match id {
+    type Tab = String;
+
+    fn tab(&mut self, id: &String) -> DockTab {
+        match id.as_str() {
             "files" => DockTab::new("Files").icon(glyphs::FOLDER),
             "editor" => DockTab::new("theme.rs").dirty(true),
             "preview" => DockTab::new("Preview"),
@@ -602,7 +604,7 @@ impl DockViewer for DockDemoViewer {
         }
     }
 
-    fn ui(&mut self, ui: &mut egui::Ui, id: &str) {
+    fn ui(&mut self, ui: &mut egui::Ui, id: &String) {
         let theme = Theme::current(ui.ctx());
         ui.label(theme.muted_text(format!("Contents of {id}")));
         ui.add_space(6.0);
@@ -610,7 +612,7 @@ impl DockViewer for DockDemoViewer {
     }
 }
 
-fn dock_layout() -> DockLayout {
+fn dock_layout() -> DockLayout<String> {
     let mut layout = DockLayout::from_node(DockNode::row(
         0.28,
         DockNode::tabs(["files"]),
@@ -631,9 +633,11 @@ fn dock_ui(ui: &mut egui::Ui) {
     });
 }
 
-/// A narrow dock whose strip overflows, so tabs shrink to their minimum width.
+/// A narrow dock whose strip overflows: tabs shrink to their minimum width,
+/// and the strip scrolls behind an overflow button.
 fn dock_overflow_ui(ui: &mut egui::Ui) {
-    let mut layout = DockLayout::single(["files", "editor", "preview", "long", "search"]);
+    let mut layout: DockLayout<String> =
+        DockLayout::single(["files", "editor", "preview", "long", "search"]);
     layout.activate("files");
     ui.allocate_ui(egui::vec2(300.0, 140.0), |ui| {
         Dock::new("vis_dock_overflow").show(ui, &mut layout, &mut DockDemoViewer);

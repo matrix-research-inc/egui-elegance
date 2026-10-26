@@ -2,8 +2,8 @@
 //!
 //! A [`Dock`] arranges tab groups in a tree of resizable splits. Users can
 //! reorder tabs, drag them between groups, and drop them on a group's edge to
-//! split it. The arrangement lives in a [`DockLayout`], which holds only tab
-//! ids; the app supplies titles and content through a [`DockViewer`].
+//! split it. The arrangement lives in a [`DockLayout`] of the app's own tab
+//! values; the app supplies titles and content through a [`DockViewer`].
 //!
 //! Floating windows are not supported.
 //!
@@ -12,19 +12,33 @@
 //! ```no_run
 //! use elegance::{Dock, DockLayout, DockNode, DockTab, DockViewer};
 //!
+//! #[derive(Clone, PartialEq, Eq, Hash)]
+//! enum Tab {
+//!     Files,
+//!     Channel(u8),
+//! }
+//!
 //! struct Viewer;
 //!
 //! impl DockViewer for Viewer {
-//!     fn tab(&mut self, id: &str) -> DockTab {
-//!         DockTab::new(id.to_uppercase())
+//!     type Tab = Tab;
+//!
+//!     fn tab(&mut self, tab: &Tab) -> DockTab {
+//!         match tab {
+//!             Tab::Files => DockTab::new("Files").closable(false),
+//!             Tab::Channel(n) => DockTab::new(format!("Channel {n}")).scroll([false, true]),
+//!         }
 //!     }
-//!     fn ui(&mut self, ui: &mut egui::Ui, id: &str) {
-//!         ui.label(format!("Contents of {id}"));
+//!     fn ui(&mut self, ui: &mut egui::Ui, tab: &Tab) {
+//!         match tab {
+//!             Tab::Files => ui.label("Files"),
+//!             Tab::Channel(n) => ui.label(format!("Samples from channel {n}")),
+//!         };
 //!     }
 //! }
 //!
 //! struct App {
-//!     layout: DockLayout,
+//!     layout: DockLayout<Tab>,
 //! }
 //!
 //! impl Default for App {
@@ -32,8 +46,8 @@
 //!         Self {
 //!             layout: DockLayout::from_node(DockNode::row(
 //!                 0.3,
-//!                 DockNode::tabs(["files"]),
-//!                 DockNode::tabs(["editor", "preview"]),
+//!                 DockNode::tabs([Tab::Files]),
+//!                 DockNode::tabs([Tab::Channel(1), Tab::Channel(2)]),
 //!             )),
 //!         }
 //!     }
@@ -56,14 +70,17 @@ mod show;
 
 pub use layout::{DockLayout, DockNode, SplitDirection};
 
-use egui::{Response, Ui};
+use std::hash::Hash;
+
+use egui::{Response, Ui, Vec2b};
 
 use crate::tab_paint::TabContent;
 
 /// How one tab appears in its group's tab strip.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DockTab {
-    /// Display label. Truncated with an ellipsis if it doesn't fit.
+    /// Display label. Truncated with an ellipsis if it doesn't fit, in which
+    /// case hovering the tab shows it in full.
     pub label: String,
     /// Optional leading icon glyph, typically from [`crate::glyphs`].
     pub icon: Option<String>,
@@ -71,6 +88,12 @@ pub struct DockTab {
     pub dirty: bool,
     /// Show a close (×) button. Default: `true`.
     pub closable: bool,
+    /// Open a context menu on right-click, filled by
+    /// [`DockViewer::context_menu`]. Default: `false`.
+    pub context_menu: bool,
+    /// Scroll the tab's content on these axes when it outgrows the pane,
+    /// instead of clipping it. Default: neither.
+    pub scroll: Vec2b,
 }
 
 impl DockTab {
@@ -81,6 +104,8 @@ impl DockTab {
             icon: None,
             dirty: false,
             closable: true,
+            context_menu: false,
+            scroll: Vec2b::FALSE,
         }
     }
 
@@ -105,6 +130,23 @@ impl DockTab {
         self
     }
 
+    /// Enable or disable the right-click context menu. Its items come from
+    /// [`DockViewer::context_menu`].
+    #[inline]
+    pub fn context_menu(mut self, context_menu: bool) -> Self {
+        self.context_menu = context_menu;
+        self
+    }
+
+    /// Scroll the content on these axes when it outgrows the pane: `true`
+    /// for both, or `[horizontal, vertical]`. The scroll bars sit at the
+    /// pane's edge, outside [`Dock::body_padding`].
+    #[inline]
+    pub fn scroll(mut self, scroll: impl Into<Vec2b>) -> Self {
+        self.scroll = scroll.into();
+        self
+    }
+
     pub(crate) fn content(&self) -> TabContent<'_> {
         TabContent {
             label: &self.label,
@@ -117,14 +159,31 @@ impl DockTab {
 
 /// Supplies the content and appearance of the tabs in a [`Dock`].
 pub trait DockViewer {
-    /// Describe the tab with this id. Called every frame for each tab.
-    fn tab(&mut self, id: &str) -> DockTab;
+    /// The tab type stored in the [`DockLayout`]. Each tab appears in the
+    /// layout once. Its hash keys the tab's widgets and drag state, so
+    /// distinct tabs should hash differently, as any derived `Hash` does.
+    type Tab: Clone + Eq + Hash;
+
+    /// Describe a tab. Called every frame for each tab in the layout.
+    fn tab(&mut self, tab: &Self::Tab) -> DockTab;
 
     /// Draw the contents of the active tab of a group.
     ///
-    /// The content is clipped to its pane. Wrap it in an
-    /// [`egui::ScrollArea`] if it can be larger than the pane.
-    fn ui(&mut self, ui: &mut Ui, id: &str);
+    /// The content is clipped to its pane unless the tab opts into scrolling
+    /// with [`DockTab::scroll`].
+    fn ui(&mut self, ui: &mut Ui, tab: &Self::Tab);
+
+    /// Fill the right-click menu of a tab whose [`DockTab::context_menu`]
+    /// is set. Add [`crate::MenuItem`]s and friends; clicking one closes
+    /// the menu.
+    ///
+    /// The layout is borrowed while the dock is drawn, so record what the
+    /// user picked and apply it to the [`DockLayout`] after [`Dock::show`]
+    /// returns (for example with [`DockLayout::group_tabs`] and
+    /// [`DockLayout::remove_tab`]).
+    fn context_menu(&mut self, ui: &mut Ui, tab: &Self::Tab) {
+        let _ = (ui, tab);
+    }
 
     /// Draw the dock when the layout has no tabs. Defaults to a muted
     /// "No open tabs" message.
@@ -142,14 +201,14 @@ pub trait DockViewer {
 
 /// Something that happened in a [`Dock`] during a frame.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub enum DockEvent {
-    /// The user selected a different tab in a group. Carries its id.
-    TabActivated(String),
+pub enum DockEvent<T> {
+    /// The user selected a different tab in a group.
+    TabActivated(T),
     /// The user closed a tab. The dock has already removed it from the
     /// layout; the app can free any associated state.
-    TabClosed(String),
-    /// The user dragged a tab to a new position or group. Carries its id.
-    TabMoved(String),
+    TabClosed(T),
+    /// The user dragged a tab to a new position or group.
+    TabMoved(T),
     /// The arrangement changed: a tab was activated, closed or moved, or a
     /// splitter was released. Useful as a signal to persist the layout.
     LayoutChanged,
@@ -157,11 +216,11 @@ pub enum DockEvent {
 
 /// The result of [`Dock::show`].
 #[derive(Debug)]
-pub struct DockResponse {
+pub struct DockResponse<T> {
     /// The response covering the whole dock area.
     pub response: Response,
     /// What the user did this frame, in order.
-    pub events: Vec<DockEvent>,
+    pub events: Vec<DockEvent<T>>,
 }
 
 /// Tabbed split panes. See the module docs for an example.
@@ -208,9 +267,9 @@ impl Dock {
     pub fn show<V: DockViewer>(
         self,
         ui: &mut Ui,
-        layout: &mut DockLayout,
+        layout: &mut DockLayout<V::Tab>,
         viewer: &mut V,
-    ) -> DockResponse {
+    ) -> DockResponse<V::Tab> {
         let base_id = ui.scope_id().with_salt(self.id_salt);
         let (response, events) = show::show(ui, base_id, &self, layout, viewer);
         DockResponse { response, events }

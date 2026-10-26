@@ -8,7 +8,7 @@ Versions before 0.11.0 predate tagging; see the git history for those.
 
 ### Added
 
-- **`Dock`** for tabbed split panes: drag tabs to reorder, move between panes, or drop on an edge to split; drag gutters to resize. Layout lives in a serializable `DockLayout` (optional `serde` feature); content comes from a `DockViewer`.
+- **`Dock`** for tabbed split panes: drag tabs to reorder, move between panes, or drop on an edge to split; drag gutters to resize. Tabs are your own type (e.g. an enum carrying data) held in a serializable `DockLayout<T>` (optional `serde` feature); a `DockViewer` supplies labels, content and an optional per-tab context menu. Crowded tab strips scroll and offer a menu of every tab, truncated labels show in full on hover, and tabs can opt into scrolling their content.
 
 ## [0.17.0](https://github.com/matrix-research-inc/egui-elegance/releases/tag/v0.17.0) — 2026-10-21
 

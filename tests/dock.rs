@@ -1,14 +1,15 @@
-//! Behavioural tests for `Dock`: tab activation, closing, drag-and-drop and
-//! splitter resizing, driven through real pointer events.
+//! Behavioural tests for `Dock`: tab activation, closing, drag-and-drop,
+//! splitter resizing, overflowing tab strips and scrolling tab bodies, driven
+//! through real pointer events.
 
 use eframe::egui::{self, Key, Pos2};
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable as _;
-use elegance::{Dock, DockEvent, DockLayout, DockNode, DockTab, DockViewer, Theme};
+use elegance::{Dock, DockEvent, DockLayout, DockNode, DockTab, DockViewer, MenuItem, Theme};
 
 struct App {
-    layout: DockLayout,
-    events: Vec<DockEvent>,
+    layout: DockLayout<String>,
+    events: Vec<DockEvent<String>>,
     min_pane: f32,
     /// Skip showing the dock, as an app does while a tab page is hidden.
     hidden: bool,
@@ -17,44 +18,59 @@ struct App {
 struct Viewer;
 
 impl DockViewer for Viewer {
-    fn tab(&mut self, id: &str) -> DockTab {
-        DockTab::new(id)
+    type Tab = String;
+
+    fn tab(&mut self, id: &String) -> DockTab {
+        DockTab::new(id.as_str())
+            .context_menu(id == "editor")
+            .scroll(id == "log")
     }
 
-    fn ui(&mut self, ui: &mut egui::Ui, id: &str) {
+    fn ui(&mut self, ui: &mut egui::Ui, id: &String) {
         ui.label(format!("body {id}"));
+        if id == "log" {
+            for i in 0..100 {
+                ui.label(format!("line {i}"));
+            }
+        }
+    }
+
+    fn context_menu(&mut self, ui: &mut egui::Ui, id: &String) {
+        ui.add(MenuItem::new(format!("menu {id}")));
     }
 }
 
-fn harness(layout: DockLayout) -> Harness<'static, App> {
-    let mut harness = Harness::builder()
-        .with_size(egui::vec2(800.0, 500.0))
-        .build_ui_state(
-            |ui, app: &mut App| {
-                Theme::slate().install(ui.ctx());
-                if app.hidden {
-                    return;
-                }
-                let out = Dock::new("dock").min_pane_size(app.min_pane).show(
-                    ui,
-                    &mut app.layout,
-                    &mut Viewer,
-                );
-                app.events.extend(out.events);
-            },
-            App {
-                layout,
-                events: Vec::new(),
-                min_pane: 96.0,
-                hidden: false,
-            },
-        );
+fn harness(layout: DockLayout<String>) -> Harness<'static, App> {
+    harness_sized(layout, egui::vec2(800.0, 500.0))
+}
+
+fn harness_sized(layout: DockLayout<String>, size: egui::Vec2) -> Harness<'static, App> {
+    let mut harness = Harness::builder().with_size(size).build_ui_state(
+        |ui, app: &mut App| {
+            Theme::slate().install(ui.ctx());
+            if app.hidden {
+                return;
+            }
+            let out = Dock::new("dock").min_pane_size(app.min_pane).show(
+                ui,
+                &mut app.layout,
+                &mut Viewer,
+            );
+            app.events.extend(out.events);
+        },
+        App {
+            layout,
+            events: Vec::new(),
+            min_pane: 96.0,
+            hidden: false,
+        },
+    );
     harness.run();
     harness
 }
 
 /// `files | (editor, preview) over console`.
-fn three_pane() -> DockLayout {
+fn three_pane() -> DockLayout<String> {
     DockLayout::from_node(DockNode::row(
         0.25,
         DockNode::tabs(["files"]),
@@ -130,7 +146,7 @@ fn assert_nothing_moved(harness: &Harness<'_, App>, tabs: &[String], groups: usi
 fn state(harness: &Harness<'_, App>) -> (Vec<String>, usize) {
     let layout = &harness.state().layout;
     (
-        layout.tab_ids().into_iter().map(str::to_owned).collect(),
+        layout.tabs().into_iter().cloned().collect(),
         layout.group_count(),
     )
 }
@@ -153,6 +169,22 @@ fn clicking_an_inactive_tab_activates_it() {
             .contains(&DockEvent::TabActivated("preview".into()))
     );
     assert!(harness.state().events.contains(&DockEvent::LayoutChanged));
+}
+
+#[test]
+fn right_clicking_a_tab_opens_its_context_menu() {
+    let mut harness = harness(three_pane());
+    harness.get_by_label("editor").click_secondary();
+    harness.run();
+    assert!(harness.query_by_label("menu editor").is_some());
+
+    // Tabs that don't opt in get no menu.
+    harness.key_press(Key::Escape);
+    harness.run();
+    harness.get_by_label("console").click_secondary();
+    harness.run();
+    assert!(harness.query_by_label_contains("menu").is_none());
+    assert!(harness.state().events.is_empty());
 }
 
 #[test]
@@ -200,10 +232,10 @@ fn dragging_a_tab_into_another_strip_moves_it() {
             .contains(&DockEvent::TabMoved("preview".into()))
     );
     // `preview` is now in the console group, after `console`, and active.
-    let tabs = layout.tab_ids();
+    let tabs = layout.tabs();
     let pos = |t| tabs.iter().position(|x| *x == t).unwrap();
     assert!(pos("console") < pos("preview"));
-    assert!(layout.active_tab_ids().contains(&"preview"));
+    assert!(layout.active_tabs().iter().any(|t| *t == "preview"));
     assert!(harness.query_by_label("body preview").is_some());
 }
 
@@ -372,4 +404,154 @@ fn a_drag_that_outlives_the_dock_is_dropped() {
 fn an_empty_layout_shows_the_empty_state() {
     let harness = harness(DockLayout::new());
     assert!(harness.query_by_label("No open tabs").is_some());
+}
+
+/// Eight tabs in a 300pt dock: two fit, so the strip overflows.
+fn crowded() -> Harness<'static, App> {
+    harness_sized(
+        DockLayout::single((0..8).map(|i| format!("channel {i}"))),
+        egui::vec2(300.0, 240.0),
+    )
+}
+
+fn wheel(harness: &mut Harness<'_, App>, at: Pos2, lines: f32) {
+    harness.hover_at(at);
+    harness.run_steps(2);
+    harness.event(egui::Event::MouseWheel {
+        unit: egui::MouseWheelUnit::Line,
+        delta: egui::vec2(0.0, lines),
+        modifiers: egui::Modifiers::NONE,
+        phase: egui::TouchPhase::Move,
+        source: egui::MouseWheelSource::Wheel,
+    });
+    harness.run_steps(30);
+}
+
+#[test]
+fn an_overflowing_strip_lists_every_tab_in_its_menu() {
+    let mut harness = crowded();
+    assert!(
+        harness.query_by_label("channel 7").is_none(),
+        "scrolled out"
+    );
+
+    harness.get_by_label("All tabs").click();
+    harness.run();
+    harness.get_by_label("channel 7").click();
+    harness.run();
+
+    assert!(harness.query_by_label("body channel 7").is_some());
+    assert!(
+        harness
+            .state()
+            .events
+            .contains(&DockEvent::TabActivated("channel 7".into()))
+    );
+    // The menu closed and the strip scrolled the new active tab into view.
+    assert_eq!(harness.get_all_by_label("channel 7").count(), 1);
+    assert!(harness.query_by_label("channel 0").is_none());
+}
+
+#[test]
+fn the_wheel_scrolls_an_overflowing_strip() {
+    let mut harness = crowded();
+    let at = centre(&harness, "channel 0");
+
+    wheel(&mut harness, at, -20.0);
+
+    assert!(harness.query_by_label("channel 7").is_some());
+    assert!(harness.query_by_label("channel 0").is_none());
+    // Scrolling doesn't change the active tab.
+    assert!(harness.query_by_label("body channel 0").is_some());
+    assert!(harness.state().events.is_empty());
+}
+
+#[test]
+fn a_tab_dragged_to_the_strip_end_scrolls_it() {
+    let mut harness = crowded();
+    let from = centre(&harness, "channel 0");
+    // Just inside the auto-scroll zone before the overflow button.
+    let strip_end = Pos2::new(
+        harness.get_by_label("All tabs").rect().left() - 10.0,
+        from.y,
+    );
+
+    press(&mut harness, from);
+    move_to(&mut harness, strip_end);
+    harness.run_steps(40);
+    release(&mut harness, strip_end);
+
+    let (tabs, _) = state(&harness);
+    let pos = tabs.iter().position(|t| t == "channel 0").unwrap();
+    assert!(pos >= 4, "the strip should scroll under the drag: {tabs:?}");
+}
+
+#[test]
+fn truncated_tabs_show_their_full_label_on_hover() {
+    // Wider than the widest tab, so truncated however much room there is.
+    let long = "a tab label far too long to fit in any tab";
+    let mut truncated = harness(DockLayout::single(["files", long]));
+    truncated.hover_at(centre(&truncated, long));
+    truncated.run_steps(60);
+    assert_eq!(
+        truncated.get_all_by_label(long).count(),
+        2,
+        "the tab and its tooltip"
+    );
+
+    // Tabs shown in full get no tooltip.
+    let mut wide = harness(three_pane());
+    wide.hover_at(centre(&wide, "preview"));
+    wide.run_steps(60);
+    assert_eq!(wide.get_all_by_label("preview").count(), 1);
+}
+
+#[test]
+fn a_scrolling_tab_scrolls_its_body() {
+    let mut harness = harness(DockLayout::single(["log"]));
+    let before = harness.get_by_label("body log").rect();
+
+    wheel(&mut harness, before.center() + egui::vec2(0.0, 100.0), -5.0);
+
+    let after = harness.get_by_label("body log").rect();
+    assert!(
+        after.top() < before.top() - 50.0,
+        "content should scroll up: {before:?} -> {after:?}"
+    );
+    // The body padding still applies inside the scroll area.
+    assert!(before.left() >= harness.get_by_label("dock").rect().left() + 8.0);
+}
+
+/// A pane narrower than its overflow button leaves no room for tabs; dragging
+/// over its strip must not panic.
+#[test]
+fn dragging_over_a_pane_too_narrow_for_tabs_is_safe() {
+    let mut harness = harness_sized(
+        DockLayout::from_node(DockNode::row(
+            0.08,
+            DockNode::tabs(["aaaa"]),
+            DockNode::tabs(["cccc", "dddd"]),
+        )),
+        egui::vec2(400.0, 300.0),
+    );
+    harness.state_mut().min_pane = 0.0;
+    harness.run();
+    let from = centre(&harness, "cccc");
+    let narrow_strip = Pos2::new(harness.get_by_label("dock").rect().left() + 15.0, from.y);
+
+    drag(&mut harness, from, narrow_strip);
+
+    assert!(harness.state().layout.contains("cccc"));
+}
+
+#[test]
+fn activating_a_hidden_tab_scrolls_it_into_view() {
+    let mut harness = crowded();
+    assert!(harness.query_by_label("channel 6").is_none());
+
+    harness.state_mut().layout.activate("channel 6");
+    harness.run();
+
+    assert!(harness.query_by_label("channel 6").is_some());
+    assert!(harness.query_by_label("body channel 6").is_some());
 }

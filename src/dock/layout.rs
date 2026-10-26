@@ -1,8 +1,12 @@
 //! The dock's layout tree: pure data, no egui types.
 //!
 //! A layout is a binary tree whose leaves are tab groups and whose interior
-//! nodes are resizable splits. Tabs are identified by caller-supplied string
-//! ids, so the layout never needs to know what a tab contains.
+//! nodes are resizable splits. Tabs are values of the app's own type, so the
+//! layout never needs to know what a tab contains.
+
+use std::borrow::Borrow;
+use std::collections::HashSet;
+use std::hash::Hash;
 
 /// Which way a split arranges its two children.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -20,7 +24,7 @@ pub enum SplitDirection {
 /// ```
 /// use elegance::{DockLayout, DockNode};
 ///
-/// let layout = DockLayout::from_node(DockNode::row(
+/// let layout: DockLayout<String> = DockLayout::from_node(DockNode::row(
 ///     0.25,
 ///     DockNode::tabs(["files"]),
 ///     DockNode::column(
@@ -32,9 +36,9 @@ pub enum SplitDirection {
 /// assert_eq!(layout.group_count(), 3);
 /// ```
 #[derive(Clone, Debug, PartialEq)]
-pub enum DockNode {
+pub enum DockNode<T> {
     /// A group of tabs. The first tab starts active.
-    Tabs(Vec<String>),
+    Tabs(Vec<T>),
     /// Two nodes divided by a draggable splitter.
     Split {
         /// How the children are arranged.
@@ -43,33 +47,38 @@ pub enum DockNode {
         /// never shrink below [`Dock::min_pane_size`](crate::Dock::min_pane_size).
         fraction: f32,
         /// Left (row) or top (column) child.
-        first: Box<DockNode>,
+        first: Box<DockNode<T>>,
         /// Right (row) or bottom (column) child.
-        second: Box<DockNode>,
+        second: Box<DockNode<T>>,
     },
 }
 
-impl DockNode {
-    /// A tab group holding `ids` in order.
-    pub fn tabs<I, S>(ids: I) -> Self
+impl<T> DockNode<T> {
+    /// A tab group holding `tabs` in order.
+    pub fn tabs<I>(tabs: I) -> Self
     where
-        I: IntoIterator<Item = S>,
-        S: Into<String>,
+        I: IntoIterator,
+        I::Item: Into<T>,
     {
-        Self::Tabs(ids.into_iter().map(Into::into).collect())
+        Self::Tabs(tabs.into_iter().map(Into::into).collect())
     }
 
     /// Two nodes side by side. `fraction` is the share given to `first`.
-    pub fn row(fraction: f32, first: DockNode, second: DockNode) -> Self {
+    pub fn row(fraction: f32, first: DockNode<T>, second: DockNode<T>) -> Self {
         Self::split(SplitDirection::Row, fraction, first, second)
     }
 
     /// Two nodes stacked vertically. `fraction` is the share given to `first`.
-    pub fn column(fraction: f32, first: DockNode, second: DockNode) -> Self {
+    pub fn column(fraction: f32, first: DockNode<T>, second: DockNode<T>) -> Self {
         Self::split(SplitDirection::Column, fraction, first, second)
     }
 
-    fn split(direction: SplitDirection, fraction: f32, first: DockNode, second: DockNode) -> Self {
+    fn split(
+        direction: SplitDirection,
+        fraction: f32,
+        first: DockNode<T>,
+        second: DockNode<T>,
+    ) -> Self {
         Self::Split {
             direction,
             fraction,
@@ -85,37 +94,46 @@ pub(crate) type GroupId = u64;
 /// A leaf of the layout tree.
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub(crate) struct TabGroup {
+pub(crate) struct TabGroup<T> {
     pub id: GroupId,
-    pub tabs: Vec<String>,
+    pub tabs: Vec<T>,
     pub active: usize,
 }
 
-impl TabGroup {
-    pub fn active_tab(&self) -> Option<&str> {
-        self.tabs.get(self.active).map(String::as_str)
+impl<T> TabGroup<T> {
+    pub fn active_tab(&self) -> Option<&T> {
+        self.tabs.get(self.active)
     }
 
     /// Remove the tab at `pos`, keeping the same tab active where possible.
-    fn remove_at(&mut self, pos: usize) {
-        self.tabs.remove(pos);
+    fn remove_at(&mut self, pos: usize) -> T {
+        let tab = self.tabs.remove(pos);
         if pos < self.active {
             self.active -= 1;
         }
         self.active = self.active.min(self.tabs.len().saturating_sub(1));
+        tab
+    }
+
+    fn position<Q>(&self, tab: &Q) -> Option<usize>
+    where
+        T: Borrow<Q>,
+        Q: Eq + ?Sized,
+    {
+        self.tabs.iter().position(|t| t.borrow() == tab)
     }
 }
 
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub(crate) enum Node {
+pub(crate) enum Node<T> {
     Split {
         direction: SplitDirection,
         fraction: f32,
-        first: Box<Node>,
-        second: Box<Node>,
+        first: Box<Node<T>>,
+        second: Box<Node<T>>,
     },
-    Group(TabGroup),
+    Group(TabGroup<T>),
 }
 
 /// Which edge of a group a tab was dropped on.
@@ -147,20 +165,38 @@ impl DropTarget {
 
 /// The arrangement of tabs in a [`Dock`](crate::Dock).
 ///
-/// The layout owns only tab ids, so it is cheap to clone and, with the
-/// `serde` feature, easy to persist. The app keeps it across frames and
-/// passes it to [`Dock::show`](crate::Dock::show).
-#[derive(Clone, Debug, Default, PartialEq)]
+/// `T` is the app's tab type: a `String` id, or an enum whose variants carry
+/// what each tab shows (a document path, a channel number). Tabs are compared
+/// for equality, so each value may appear in the layout only once. The
+/// [`DockViewer`](crate::DockViewer) turns a tab into its label and content.
+///
+/// The app keeps the layout across frames and passes it to
+/// [`Dock::show`](crate::Dock::show). With the `serde` feature, it persists
+/// whenever `T` does.
+///
+/// Lookups take any borrowed form of `T`, as `HashMap` does, so a
+/// `DockLayout<String>` accepts `&str`.
+#[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct DockLayout {
-    pub(crate) root: Option<Node>,
+pub struct DockLayout<T> {
+    pub(crate) root: Option<Node<T>>,
     next_group: GroupId,
     /// The group that most recently received user interaction. New tabs land
     /// here.
     focused: Option<GroupId>,
 }
 
-impl DockLayout {
+impl<T> Default for DockLayout<T> {
+    fn default() -> Self {
+        Self {
+            root: None,
+            next_group: 0,
+            focused: None,
+        }
+    }
+}
+
+impl<T: Clone + Eq + Hash> DockLayout<T> {
     /// An empty layout. [`Self::add_tab`] creates the first group.
     pub fn new() -> Self {
         Self::default()
@@ -168,25 +204,25 @@ impl DockLayout {
 
     /// Build a layout from a declarative description.
     ///
-    /// A tab id that appears more than once keeps its first occurrence, and
+    /// A tab that appears more than once keeps its first occurrence, and
     /// empty groups are dropped.
-    pub fn from_node(node: DockNode) -> Self {
+    pub fn from_node(node: DockNode<T>) -> Self {
         let mut layout = Self::new();
         layout.root = Some(layout.build(node));
         layout.sanitize();
         layout
     }
 
-    /// A layout with a single group holding `ids`.
-    pub fn single<I, S>(ids: I) -> Self
+    /// A layout with a single group holding `tabs`.
+    pub fn single<I>(tabs: I) -> Self
     where
-        I: IntoIterator<Item = S>,
-        S: Into<String>,
+        I: IntoIterator,
+        I::Item: Into<T>,
     {
-        Self::from_node(DockNode::tabs(ids))
+        Self::from_node(DockNode::tabs(tabs))
     }
 
-    fn build(&mut self, node: DockNode) -> Node {
+    fn build(&mut self, node: DockNode<T>) -> Node<T> {
         match node {
             DockNode::Tabs(tabs) => Node::Group(TabGroup {
                 id: self.alloc_group(),
@@ -225,32 +261,48 @@ impl DockLayout {
         n
     }
 
-    /// Every tab id, in layout order (left to right, top to bottom).
-    pub fn tab_ids(&self) -> Vec<&str> {
-        let mut ids = Vec::new();
+    /// Every tab, in layout order (left to right, top to bottom).
+    pub fn tabs(&self) -> Vec<&T> {
+        let mut tabs = Vec::new();
         if let Some(root) = &self.root {
-            root.for_each_group(&mut |g| ids.extend(g.tabs.iter().map(String::as_str)));
+            root.for_each_group(&mut |g| tabs.extend(&g.tabs));
         }
-        ids
+        tabs
     }
 
-    /// The active tab id of every group, in layout order.
-    pub fn active_tab_ids(&self) -> Vec<&str> {
-        let mut ids = Vec::new();
+    /// The active tab of every group, in layout order.
+    pub fn active_tabs(&self) -> Vec<&T> {
+        let mut tabs = Vec::new();
         if let Some(root) = &self.root {
-            root.for_each_group(&mut |g| ids.extend(g.active_tab()));
+            root.for_each_group(&mut |g| tabs.extend(g.active_tab()));
         }
-        ids
+        tabs
     }
 
-    /// Whether a tab with this id is in the layout.
-    pub fn contains(&self, tab: &str) -> bool {
+    /// The tabs in the same group as `tab`, including `tab` itself, in strip
+    /// order. Empty if `tab` is not in the layout.
+    pub fn group_tabs<Q>(&self, tab: &Q) -> &[T]
+    where
+        T: Borrow<Q>,
+        Q: Eq + ?Sized,
+    {
+        self.group_of(tab)
+            .and_then(|id| self.group(id))
+            .map_or(&[], |g| &g.tabs)
+    }
+
+    /// Whether `tab` is in the layout.
+    pub fn contains<Q>(&self, tab: &Q) -> bool
+    where
+        T: Borrow<Q>,
+        Q: Eq + ?Sized,
+    {
         self.group_of(tab).is_some()
     }
 
     /// Add a tab to the focused group (the first group if none has focus) and
-    /// make it active. An existing tab with the same id is activated instead.
-    pub fn add_tab(&mut self, tab: impl Into<String>) {
+    /// make it active. A tab already in the layout is activated instead.
+    pub fn add_tab(&mut self, tab: impl Into<T>) {
         let tab = tab.into();
         if self.activate(&tab) {
             return;
@@ -273,54 +325,94 @@ impl DockLayout {
         }
     }
 
-    /// Remove a tab. Emptied groups are dropped and their space goes to the
-    /// sibling. Returns `true` if the tab was present.
-    pub fn remove_tab(&mut self, tab: &str) -> bool {
-        let mut removed = false;
-        if let Some(root) = &mut self.root {
-            root.for_each_group_mut(&mut |g| {
-                if let Some(pos) = g.tabs.iter().position(|t| t == tab) {
-                    g.remove_at(pos);
-                    removed = true;
-                }
-            });
-        }
-        if removed {
+    /// Remove a tab and return it, or `None` if it was not in the layout.
+    /// Emptied groups are dropped and their space goes to the sibling.
+    pub fn remove_tab<Q>(&mut self, tab: &Q) -> Option<T>
+    where
+        T: Borrow<Q>,
+        Q: Eq + ?Sized,
+    {
+        let (id, pos) = self.locate(tab)?;
+        let group = self.group_mut(id)?;
+        let removed = group.remove_at(pos);
+        if group.tabs.is_empty() {
             self.root = self.root.take().and_then(prune);
         }
-        removed
+        Some(removed)
+    }
+
+    /// Put `new` in place of the tab `old`, keeping its position and whether
+    /// it is active, and return `old`'s value. Use it when a tab's identity
+    /// changes, such as a viewer switching channels.
+    ///
+    /// If `new` is already elsewhere in the layout, `old` is removed and
+    /// `new` activated instead, since a tab appears only once. Returns `None`
+    /// and changes nothing if `old` is not in the layout.
+    pub fn replace_tab<Q>(&mut self, old: &Q, new: impl Into<T>) -> Option<T>
+    where
+        T: Borrow<Q>,
+        Q: Eq + ?Sized,
+    {
+        let new = new.into();
+        let (id, pos) = self.locate(old)?;
+        if <T as Borrow<Q>>::borrow(&new) != old && self.contains::<T>(&new) {
+            let removed = self.remove_tab(old);
+            self.activate::<T>(&new);
+            return removed;
+        }
+        let group = self.group_mut(id)?;
+        Some(std::mem::replace(&mut group.tabs[pos], new))
     }
 
     /// Make `tab` the active tab of its group and focus that group. Returns
     /// `false` if the tab is not in the layout.
-    pub fn activate(&mut self, tab: &str) -> bool {
-        let Some(id) = self.group_of(tab) else {
+    pub fn activate<Q>(&mut self, tab: &Q) -> bool
+    where
+        T: Borrow<Q>,
+        Q: Eq + ?Sized,
+    {
+        let Some((id, pos)) = self.locate(tab) else {
             return false;
         };
         if let Some(group) = self.group_mut(id) {
-            group.active = group.tabs.iter().position(|t| t == tab).unwrap_or(0);
+            group.active = pos;
         }
         self.focused = Some(id);
         true
     }
 
-    pub(crate) fn group_of(&self, tab: &str) -> Option<GroupId> {
+    pub(crate) fn group_of<Q>(&self, tab: &Q) -> Option<GroupId>
+    where
+        T: Borrow<Q>,
+        Q: Eq + ?Sized,
+    {
+        self.locate(tab).map(|(id, _)| id)
+    }
+
+    /// The group holding `tab`, and the tab's index in it.
+    fn locate<Q>(&self, tab: &Q) -> Option<(GroupId, usize)>
+    where
+        T: Borrow<Q>,
+        Q: Eq + ?Sized,
+    {
         let mut found = None;
         if let Some(root) = &self.root {
             root.for_each_group(&mut |g| {
-                if found.is_none() && g.tabs.iter().any(|t| t == tab) {
-                    found = Some(g.id);
+                if found.is_none()
+                    && let Some(pos) = g.position(tab)
+                {
+                    found = Some((g.id, pos));
                 }
             });
         }
         found
     }
 
-    pub(crate) fn group_mut(&mut self, id: GroupId) -> Option<&mut TabGroup> {
+    pub(crate) fn group_mut(&mut self, id: GroupId) -> Option<&mut TabGroup<T>> {
         self.root.as_mut().and_then(|root| root.group_mut(id))
     }
 
-    pub(crate) fn group(&self, id: GroupId) -> Option<&TabGroup> {
+    pub(crate) fn group(&self, id: GroupId) -> Option<&TabGroup<T>> {
         self.root.as_ref().and_then(|root| root.group(id))
     }
 
@@ -351,8 +443,12 @@ impl DockLayout {
     }
 
     /// Apply a completed drag. Returns `true` if the layout changed.
-    pub(crate) fn move_tab(&mut self, tab: &str, target: DropTarget) -> bool {
-        let Some(source) = self.group_of(tab) else {
+    pub(crate) fn move_tab<Q>(&mut self, tab: &Q, target: DropTarget) -> bool
+    where
+        T: Borrow<Q>,
+        Q: Eq + ?Sized,
+    {
+        let Some((source, from)) = self.locate(tab) else {
             return false;
         };
         let target_group = target.group();
@@ -365,7 +461,6 @@ impl DockLayout {
                 let Some(g) = self.group_mut(group) else {
                     return false;
                 };
-                let from = g.tabs.iter().position(|t| t == tab).unwrap_or(0);
                 let mut to = index.min(target_len);
                 if from < to {
                     to -= 1;
@@ -380,11 +475,13 @@ impl DockLayout {
                 g.active = to;
             }
             DropTarget::Group { group, index } => {
-                self.remove_tab(tab);
+                let Some(moved) = self.remove_tab(tab) else {
+                    return false;
+                };
                 // The target group survives: it differs from the source.
                 if let Some(g) = self.group_mut(group) {
                     let at = index.min(g.tabs.len());
-                    g.tabs.insert(at, tab.to_owned());
+                    g.tabs.insert(at, moved);
                     g.active = at;
                 }
             }
@@ -392,10 +489,14 @@ impl DockLayout {
                 if source == group && target_len == 1 {
                     return false;
                 }
-                self.remove_tab(tab);
+                let Some(moved) = self.remove_tab(tab) else {
+                    return false;
+                };
+                // The target group survives: either it differs from the
+                // source, or it kept at least one other tab.
                 let new_id = self.alloc_group();
-                if let Some(root) = self.root.take() {
-                    self.root = Some(split_group(root, group, side, tab, new_id));
+                if let Some(node) = self.root.as_mut().and_then(|r| r.group_node_mut(group)) {
+                    split_node(node, side, moved, new_id);
                 }
                 self.focused = Some(new_id);
                 return true;
@@ -406,7 +507,7 @@ impl DockLayout {
     }
 
     /// Restore invariants after construction or deserialization: drop
-    /// duplicate tab ids and empty groups, collapse single-child splits, clamp
+    /// duplicate tabs and empty groups, collapse single-child splits, clamp
     /// `active` and split fractions, and keep group ids unique and ahead of
     /// the allocator.
     pub(crate) fn sanitize(&mut self) {
@@ -416,10 +517,22 @@ impl DockLayout {
         let mut next = self.next_group;
         root.for_each_group(&mut |g| next = next.max(g.id + 1));
 
-        let mut seen_tabs = std::collections::HashSet::new();
-        let mut seen_ids = std::collections::HashSet::new();
+        // Duplicates only come from `from_node` or deserialization, so look
+        // for one before cloning every tab to remove them.
+        let mut has_duplicates = false;
+        {
+            let mut seen = HashSet::new();
+            root.for_each_group(&mut |g| {
+                has_duplicates |= g.tabs.iter().any(|t| !seen.insert(t));
+            });
+        }
+
+        let mut seen_tabs = HashSet::new();
+        let mut seen_ids = HashSet::new();
         root.for_each_group_mut(&mut |g| {
-            g.tabs.retain(|t| seen_tabs.insert(t.clone()));
+            if has_duplicates {
+                g.tabs.retain(|t| seen_tabs.insert(t.clone()));
+            }
             g.active = g.active.min(g.tabs.len().saturating_sub(1));
             if !seen_ids.insert(g.id) {
                 g.id = next;
@@ -432,8 +545,8 @@ impl DockLayout {
     }
 }
 
-impl Node {
-    pub(crate) fn for_each_group<'a>(&'a self, f: &mut impl FnMut(&'a TabGroup)) {
+impl<T> Node<T> {
+    pub(crate) fn for_each_group<'a>(&'a self, f: &mut impl FnMut(&'a TabGroup<T>)) {
         match self {
             Self::Group(g) => f(g),
             Self::Split { first, second, .. } => {
@@ -443,7 +556,7 @@ impl Node {
         }
     }
 
-    fn for_each_group_mut(&mut self, f: &mut impl FnMut(&mut TabGroup)) {
+    fn for_each_group_mut(&mut self, f: &mut impl FnMut(&mut TabGroup<T>)) {
         match self {
             Self::Group(g) => f(g),
             Self::Split { first, second, .. } => {
@@ -453,14 +566,14 @@ impl Node {
         }
     }
 
-    fn group(&self, id: GroupId) -> Option<&TabGroup> {
+    fn group(&self, id: GroupId) -> Option<&TabGroup<T>> {
         match self {
             Self::Group(g) => (g.id == id).then_some(g),
             Self::Split { first, second, .. } => first.group(id).or_else(|| second.group(id)),
         }
     }
 
-    fn group_mut(&mut self, id: GroupId) -> Option<&mut TabGroup> {
+    fn group_mut(&mut self, id: GroupId) -> Option<&mut TabGroup<T>> {
         match self {
             Self::Group(g) => (g.id == id).then_some(g),
             Self::Split { first, second, .. } => {
@@ -468,11 +581,24 @@ impl Node {
             }
         }
     }
+
+    /// The leaf node holding group `id`.
+    fn group_node_mut(&mut self, id: GroupId) -> Option<&mut Self> {
+        if matches!(self, Self::Group(g) if g.id == id) {
+            return Some(self);
+        }
+        match self {
+            Self::Group(_) => None,
+            Self::Split { first, second, .. } => first
+                .group_node_mut(id)
+                .or_else(|| second.group_node_mut(id)),
+        }
+    }
 }
 
 /// Drop empty groups and collapse splits left with one child, so the space
 /// goes to the sibling. Also normalises split fractions into `[0, 1]`.
-fn prune(node: Node) -> Option<Node> {
+fn prune<T>(node: Node<T>) -> Option<Node<T>> {
     match node {
         Node::Group(g) => (!g.tabs.is_empty()).then_some(Node::Group(g)),
         Node::Split {
@@ -496,49 +622,43 @@ fn prune(node: Node) -> Option<Node> {
     }
 }
 
-fn split_group(node: Node, target: GroupId, side: Side, tab: &str, new_id: GroupId) -> Node {
-    match node {
-        Node::Group(g) if g.id == target => {
-            let added = Node::Group(TabGroup {
-                id: new_id,
-                tabs: vec![tab.to_owned()],
-                active: 0,
-            });
-            let existing = Node::Group(g);
-            let (direction, first, second) = match side {
-                Side::Left => (SplitDirection::Row, added, existing),
-                Side::Right => (SplitDirection::Row, existing, added),
-                Side::Top => (SplitDirection::Column, added, existing),
-                Side::Bottom => (SplitDirection::Column, existing, added),
-            };
-            Node::Split {
-                direction,
-                fraction: 0.5,
-                first: Box::new(first),
-                second: Box::new(second),
-            }
-        }
-        Node::Group(g) => Node::Group(g),
-        Node::Split {
-            direction,
-            fraction,
-            first,
-            second,
-        } => Node::Split {
-            direction,
-            fraction,
-            first: Box::new(split_group(*first, target, side, tab, new_id)),
-            second: Box::new(split_group(*second, target, side, tab, new_id)),
-        },
-    }
+/// Replace the leaf `node` with an even split of it and a new group `new_id`
+/// holding `tab` on `side`.
+fn split_node<T>(node: &mut Node<T>, side: Side, tab: T, new_id: GroupId) {
+    let added = Node::Group(TabGroup {
+        id: new_id,
+        tabs: vec![tab],
+        active: 0,
+    });
+    // Swap a placeholder in so the existing leaf can move into the split.
+    let existing = std::mem::replace(
+        node,
+        Node::Group(TabGroup {
+            id: new_id,
+            tabs: Vec::new(),
+            active: 0,
+        }),
+    );
+    let (direction, first, second) = match side {
+        Side::Left => (SplitDirection::Row, added, existing),
+        Side::Right => (SplitDirection::Row, existing, added),
+        Side::Top => (SplitDirection::Column, added, existing),
+        Side::Bottom => (SplitDirection::Column, existing, added),
+    };
+    *node = Node::Split {
+        direction,
+        fraction: 0.5,
+        first: Box::new(first),
+        second: Box::new(second),
+    };
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    fn three_pane() -> DockLayout {
-        DockLayout::from_node(DockNode::row(
+    fn three_pane() -> DockLayout<String> {
+        DockLayout::<String>::from_node(DockNode::row(
             0.25,
             DockNode::tabs(["files"]),
             DockNode::column(
@@ -549,32 +669,85 @@ mod tests {
         ))
     }
 
-    fn group_tabs(layout: &DockLayout, tab: &str) -> Vec<String> {
-        let id = layout.group_of(tab).expect("tab present");
-        layout.group(id).expect("group present").tabs.clone()
+    #[test]
+    fn group_tabs_lists_the_tabs_sharing_a_group() {
+        let layout = three_pane();
+        assert_eq!(layout.group_tabs("preview"), vec!["editor", "preview"]);
+        assert_eq!(layout.group_tabs("files"), vec!["files"]);
+        assert!(layout.group_tabs("missing").is_empty());
+    }
+
+    #[test]
+    fn replace_tab_swaps_in_place() {
+        let mut layout = three_pane();
+        layout.activate("preview");
+        assert_eq!(
+            layout.replace_tab("preview", "diff").as_deref(),
+            Some("preview")
+        );
+        assert_eq!(layout.group_tabs("diff"), vec!["editor", "diff"]);
+        assert_eq!(layout.active_tabs(), vec!["files", "diff", "console"]);
+        assert!(layout.replace_tab("missing", "x").is_none());
+        assert!(!layout.contains("x"));
+        assert_eq!(layout.replace_tab("diff", "diff").as_deref(), Some("diff"));
+    }
+
+    #[test]
+    fn replace_tab_onto_a_present_tab_activates_it() {
+        let mut layout = three_pane();
+        assert_eq!(
+            layout.replace_tab("console", "editor").as_deref(),
+            Some("console")
+        );
+        assert!(!layout.contains("console"));
+        assert_eq!(layout.group_count(), 2);
+        assert_eq!(layout.active_tabs(), vec!["files", "editor"]);
+    }
+
+    /// Tabs can be any `Clone + Eq + Hash` type, so they carry their own data.
+    #[test]
+    fn tabs_can_be_an_app_enum() {
+        #[derive(Clone, Debug, PartialEq, Eq, Hash)]
+        enum Tab {
+            Log,
+            Channel(u8),
+        }
+        let mut layout = DockLayout::from_node(DockNode::row(
+            0.5,
+            DockNode::tabs([Tab::Log]),
+            DockNode::tabs([Tab::Channel(1), Tab::Channel(2)]),
+        ));
+        assert!(layout.contains(&Tab::Channel(2)));
+        assert_eq!(
+            layout.replace_tab(&Tab::Channel(1), Tab::Channel(7)),
+            Some(Tab::Channel(1))
+        );
+        assert_eq!(
+            layout.tabs(),
+            vec![&Tab::Log, &Tab::Channel(7), &Tab::Channel(2)]
+        );
+        assert_eq!(layout.remove_tab(&Tab::Log), Some(Tab::Log));
+        assert_eq!(layout.group_count(), 1);
     }
 
     #[test]
     fn from_node_builds_groups_in_order() {
         let layout = three_pane();
         assert_eq!(layout.group_count(), 3);
-        assert_eq!(
-            layout.tab_ids(),
-            vec!["files", "editor", "preview", "console"]
-        );
-        assert_eq!(layout.active_tab_ids(), vec!["files", "editor", "console"]);
+        assert_eq!(layout.tabs(), vec!["files", "editor", "preview", "console"]);
+        assert_eq!(layout.active_tabs(), vec!["files", "editor", "console"]);
     }
 
     #[test]
     fn from_node_drops_duplicates_and_empty_groups() {
-        let layout = DockLayout::from_node(DockNode::row(
+        let layout = DockLayout::<String>::from_node(DockNode::row(
             0.5,
             DockNode::tabs(["a", "b"]),
             DockNode::tabs(["b", "c"]),
         ));
-        assert_eq!(layout.tab_ids(), vec!["a", "b", "c"]);
+        assert_eq!(layout.tabs(), vec!["a", "b", "c"]);
 
-        let layout = DockLayout::from_node(DockNode::row(
+        let layout = DockLayout::<String>::from_node(DockNode::row(
             0.5,
             DockNode::tabs(["a"]),
             DockNode::Tabs(Vec::new()),
@@ -586,7 +759,7 @@ mod tests {
     #[test]
     fn fractions_are_normalised_into_unit_range() {
         let fraction_of = |f: f32| {
-            let layout = DockLayout::from_node(DockNode::row(
+            let layout = DockLayout::<String>::from_node(DockNode::row(
                 f,
                 DockNode::tabs(["a"]),
                 DockNode::tabs(["b"]),
@@ -607,31 +780,31 @@ mod tests {
     #[test]
     fn removing_last_tab_collapses_the_split() {
         let mut layout = three_pane();
-        assert!(layout.remove_tab("console"));
+        assert_eq!(layout.remove_tab("console").as_deref(), Some("console"));
         assert_eq!(layout.group_count(), 2);
         // `editor`'s group now fills the old column.
         let Some(Node::Split { second, .. }) = &layout.root else {
             panic!("expected root split");
         };
         assert!(matches!(**second, Node::Group(_)));
-        assert!(!layout.remove_tab("console"));
+        assert!(layout.remove_tab("console").is_none());
     }
 
     #[test]
     fn removing_the_only_tab_empties_the_layout() {
-        let mut layout = DockLayout::single(["a"]);
-        assert!(layout.remove_tab("a"));
+        let mut layout = DockLayout::<String>::single(["a"]);
+        assert!(layout.remove_tab("a").is_some());
         assert!(layout.is_empty());
     }
 
     #[test]
     fn removing_a_tab_keeps_the_active_tab() {
-        let mut layout = DockLayout::single(["a", "b", "c"]);
+        let mut layout = DockLayout::<String>::single(["a", "b", "c"]);
         layout.activate("c");
         layout.remove_tab("a");
-        assert_eq!(layout.active_tab_ids(), vec!["c"]);
+        assert_eq!(layout.active_tabs(), vec!["c"]);
         layout.remove_tab("c");
-        assert_eq!(layout.active_tab_ids(), vec!["b"]);
+        assert_eq!(layout.active_tabs(), vec!["b"]);
     }
 
     #[test]
@@ -639,34 +812,34 @@ mod tests {
         let mut layout = three_pane();
         layout.activate("console");
         layout.add_tab("output");
-        assert_eq!(group_tabs(&layout, "output"), vec!["console", "output"]);
-        assert_eq!(layout.active_tab_ids(), vec!["files", "editor", "output"]);
+        assert_eq!(layout.group_tabs("output"), vec!["console", "output"]);
+        assert_eq!(layout.active_tabs(), vec!["files", "editor", "output"]);
 
         layout.add_tab("files");
-        assert_eq!(layout.tab_ids().len(), 5, "existing id is not duplicated");
-        assert_eq!(layout.active_tab_ids()[0], "files");
+        assert_eq!(layout.tabs().len(), 5, "existing id is not duplicated");
+        assert_eq!(layout.active_tabs()[0], "files");
     }
 
     #[test]
     fn add_tab_to_empty_layout_creates_a_group() {
-        let mut layout = DockLayout::new();
+        let mut layout = DockLayout::<String>::new();
         layout.add_tab("a");
-        assert_eq!(layout.tab_ids(), vec!["a"]);
+        assert_eq!(layout.tabs(), vec!["a"]);
     }
 
     #[test]
     fn move_within_group_reorders() {
-        let mut layout = DockLayout::single(["a", "b", "c"]);
+        let mut layout = DockLayout::<String>::single(["a", "b", "c"]);
         let group = layout.group_of("a").unwrap();
         // Dropping `a` in the gap after `c`.
         assert!(layout.move_tab("a", DropTarget::Group { group, index: 3 }));
-        assert_eq!(group_tabs(&layout, "a"), vec!["b", "c", "a"]);
-        assert_eq!(layout.active_tab_ids(), vec!["a"]);
+        assert_eq!(layout.group_tabs("a"), vec!["b", "c", "a"]);
+        assert_eq!(layout.active_tabs(), vec!["a"]);
 
         // Dropping `c` back into the gap right after itself is a no-op.
         assert!(!layout.move_tab("c", DropTarget::Group { group, index: 2 }));
         assert!(!layout.move_tab("c", DropTarget::Group { group, index: 1 }));
-        assert_eq!(group_tabs(&layout, "a"), vec!["b", "c", "a"]);
+        assert_eq!(layout.group_tabs("a"), vec!["b", "c", "a"]);
     }
 
     #[test]
@@ -681,12 +854,12 @@ mod tests {
             }
         ));
         assert_eq!(
-            group_tabs(&layout, "files"),
+            layout.group_tabs("files"),
             vec!["editor", "files", "preview"]
         );
         // The emptied source group is gone.
         assert_eq!(layout.group_count(), 2);
-        assert_eq!(layout.active_tab_ids()[0], "files");
+        assert_eq!(layout.active_tabs()[0], "files");
     }
 
     #[test]
@@ -701,17 +874,17 @@ mod tests {
             }
         ));
         assert_eq!(layout.group_count(), 4);
-        assert_eq!(group_tabs(&layout, "preview"), vec!["preview"]);
-        assert_eq!(group_tabs(&layout, "editor"), vec!["editor"]);
+        assert_eq!(layout.group_tabs("preview"), vec!["preview"]);
+        assert_eq!(layout.group_tabs("editor"), vec!["editor"]);
         // `files` above, `preview` below.
-        let ids = layout.tab_ids();
+        let ids = layout.tabs();
         let pos = |t| ids.iter().position(|x| *x == t).unwrap();
         assert!(pos("files") < pos("preview"));
     }
 
     #[test]
     fn move_to_edge_of_own_group_splits_it() {
-        let mut layout = DockLayout::single(["a", "b"]);
+        let mut layout = DockLayout::<String>::single(["a", "b"]);
         let group = layout.group_of("a").unwrap();
         assert!(layout.move_tab(
             "b",
@@ -721,12 +894,12 @@ mod tests {
             }
         ));
         assert_eq!(layout.group_count(), 2);
-        assert_eq!(layout.tab_ids(), vec!["b", "a"]);
+        assert_eq!(layout.tabs(), vec!["b", "a"]);
     }
 
     #[test]
     fn move_sole_tab_to_own_edge_is_a_no_op() {
-        let mut layout = DockLayout::single(["a"]);
+        let mut layout = DockLayout::<String>::single(["a"]);
         let group = layout.group_of("a").unwrap();
         let before = layout.clone();
         assert!(!layout.move_tab(
@@ -741,7 +914,7 @@ mod tests {
 
     #[test]
     fn group_ids_stay_unique_after_splits() {
-        let mut layout = DockLayout::single(["a", "b", "c"]);
+        let mut layout = DockLayout::<String>::single(["a", "b", "c"]);
         for (tab, side) in [("b", Side::Right), ("c", Side::Bottom)] {
             let group = layout.group_of("a").unwrap();
             layout.move_tab(tab, DropTarget::Edge { group, side });
@@ -777,7 +950,7 @@ mod tests {
         let mut layout = three_pane();
         layout.activate("preview");
         let json = serde_json::to_string(&layout).unwrap();
-        let back: DockLayout = serde_json::from_str(&json).unwrap();
+        let back: DockLayout<String> = serde_json::from_str(&json).unwrap();
         assert_eq!(back, layout);
     }
 
@@ -790,7 +963,7 @@ mod tests {
                 active: 0,
             }))
         };
-        let mut layout = DockLayout {
+        let mut layout = DockLayout::<String> {
             root: Some(Node::Split {
                 direction: SplitDirection::Row,
                 fraction: 0.5,
@@ -818,12 +991,12 @@ mod tests {
                 index: 1
             }
         ));
-        assert_eq!(group_tabs(&layout, "a"), vec!["b", "a"]);
+        assert_eq!(layout.group_tabs("a"), vec!["b", "a"]);
     }
 
     #[test]
     fn sanitize_repairs_a_hand_edited_layout() {
-        let mut layout = DockLayout {
+        let mut layout = DockLayout::<String> {
             root: Some(Node::Split {
                 direction: SplitDirection::Row,
                 fraction: f32::NAN,
@@ -842,7 +1015,7 @@ mod tests {
             focused: None,
         };
         layout.sanitize();
-        assert_eq!(layout.tab_ids(), vec!["a"]);
+        assert_eq!(layout.tabs(), vec!["a"]);
         assert!(matches!(layout.root, Some(Node::Group(_))));
         layout.add_tab("b");
         layout.activate("b");
