@@ -558,10 +558,9 @@ impl<T> DockLayout<T> {
     /// layout keeps its shape, as [`Self::retain`] does, and tabs that
     /// convert to the same value keep only the first.
     ///
-    /// This makes loading a saved layout lenient: deserialize it with a
-    /// loosely typed tab, such as `DockLayout<String>` or
-    /// `DockLayout<serde_json::Value>`, then convert, so a tab the app no
-    /// longer knows is dropped instead of failing the whole layout.
+    /// This migrates a saved layout whose tabs have changed form, such as
+    /// names saved by an older version. To simply skip tabs that no longer
+    /// deserialize, use [`Self::deserialize_lenient`].
     ///
     /// ```
     /// use elegance::DockLayout;
@@ -593,6 +592,60 @@ impl<T> DockLayout<T> {
         layout.sanitize();
         layout
     }
+}
+
+#[cfg(feature = "serde")]
+impl<T: Clone + Eq + Hash> DockLayout<T> {
+    /// Deserialize a layout, dropping tabs that don't deserialize as `T`
+    /// instead of failing the whole layout. A saved layout can then name a
+    /// tab the app has since removed. The layout keeps its shape, as
+    /// [`Self::retain`] does. Errors in the layout's own structure still
+    /// fail.
+    ///
+    /// Each tab is buffered before it is read, so this needs a
+    /// self-describing format such as JSON or RON, not bincode.
+    ///
+    /// Use it on a field of persisted app state with
+    /// `#[serde(deserialize_with = "DockLayout::deserialize_lenient")]`, or
+    /// call it directly:
+    ///
+    /// ```
+    /// use elegance::DockLayout;
+    ///
+    /// #[derive(Clone, Debug, PartialEq, Eq, Hash, serde::Deserialize)]
+    /// enum Tab {
+    ///     Files,
+    ///     Console,
+    /// }
+    ///
+    /// // Saved by an older version that also had a `History` tab.
+    /// let json = r#"{"root":{"Group":{"id":0,"tabs":["Files",{"History":3},"Console"],"active":0}},"next_group":1,"focused":0}"#;
+    /// let mut de = serde_json::Deserializer::from_str(json);
+    /// let layout = DockLayout::<Tab>::deserialize_lenient(&mut de)?;
+    /// assert_eq!(layout.tabs(), [&Tab::Files, &Tab::Console]);
+    /// # Ok::<(), serde_json::Error>(())
+    /// ```
+    pub fn deserialize_lenient<'de, D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+        T: serde::Deserialize<'de>,
+    {
+        let loose: DockLayout<MaybeTab<T>> = serde::Deserialize::deserialize(deserializer)?;
+        Ok(loose.filter_map(|tab| match tab {
+            MaybeTab::Known(tab) => Some(tab),
+            MaybeTab::Unknown(_) => None,
+        }))
+    }
+}
+
+/// A saved tab that is `T` if it deserializes as one. Untagged enums buffer
+/// the value first, so a failed `T` leaves the input intact for the fallback.
+#[cfg(feature = "serde")]
+#[derive(serde::Deserialize)]
+#[serde(untagged)]
+enum MaybeTab<T> {
+    Known(T),
+    Unknown(serde::de::IgnoredAny),
 }
 
 impl<T> Node<T> {
@@ -1086,10 +1139,24 @@ mod tests {
         let json = serde_json::to_string(&saved).unwrap();
         assert!(serde_json::from_str::<DockLayout<New>>(&json).is_err());
 
-        let loose: DockLayout<serde_json::Value> = serde_json::from_str(&json).unwrap();
-        let layout = loose.filter_map(|v| serde_json::from_value::<New>(v).ok());
+        let mut de = serde_json::Deserializer::from_str(&json);
+        let layout = DockLayout::<New>::deserialize_lenient(&mut de).unwrap();
         assert_eq!(layout.tabs(), vec![&New::Files, &New::Console]);
         assert_eq!(layout.group_count(), 2);
+
+        // The same, as a field of persisted app state.
+        #[derive(serde::Deserialize)]
+        struct State {
+            #[serde(deserialize_with = "DockLayout::deserialize_lenient")]
+            dock: DockLayout<New>,
+        }
+        let state: State = serde_json::from_str(&format!(r#"{{"dock":{json}}}"#)).unwrap();
+        assert_eq!(state.dock, layout);
+
+        // Structural errors are not skipped.
+        let broken = json.replacen("\"next_group\"", "\"next_group\":\"x\",\"_\"", 1);
+        let mut de = serde_json::Deserializer::from_str(&broken);
+        assert!(DockLayout::<New>::deserialize_lenient(&mut de).is_err());
     }
 
     #[cfg(feature = "serde")]
