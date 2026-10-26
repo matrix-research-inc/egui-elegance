@@ -11,6 +11,7 @@ struct App {
     layout: DockLayout<String>,
     events: Vec<DockEvent<String>>,
     min_pane: f32,
+    min_tab_width: f32,
     /// Skip showing the dock, as an app does while a tab page is hidden.
     hidden: bool,
 }
@@ -51,17 +52,17 @@ fn harness_sized(layout: DockLayout<String>, size: egui::Vec2) -> Harness<'stati
             if app.hidden {
                 return;
             }
-            let out = Dock::new("dock").min_pane_size(app.min_pane).show(
-                ui,
-                &mut app.layout,
-                &mut Viewer,
-            );
+            let out = Dock::new("dock")
+                .min_pane_size(app.min_pane)
+                .min_tab_width(app.min_tab_width)
+                .show(ui, &mut app.layout, &mut Viewer);
             app.events.extend(out.events);
         },
         App {
             layout,
             events: Vec::new(),
             min_pane: 96.0,
+            min_tab_width: 120.0,
             hidden: false,
         },
     );
@@ -504,6 +505,28 @@ fn truncated_tabs_show_their_full_label_on_hover() {
     wide.hover_at(centre(&wide, "preview"));
     wide.run_steps(60);
     assert_eq!(wide.get_all_by_label("preview").count(), 1);
+}
+
+#[test]
+fn min_tab_width_trades_shrinking_for_scrolling() {
+    let label = "embedded explorer 0";
+    let mut harness = harness_sized(
+        DockLayout::single((0..4).map(|i| format!("embedded explorer {i}"))),
+        egui::vec2(520.0, 240.0),
+    );
+    assert!(
+        harness.query_by_label("All tabs").is_none(),
+        "shrunk to fit"
+    );
+    let shrunk = tab_rect(&harness, label).width();
+
+    harness.state_mut().min_tab_width = 200.0;
+    harness.run();
+    assert!(
+        harness.query_by_label("All tabs").is_some(),
+        "scrolls instead"
+    );
+    assert!(tab_rect(&harness, label).width() > shrunk + 10.0);
 }
 
 #[test]

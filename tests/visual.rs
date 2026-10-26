@@ -638,7 +638,8 @@ fn dock_ui(ui: &mut egui::Ui) {
 fn dock_overflow_ui(ui: &mut egui::Ui) {
     let mut layout: DockLayout<String> =
         DockLayout::single(["files", "editor", "preview", "long", "search"]);
-    layout.activate("files");
+    // A middle tab, so tabs are hidden past both ends of the strip.
+    layout.activate("preview");
     ui.allocate_ui(egui::vec2(300.0, 140.0), |ui| {
         Dock::new("vis_dock_overflow").show(ui, &mut layout, &mut DockDemoViewer);
     });

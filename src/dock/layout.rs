@@ -364,6 +364,14 @@ impl<T: Clone + Eq + Hash> DockLayout<T> {
         Some(std::mem::replace(&mut group.tabs[pos], new))
     }
 
+    /// Keep only the tabs for which `keep` returns `true`, such as dropping
+    /// documents that no longer exist after loading a saved layout. A group
+    /// whose active tab is removed activates the tab that followed it, and
+    /// emptied groups are dropped, their space going to the sibling.
+    pub fn retain(&mut self, mut keep: impl FnMut(&T) -> bool) {
+        *self = std::mem::take(self).filter_map(|tab| keep(&tab).then_some(tab));
+    }
+
     /// Make `tab` the active tab of its group and focus that group. Returns
     /// `false` if the tab is not in the layout.
     pub fn activate<Q>(&mut self, tab: &Q) -> bool
@@ -545,6 +553,48 @@ impl<T: Clone + Eq + Hash> DockLayout<T> {
     }
 }
 
+impl<T> DockLayout<T> {
+    /// Convert every tab with `f`, dropping the tabs it maps to `None`. The
+    /// layout keeps its shape, as [`Self::retain`] does, and tabs that
+    /// convert to the same value keep only the first.
+    ///
+    /// This makes loading a saved layout lenient: deserialize it with a
+    /// loosely typed tab, such as `DockLayout<String>` or
+    /// `DockLayout<serde_json::Value>`, then convert, so a tab the app no
+    /// longer knows is dropped instead of failing the whole layout.
+    ///
+    /// ```
+    /// use elegance::DockLayout;
+    ///
+    /// #[derive(Clone, Debug, PartialEq, Eq, Hash)]
+    /// enum Tab {
+    ///     Files,
+    ///     Console,
+    /// }
+    ///
+    /// // Saved by an older version that also had a "history" tab.
+    /// let saved = DockLayout::<String>::single(["files", "history", "console"]);
+    /// let layout = saved.filter_map(|name| match name.as_str() {
+    ///     "files" => Some(Tab::Files),
+    ///     "console" => Some(Tab::Console),
+    ///     _ => None,
+    /// });
+    /// assert_eq!(layout.tabs(), [&Tab::Files, &Tab::Console]);
+    /// ```
+    pub fn filter_map<U: Clone + Eq + Hash>(
+        self,
+        mut f: impl FnMut(T) -> Option<U>,
+    ) -> DockLayout<U> {
+        let mut layout = DockLayout {
+            root: self.root.map(|root| root.filter_map(&mut f)),
+            next_group: self.next_group,
+            focused: self.focused,
+        };
+        layout.sanitize();
+        layout
+    }
+}
+
 impl<T> Node<T> {
     pub(crate) fn for_each_group<'a>(&'a self, f: &mut impl FnMut(&'a TabGroup<T>)) {
         match self {
@@ -563,6 +613,39 @@ impl<T> Node<T> {
                 first.for_each_group_mut(f);
                 second.for_each_group_mut(f);
             }
+        }
+    }
+
+    /// Convert every tab, leaving empty groups for [`prune`]. A group whose
+    /// active tab is dropped activates the next surviving tab.
+    fn filter_map<U>(self, f: &mut impl FnMut(T) -> Option<U>) -> Node<U> {
+        match self {
+            Self::Group(g) => {
+                let mut tabs = Vec::with_capacity(g.tabs.len());
+                let mut active = 0;
+                for (i, tab) in g.tabs.into_iter().enumerate() {
+                    if i == g.active {
+                        active = tabs.len();
+                    }
+                    tabs.extend(f(tab));
+                }
+                Node::Group(TabGroup {
+                    id: g.id,
+                    tabs,
+                    active,
+                })
+            }
+            Self::Split {
+                direction,
+                fraction,
+                first,
+                second,
+            } => Node::Split {
+                direction,
+                fraction,
+                first: Box::new(first.filter_map(f)),
+                second: Box::new(second.filter_map(f)),
+            },
         }
     }
 
@@ -942,6 +1025,71 @@ mod tests {
             }
         ));
         assert_eq!(layout, before);
+    }
+
+    #[test]
+    fn retain_drops_tabs_and_collapses_emptied_groups() {
+        let mut layout = three_pane();
+        layout.retain(|t| t != "editor" && t != "console");
+        assert_eq!(layout.tabs(), vec!["files", "preview"]);
+        assert_eq!(layout.group_count(), 2);
+        assert_eq!(layout.active_tabs(), vec!["files", "preview"]);
+
+        layout.retain(|_| false);
+        assert!(layout.is_empty());
+    }
+
+    #[test]
+    fn retain_keeps_the_active_tab_where_it_survives() {
+        let mut layout = DockLayout::<String>::single(["a", "b", "c", "d"]);
+        layout.activate("c");
+        layout.retain(|t| t != "a");
+        assert_eq!(layout.active_tabs(), vec!["c"]);
+        layout.retain(|t| t != "c");
+        assert_eq!(layout.active_tabs(), vec!["d"]);
+        layout.retain(|t| t != "d");
+        assert_eq!(layout.active_tabs(), vec!["b"]);
+    }
+
+    #[test]
+    fn filter_map_converts_tabs_and_drops_duplicates() {
+        let layout = three_pane().filter_map(|t| match t.as_str() {
+            "files" => None,
+            "editor" | "preview" => Some(1),
+            _ => Some(2),
+        });
+        assert_eq!(layout.tabs(), vec![&1, &2]);
+        assert_eq!(layout.group_count(), 2);
+    }
+
+    /// A layout saved with a tab variant the app no longer has loads with
+    /// that tab dropped.
+    #[cfg(feature = "serde")]
+    #[test]
+    fn lenient_load_drops_unknown_tabs() {
+        #[derive(Clone, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+        enum Old {
+            Files,
+            History(u32),
+            Console,
+        }
+        #[derive(Clone, Debug, PartialEq, Eq, Hash, serde::Deserialize)]
+        enum New {
+            Files,
+            Console,
+        }
+        let saved = DockLayout::<Old>::from_node(DockNode::row(
+            0.3,
+            DockNode::tabs([Old::Files, Old::History(3)]),
+            DockNode::tabs([Old::Console]),
+        ));
+        let json = serde_json::to_string(&saved).unwrap();
+        assert!(serde_json::from_str::<DockLayout<New>>(&json).is_err());
+
+        let loose: DockLayout<serde_json::Value> = serde_json::from_str(&json).unwrap();
+        let layout = loose.filter_map(|v| serde_json::from_value::<New>(v).ok());
+        assert_eq!(layout.tabs(), vec![&New::Files, &New::Console]);
+        assert_eq!(layout.group_count(), 2);
     }
 
     #[cfg(feature = "serde")]

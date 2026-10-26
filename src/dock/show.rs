@@ -20,12 +20,8 @@ const HANDLE: f32 = 6.0;
 const HANDLE_LINE: f32 = 2.0;
 const STRIP_PAD_X: f32 = 4.0;
 pub(super) const STRIP_PAD_Y: f32 = 4.0;
-const TAB_MIN_WIDTH: f32 = 72.0;
-const TAB_MAX_WIDTH: f32 = 200.0;
-/// Tabs shrink no further than this when a strip is crowded; past it the
-/// strip scrolls. It leaves room for about ten characters of label beside an
-/// icon and close button, so crowded tabs stay readable.
-const TAB_SHRUNK_WIDTH: f32 = 120.0;
+/// Tabs with short labels are padded out to this width.
+const SHORT_TAB_WIDTH: f32 = 72.0;
 /// Width of the button that opens a menu of every tab in an overflowing strip.
 const OVERFLOW_BUTTON_WIDTH: f32 = 24.0;
 const OVERFLOW_BUTTON_RADIUS: u8 = 4;
@@ -33,6 +29,8 @@ const OVERFLOW_BUTTON_RADIUS: u8 = 4;
 /// tab scrolls it, and how fast, in points per second.
 const STRIP_AUTOSCROLL_EDGE: f32 = 32.0;
 const STRIP_AUTOSCROLL_SPEED: f32 = 600.0;
+/// Width of the fade at an end of an overflowing strip with tabs hidden past it.
+const STRIP_FADE_WIDTH: f32 = 24.0;
 const FALLBACK_SIZE: Vec2 = vec2(480.0, 320.0);
 
 pub(super) fn show<T: Clone + Eq + Hash>(
@@ -340,9 +338,11 @@ impl<T: Clone + Eq + Hash> Pass<'_, T> {
         // scrolls and an overflow menu lists every tab.
         let tabs: Vec<DockTab> = group.tabs.iter().map(|t| self.viewer.tab(t)).collect();
         let contents: Vec<TabContent<'_>> = tabs.iter().map(DockTab::content).collect();
+        let (min_width, max_width) = (self.dock.min_tab_width, self.dock.max_tab_width);
+        let short_width = SHORT_TAB_WIDTH.min(max_width);
         let natural: Vec<f32> = contents
             .iter()
-            .map(|c| tab_paint::measure_tab(self.ui, theme, c, TAB_MIN_WIDTH, TAB_MAX_WIDTH).width)
+            .map(|c| tab_paint::measure_tab(self.ui, theme, c, short_width, max_width).width)
             .collect();
         let gaps = TAB_GAP * natural.len().saturating_sub(1) as f32;
         let tabs_top = strip.min.y + STRIP_PAD_Y;
@@ -350,7 +350,7 @@ impl<T: Clone + Eq + Hash> Pass<'_, T> {
             pos2(strip.min.x + STRIP_PAD_X, tabs_top),
             pos2(strip.max.x - STRIP_PAD_X, tabs_top + tab_height),
         );
-        let widths = fit_widths(&natural, TAB_SHRUNK_WIDTH, (row.width() - gaps).max(0.0));
+        let widths = fit_widths(&natural, min_width, (row.width() - gaps).max(0.0));
         let content_width = widths.iter().sum::<f32>() + gaps;
         let overflow_button = (content_width > row.width() + 0.5).then(|| {
             Rect::from_min_max(pos2(row.max.x - OVERFLOW_BUTTON_WIDTH, row.min.y), row.max)
@@ -454,6 +454,10 @@ impl<T: Clone + Eq + Hash> Pass<'_, T> {
             }
         }
 
+        if overflow_button.is_some() {
+            let hidden_right = offset + tab_clip.width() < content_width - 0.5;
+            paint_strip_fades(&tab_painter, tab_clip, strip_bg, offset > 0.5, hidden_right);
+        }
         if let Some(button) = overflow_button
             && let Some(i) = self.overflow_menu(group, &tabs, button, strip_bg)
         {
@@ -582,10 +586,13 @@ impl<T: Clone + Eq + Hash> Pass<'_, T> {
             if let Some(&width) = widths.get(group.active) {
                 let left =
                     widths[..group.active].iter().sum::<f32>() + TAB_GAP * group.active as f32;
-                if left < scroll.offset {
-                    scroll.offset = left;
-                } else if left + width > scroll.offset + view_width {
-                    scroll.offset = left + width - view_width;
+                // Keep the tab clear of the edge fades, which the clamp
+                // below removes at either end of the strip.
+                let margin = STRIP_FADE_WIDTH.min(((view_width - width) / 2.0).max(0.0));
+                if left - margin < scroll.offset {
+                    scroll.offset = left - margin;
+                } else if left + width + margin > scroll.offset + view_width {
+                    scroll.offset = left + width + margin - view_width;
                 }
             }
             scroll.revealed = active.map(|tab| (tab, view_width));
@@ -689,6 +696,37 @@ fn fit_widths(natural: &[f32], floor: f32, room: f32) -> Vec<f32> {
                 .map(|(&w, &pin)| if pin { floor_of(w) } else { w * scale })
                 .collect();
         }
+    }
+}
+
+/// Fade the tabs into the strip background at either end of `clip` with
+/// tabs scrolled out of view past it.
+fn paint_strip_fades(
+    painter: &egui::Painter,
+    clip: Rect,
+    strip_bg: egui::Color32,
+    left: bool,
+    right: bool,
+) {
+    let width = STRIP_FADE_WIDTH.min(clip.width() / 2.0);
+    let mut mesh = egui::Mesh::default();
+    let mut fade = |outer: f32, inner: f32| {
+        let base = mesh.vertices.len() as u32;
+        mesh.colored_vertex(pos2(outer, clip.min.y), strip_bg);
+        mesh.colored_vertex(pos2(outer, clip.max.y), strip_bg);
+        mesh.colored_vertex(pos2(inner, clip.min.y), egui::Color32::TRANSPARENT);
+        mesh.colored_vertex(pos2(inner, clip.max.y), egui::Color32::TRANSPARENT);
+        mesh.add_triangle(base, base + 1, base + 2);
+        mesh.add_triangle(base + 1, base + 2, base + 3);
+    };
+    if left {
+        fade(clip.min.x, clip.min.x + width);
+    }
+    if right {
+        fade(clip.max.x, clip.max.x - width);
+    }
+    if !mesh.is_empty() {
+        painter.add(mesh);
     }
 }
 
