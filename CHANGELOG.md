@@ -4,7 +4,7 @@ Notable changes to `egui-elegance`. Where a version has [GitHub release notes](h
 
 Versions before 0.11.0 predate tagging; see the git history for those.
 
-## Unreleased
+## [0.17.2](https://github.com/matrix-research-inc/egui-elegance/releases/tag/v0.17.2) — 2026-10-26
 
 ### Added
 
