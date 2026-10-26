@@ -129,6 +129,15 @@ impl Geom {
 ///         .accent(Accent::Purple)
 ///         .show_value(true),
 /// );
+///
+/// // Without a `.label(..)`, name the knob for screen readers.
+/// let mut timebase = 4_u32;
+/// ui.add(
+///     Knob::new(&mut timebase, 0u32..=8u32)
+///         .size(KnobSize::Large)
+///         .detents([(0u32, "1µ"), (4u32, "20µ"), (8u32, "500µ")]),
+/// )
+/// .accessible_name("Timebase");
 /// # });
 /// ```
 #[must_use = "Add with `ui.add(...)`."]
