@@ -232,6 +232,8 @@ pub struct Dock {
     id_salt: egui::IdSalt,
     min_pane_size: f32,
     body_padding: f32,
+    min_tab_width: f32,
+    max_tab_width: f32,
 }
 
 impl Dock {
@@ -242,6 +244,8 @@ impl Dock {
             id_salt: egui::IdSalt::new(("elegance::dock", id_salt)),
             min_pane_size: 96.0,
             body_padding: 8.0,
+            min_tab_width: 120.0,
+            max_tab_width: 200.0,
         }
     }
 
@@ -257,6 +261,26 @@ impl Dock {
     #[inline]
     pub fn body_padding(mut self, padding: f32) -> Self {
         self.body_padding = padding.max(0.0);
+        self
+    }
+
+    /// Width, in points, that tabs in a crowded strip shrink to before the
+    /// strip scrolls instead. Tabs with shorter labels keep their natural
+    /// width. Raise it to keep long labels readable at the cost of scrolling
+    /// sooner; at [`Self::max_tab_width`] tabs never shrink. Default:
+    /// `120.0`.
+    #[inline]
+    pub fn min_tab_width(mut self, width: f32) -> Self {
+        self.min_tab_width = width.max(60.0);
+        self.max_tab_width = self.max_tab_width.max(self.min_tab_width);
+        self
+    }
+
+    /// Widest a tab grows, in points. Longer labels are truncated, with the
+    /// full label shown on hover. Default: `200.0`.
+    #[inline]
+    pub fn max_tab_width(mut self, width: f32) -> Self {
+        self.max_tab_width = width.max(self.min_tab_width);
         self
     }
 
