@@ -1,6 +1,8 @@
 //! Tab drag-and-drop: hit-testing the pointer against the laid-out groups and
 //! painting the drop preview.
 
+use std::hash::{DefaultHasher, Hash, Hasher};
+
 use egui::{CornerRadius, Painter, Pos2, Rect, Stroke, StrokeKind, Vec2, pos2};
 
 use super::layout::{DropTarget, GroupId, Side};
@@ -10,7 +12,9 @@ use crate::theme::{Theme, with_alpha};
 /// A drag in progress, kept in egui memory across frames.
 #[derive(Clone, Debug, Default)]
 pub(crate) struct DragState {
-    pub tab: String,
+    /// The dragged tab's [`tab_key`]. Storing the key rather than the tab
+    /// keeps egui memory free of the app's tab type.
+    pub tab: u64,
     pub source: GroupId,
     /// Pointer position relative to the dragged tab's top-left at drag start.
     pub grab_offset: Vec2,
@@ -26,8 +30,18 @@ pub(crate) struct GroupGeom {
     pub rect: Rect,
     pub strip: Rect,
     pub body: Rect,
-    /// Every tab's rect in order, including tabs clipped by overflow.
+    /// Every tab's rect in order, including tabs scrolled out of view.
     pub tabs: Vec<Rect>,
+    /// The part of the strip that shows tabs; insertion markers stay in it.
+    pub tab_clip: Rect,
+}
+
+/// A tab's identity in egui ids and memory: a hash of its value. egui salts
+/// must also be `Debug`, which tab types need not be.
+pub(crate) fn tab_key<T: Hash>(tab: &T) -> u64 {
+    let mut hasher = DefaultHasher::new();
+    tab.hash(&mut hasher);
+    hasher.finish()
 }
 
 /// The visual cue for a drop target.
@@ -119,7 +133,11 @@ fn marker_rect(geom: &GroupGeom, index: usize) -> Rect {
         (Some(prev), None) => prev.max.x + 1.0,
         (None, None) => geom.strip.min.x + MARKER_WIDTH,
     };
-    let x = x.clamp(geom.strip.min.x, geom.strip.max.x - MARKER_WIDTH);
+    // Not `clamp`: a pane too narrow for any tab has a clip narrower than
+    // the marker.
+    let x = x
+        .min(geom.tab_clip.max.x - MARKER_WIDTH)
+        .max(geom.tab_clip.min.x);
     Rect::from_min_max(
         pos2(x - MARKER_WIDTH * 0.5, geom.strip.min.y + STRIP_PAD_Y),
         pos2(x + MARKER_WIDTH * 0.5, geom.strip.max.y - 1.0),
@@ -179,12 +197,13 @@ mod tests {
             strip,
             body,
             tabs,
+            tab_clip: strip,
         }
     }
 
     fn drag(tab: &str, source: GroupId) -> DragState {
         DragState {
-            tab: tab.into(),
+            tab: tab_key(&tab),
             source,
             grab_offset: Vec2::ZERO,
             tab_width: 80.0,

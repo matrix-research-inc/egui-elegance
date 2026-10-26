@@ -726,8 +726,10 @@ fn render_browser_tabs() {
 fn render_dock() {
     struct Viewer;
     impl DockViewer for Viewer {
-        fn tab(&mut self, id: &str) -> DockTab {
-            match id {
+        type Tab = String;
+
+        fn tab(&mut self, id: &String) -> DockTab {
+            match id.as_str() {
                 "files" => DockTab::new("Files").icon(glyphs::FOLDER),
                 "editor" => DockTab::new("theme.rs").dirty(true),
                 "preview" => DockTab::new("Preview"),
@@ -736,13 +738,13 @@ fn render_dock() {
             }
         }
 
-        fn ui(&mut self, ui: &mut egui::Ui, id: &str) {
+        fn ui(&mut self, ui: &mut egui::Ui, id: &String) {
             let theme = Theme::current(ui.ctx());
             ui.label(theme.muted_text(format!("Contents of {id}")));
         }
     }
 
-    let mut layout = DockLayout::from_node(DockNode::row(
+    let mut layout: DockLayout<String> = DockLayout::from_node(DockNode::row(
         0.28,
         DockNode::tabs(["files"]),
         DockNode::column(

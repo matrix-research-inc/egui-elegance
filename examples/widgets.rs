@@ -144,7 +144,7 @@ struct App {
     browser_tabs: BrowserTabs,
     browser_tabs_untitled: u32,
 
-    dock: DockLayout,
+    dock: DockLayout<DemoTab>,
     dock_untitled: u32,
     dock_log: Vec<String>,
 
@@ -1043,8 +1043,7 @@ impl App {
                     .clicked()
                 {
                     self.dock_untitled += 1;
-                    self.dock
-                        .add_tab(format!("untitled-{}", self.dock_untitled));
+                    self.dock.add_tab(DemoTab::Untitled(self.dock_untitled));
                 }
                 if ui
                     .add(
@@ -1063,8 +1062,12 @@ impl App {
                 let out = Dock::new("ref_dock").show(ui, &mut self.dock, &mut DemoDockViewer);
                 for ev in out.events {
                     match ev {
-                        DockEvent::TabClosed(id) => self.dock_log.push(format!("closed {id}")),
-                        DockEvent::TabMoved(id) => self.dock_log.push(format!("moved {id}")),
+                        DockEvent::TabClosed(tab) => {
+                            self.dock_log.push(format!("closed {}", tab.label()));
+                        }
+                        DockEvent::TabMoved(tab) => {
+                            self.dock_log.push(format!("moved {}", tab.label()));
+                        }
                         DockEvent::TabActivated(_) | DockEvent::LayoutChanged => {}
                     }
                 }
@@ -3115,22 +3118,53 @@ impl App {
     }
 }
 
+/// The demo dock's tabs. Variants can carry data, like an untitled tab's
+/// number.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+enum DemoTab {
+    Files,
+    Editor,
+    Preview,
+    Console,
+    Untitled(u32),
+}
+
+impl DemoTab {
+    fn label(self) -> String {
+        match self {
+            Self::Files => "Files".into(),
+            Self::Editor => "theme.rs".into(),
+            Self::Preview => "Preview".into(),
+            Self::Console => "Console".into(),
+            Self::Untitled(n) => format!("untitled-{n}"),
+        }
+    }
+}
+
 struct DemoDockViewer;
 
 impl DockViewer for DemoDockViewer {
-    fn tab(&mut self, id: &str) -> DockTab {
-        match id {
-            "files" => DockTab::new("Files").icon(glyphs::FOLDER),
-            "editor" => DockTab::new("theme.rs").dirty(true),
-            "preview" => DockTab::new("Preview"),
-            "console" => DockTab::new("Console").icon(glyphs::TERMINAL),
-            other => DockTab::new(other),
+    type Tab = DemoTab;
+
+    fn tab(&mut self, tab: &DemoTab) -> DockTab {
+        let base = DockTab::new(tab.label());
+        match tab {
+            DemoTab::Files => base.icon(glyphs::FOLDER),
+            DemoTab::Editor => base.dirty(true),
+            DemoTab::Console => base.icon(glyphs::TERMINAL).scroll([false, true]),
+            DemoTab::Preview | DemoTab::Untitled(_) => base,
         }
     }
 
-    fn ui(&mut self, ui: &mut egui::Ui, id: &str) {
+    fn ui(&mut self, ui: &mut egui::Ui, tab: &DemoTab) {
         let theme = Theme::current(ui.ctx());
-        ui.label(theme.muted_text(format!("Contents of {id}")));
+        if *tab == DemoTab::Console {
+            for i in 1..=40 {
+                ui.label(theme.faint_text(format!("[{i:02}] build step {i} finished")));
+            }
+            return;
+        }
+        ui.label(theme.muted_text(format!("Contents of {}", tab.label())));
         ui.add_space(6.0);
         ui.label(theme.faint_text("Drag a tab to reorder it, move it to another pane,"));
         ui.label(
@@ -3139,17 +3173,17 @@ impl DockViewer for DemoDockViewer {
     }
 }
 
-fn demo_dock_layout() -> DockLayout {
+fn demo_dock_layout() -> DockLayout<DemoTab> {
     let mut layout = DockLayout::from_node(DockNode::row(
         0.28,
-        DockNode::tabs(["files"]),
+        DockNode::tabs([DemoTab::Files]),
         DockNode::column(
             0.62,
-            DockNode::tabs(["editor", "preview"]),
-            DockNode::tabs(["console"]),
+            DockNode::tabs([DemoTab::Editor, DemoTab::Preview]),
+            DockNode::tabs([DemoTab::Console]),
         ),
     ));
-    layout.activate("editor");
+    layout.activate(&DemoTab::Editor);
     layout
 }
 
