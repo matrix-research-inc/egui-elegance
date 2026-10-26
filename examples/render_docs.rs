@@ -1132,7 +1132,8 @@ fn render_knobs() {
                         (7u32, "200µ"),
                         (8u32, "500µ"),
                     ]),
-            );
+            )
+            .accessible_name("Timebase");
 
             caption(ui, "Bipolar (DC offset)");
             ui.add(
