@@ -83,6 +83,9 @@ Reference for each widget follows. Tiles are rendered headlessly by `cargo rende
 
 Chunky rounded button in six accent colours plus an outline variant, in three sizes. `Button::icon` gives a square icon-only button and `Button::icon_text` puts a glyph before the label; both are as tall as a text button of the same size, so they line up in a row.
 
+<details>
+<summary>Example</summary>
+
 ```rust
 use elegance::{Accent, Button, ButtonSize, glyphs};
 
@@ -98,11 +101,16 @@ ui.add(Button::icon(glyphs::DOWNLOAD, "Download").accent(Accent::Blue));
 ui.add(Button::icon_text(glyphs::UPLOAD, "Upload").accent(Accent::Green));
 ```
 
+</details>
+
 ### TextInput
 
 ![Text inputs — normal, hint, dirty, password, revealable](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/text_inputs.png)
 
 Single-line text input. See also [Submit-flash feedback](#submit-flash-feedback) for success / error tinting on submit.
+
+<details>
+<summary>Example</summary>
 
 ```rust
 use elegance::TextInput;
@@ -121,11 +129,16 @@ ui.add(TextInput::new(&mut name).label("Name").dirty(true));
 ui.add(TextInput::new(&mut passphrase).label("Passphrase").revealable(true));
 ```
 
+</details>
+
 ### TextArea
 
 ![Text areas — regular and monospace](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/text_areas.png)
 
 Multi-line counterpart to `TextInput` with a configurable visible row count. Optional monospace for code, JSON, or keys.
+
+<details>
+<summary>Example</summary>
 
 ```rust
 use elegance::TextArea;
@@ -139,11 +152,16 @@ ui.add(
 ui.add(TextArea::new(&mut json).monospace(true).rows(8));
 ```
 
+</details>
+
 ### TagInput
 
 ![Tag input — recipients with email validation, plus skill chips](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/tag_input.png)
 
 A pill-list text input bound to a `Vec<String>`. Enter or comma commits the buffer as a tag; with `commit_on_space(true)` whitespace commits too. Backspace on an empty buffer arms the last pill (red highlight) and a second Backspace removes it; clicking a pill's `×` removes it directly. Pasted text containing commas or whitespace splits into multiple tags. Optional `validator` closure rejects malformed values with an inline error.
+
+<details>
+<summary>Example</summary>
 
 ```rust
 use elegance::TagInput;
@@ -163,11 +181,16 @@ TagInput::new("recipients", &mut recipients)
     .show(ui);
 ```
 
+</details>
+
 ### RemovableChip
 
 ![Removable chip — inline editable value with an × close button](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/removable_chip.png)
 
 A bordered inline text input bound to a single `String`, with an `×` close button and an optional non-editable prefix. Auto-sizes the editor to fit the current text within a min/max range. The `removed` flag fires when the user clicks `×` or presses Escape on an empty editor; the caller decides whether to clear or drop the binding. Use this for inline filter pills, single-tag editors, or path-segment chips. For multi-value pill lists see `TagInput`.
+
+<details>
+<summary>Example</summary>
 
 ```rust
 use elegance::{Accent, RemovableChip};
@@ -185,11 +208,16 @@ if let Some(value) = suffix.as_mut() {
 }
 ```
 
+</details>
+
 ### Select
 
 ![Selects](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/selects.png)
 
 Themed combo-box generic over any `PartialEq + Clone` value type. Hand it the last committed value with `.saved(…)` and a *staged* select — one whose selection has moved but not yet been saved — marks itself with the same focus-accent dot `BrowserTab` uses for unsaved work, so it reads as pending beside a dirty `TextInput` in the same form.
+
+<details>
+<summary>Example</summary>
 
 ```rust
 use elegance::Select;
@@ -216,11 +244,16 @@ ui.add(
 ui.add(Select::strings("env", &mut env, ["Production", "Staging"]).enabled(false));
 ```
 
+</details>
+
 ### Checkbox · Switch · SegmentedButton
 
 ![Toggles — checkbox, switch, segmented](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/toggles.png)
 
 Three flavours of boolean input. Pick `Checkbox` for list-style selection, `Switch` for feature/settings flags, `SegmentedButton` for mode toggles where the on-state should read as a distinct accent pill.
+
+<details>
+<summary>Example</summary>
 
 ```rust
 use elegance::{Accent, Checkbox, SegmentedButton, Switch};
@@ -234,6 +267,8 @@ ui.add(
 );
 ```
 
+</details>
+
 `SegmentedButton` accepts the same `ButtonSize` scale as `Button`, so a mixed row (e.g. `Button::new("Collect")` next to `SegmentedButton::new(&mut continuous, "Continuous")`) stays aligned at any size. Pass matching `.size(ButtonSize::Large)` on both for a chunkier action row without touching the theme.
 
 ### TabBar
@@ -242,17 +277,25 @@ ui.add(
 
 Horizontal tab strip. The active tab gets a focus-accent underline.
 
+<details>
+<summary>Example</summary>
+
 ```rust
 use elegance::TabBar;
 
 ui.add(TabBar::new(&mut tab, ["Overview", "Settings", "Activity", "Logs"]));
 ```
 
+</details>
+
 ### SegmentedControl
 
 ![SegmentedControl](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/segmented_control.png)
 
 A row of mutually-exclusive segments sharing one rounded track. The selected segment lifts to the card colour with a soft drop shadow; unhovered, unactive neighbours are separated by a hairline. Use it for compact pickers where every option fits inline (timeframe, density, view mode).
+
+<details>
+<summary>Example</summary>
 
 ```rust
 use elegance::{SegmentedControl, SegmentedSize};
@@ -266,7 +309,12 @@ ui.add(
 );
 ```
 
+</details>
+
 Rich segments with a status dot, a count badge, and `.fill()` to stretch across the row:
+
+<details>
+<summary>Example</summary>
 
 ```rust
 use elegance::{Segment, SegmentDot, SegmentedControl};
@@ -285,9 +333,14 @@ ui.add(
 );
 ```
 
+</details>
+
 `Segment::icon` and `Segment::icon_text` cover icon-only and icon+label variants; `.enabled(false)` greys out a single segment without removing it from the row.
 
 `SegmentedControl::toggles` binds a `&mut [bool]` instead of an index, so each segment toggles independently; multi-toggle controls also accept click-and-drag paint, where pressing a segment and dragging across neighbours sets all crossed segments to the start segment's new state. Pair with `.accent(...)` for a connected, channel-toggle look:
+
+<details>
+<summary>Example</summary>
 
 ```rust
 use elegance::{Accent, SegmentedControl};
@@ -299,11 +352,16 @@ ui.add(
 );
 ```
 
+</details>
+
 ### BrowserTabs
 
 ![BrowserTabs](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/browser_tabs.png)
 
 Owned-state strip of browser-style closable tabs. The active tab fills with the card colour so it merges with the panel below; each tab can flag a focus-accent dirty-dot for unsaved changes, and the trailing `+` emits a `NewRequested` event for the caller to handle.
+
+<details>
+<summary>Example</summary>
 
 ```rust
 use elegance::{BrowserTab, BrowserTabs, BrowserTabsEvent};
@@ -324,11 +382,16 @@ impl App {
 }
 ```
 
+</details>
+
 ### Dock
 
 ![Dock](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/dock.png)
 
 Tabbed split panes. Drag tabs to reorder them, move them between panes, or drop them on a pane's edge to split it; drag the gutters to resize. The layout is a `DockLayout` of tab ids that your app owns, and a `DockViewer` supplies each tab's label and content. Enable the optional `serde` feature to persist the layout. Floating windows are not supported.
+
+<details>
+<summary>Example</summary>
 
 ```rust
 use elegance::{Dock, DockLayout, DockNode, DockTab, DockViewer};
@@ -362,11 +425,16 @@ impl App {
 }
 ```
 
+</details>
+
 ### StatusPill · Indicator · Badge
 
 ![Status](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/status.png)
 
 `IndicatorState` has three visual modes: `On` (solid green dot), `Off` (red bar), `Connecting` (amber ring). `Badge` carries a `BadgeTone`: `Ok`, `Warning`, `Danger`, `Info`, or `Neutral`.
+
+<details>
+<summary>Example</summary>
 
 ```rust
 use elegance::{Badge, BadgeTone, Indicator, IndicatorState, StatusPill};
@@ -381,11 +449,16 @@ ui.add(Indicator::new(IndicatorState::On));
 ui.add(Badge::new("Dev build", BadgeTone::Info));
 ```
 
+</details>
+
 ### Avatar · AvatarGroup
 
 ![Avatars — sizes, auto-tone, presence dots, stacked group](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/avatar.png)
 
 Circular profile tile in five sizes with deterministic colour from the initials, an optional presence dot (`Online`, `Busy`, `Away`, `Offline`), and an `AvatarGroup` for stacked rows with a `+N` overflow tile. Pass `surface(theme.palette.card)` when placing an avatar inside a card so the presence-dot border punches cleanly out of the card surface.
+
+<details>
+<summary>Example</summary>
 
 ```rust
 use elegance::{Avatar, AvatarGroup, AvatarPresence, AvatarSize, AvatarTone};
@@ -406,11 +479,16 @@ ui.add(
 );
 ```
 
+</details>
+
 ### Slider
 
 ![Sliders](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/sliders.png)
 
 Pill-track slider generic over `egui::emath::Numeric` — works with any integer or float type. Value readout on the right; `.value_fmt(|v| …)` for custom formatting. Keyboard: `←`/`→` nudge by `step` (or 1% of the range span when continuous), `Shift`+`←`/`→` for a 10x nudge, `Home`/`End` jump to the bounds. Grabbing the rail with the pointer gives the slider keyboard focus, so a click can be refined with the arrow keys without tabbing to it first.
+
+<details>
+<summary>Example</summary>
 
 ```rust
 use elegance::{Accent, Slider};
@@ -424,11 +502,16 @@ ui.add(
 ui.add(Slider::new(&mut port, 0u16..=65535u16).label("Port"));
 ```
 
+</details>
+
 ### MetricSlider
 
 ![Metric sliders](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/metric_sliders.png)
 
 Single-value slider whose central UI element is the value itself, rendered large in the top-right. Generalised over an arbitrary `RangeInclusive<f32>` so it works for any metric: buffer size in GiB, latency budget in ms, refresh rate in Hz. Pair the headline with `.suffix("ms")` for a small muted unit baseline-aligned to the value, or replace the headline entirely with `.headline_fmt(|v| …)` when the value is a tier index or named category. Tick labels follow with `.tick_fmt(|v| …)`. Three snap modes: `.step(s)` for multiples of `s` relative to the range start; `.steps(n)` for `n` evenly-spaced positions including both endpoints; `.stops([…])` for an explicit, possibly non-uniform list. When `steps` or `stops` is set, the tick row renders at exactly those positions and `←`/`→` jump between them. Keyboard: `←`/`→` nudge by `step` (or 1% of the range span when continuous), `Shift`+`←`/`→` for a 10x nudge, `Home`/`End` jump to the bounds; grabbing the rail focuses the slider, so a click can be refined with the arrow keys. Use `.show_ticks(false)` for compact layouts. `PercentSlider` is the `0..=100` + `"%"` preset over this widget. In `stops` mode a full-rail drag reports `changed()` once per stop crossed; gate expensive reactions on [`committed()`](#commit-signal) instead.
+
+<details>
+<summary>Example</summary>
 
 ```rust
 use elegance::{Accent, MetricSlider};
@@ -458,11 +541,16 @@ ui.add(
 );
 ```
 
+</details>
+
 ### PercentSlider
 
 ![Percent sliders](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/percent_sliders.png)
 
 The percent-flavoured preset of [`MetricSlider`](#metricslider): range locked to `0.0..=100.0`, small muted `%` suffix beside the headline, quartile ticks (`0`, `25%`, `50%`, `75%`, `100%`) beneath the track. Faint 10% interior divisions add battery-style legibility without breaking the smooth-fill feel. Pair with `.callout_fmt(|p| …)` when the percentage maps to a meaningful absolute quantity (a duration, a file size, a budget share) — the closure's return value surfaces in a callout above the thumb while the user drags, with the consumer in full control of the text. Three snap modes: `.step(s)` for multiples of `s`; `.steps(n)` for `n` evenly-spaced positions including both endpoints (cleaner than computing a step size when stops don't divide 100 evenly); `.stops([…])` for an explicit, possibly non-uniform list. When `steps` or `stops` is set, the tick row renders at exactly those positions and `←`/`→` jump between them. Keyboard: `←`/`→` nudge by `step` or step to the adjacent stop, `Shift`+`←`/`→` for a 10x nudge in continuous mode, `Home`/`End` jump to the bounds; grabbing the rail focuses the slider. Use `.show_ticks(false)` for compact layouts.
+
+<details>
+<summary>Example</summary>
 
 ```rust
 use elegance::{Accent, PercentSlider};
@@ -497,11 +585,16 @@ ui.add(
 );
 ```
 
+</details>
+
 ### RangeSlider
 
 ![Range sliders](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/range_sliders.png)
 
 Two-handle range slider for picking a `[low, high]` interval. Same pill track and accent fill as `Slider`; the fill spans only the selected portion. Optional evenly-spaced ticks with labels, and the keyboard works on the focused thumb (`←`/`→` nudge by `step`, `Shift`+`←`/`→` for a 10x nudge, `Home`/`End` jump to the bounds). Grabbing a thumb focuses it, so the arrow keys act on the endpoint you just moved.
+
+<details>
+<summary>Example</summary>
 
 ```rust
 use elegance::{Accent, RangeSlider};
@@ -527,11 +620,16 @@ ui.add(
 );
 ```
 
+</details>
+
 ### Knob
 
 ![Knobs — instrument panel, stepped detents, bipolar](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/knobs.png)
 
 Rotary knob bound to any `egui::emath::Numeric`. A 270-degree arc with an accent fill grows clockwise from the lower left; the active position drives a tick indicator inside the body. Three sizes (`Small` / `Medium` / `Large`), an `Accent` colour, and three behavioural variants share one widget: continuous (with optional `step` snap), `bipolar` (fill from the centre of the range outward toward the current value, suited to signed offsets), and stepped with `(value, label)` `detents` that render labeled ticks and snap drag/scroll/keyboard moves to the nearest detent. Drag combines horizontal and vertical motion: right and up both increase, left and down both decrease, so a diagonal flick reads as a single gesture (Shift slows for fine control). The scroll wheel and arrow keys nudge, Page Up / Page Down step coarser, Home / End jump to the bounds, and Alt+click, double-click, or `0` resets to a configured `default`. Grabbing the knob focuses it, so a drag can be refined with the arrow keys. Optional `log_scale` for wide ranges (audio frequency, gain). `show_value(true)` renders the formatted value below the knob.
+
+<details>
+<summary>Example</summary>
 
 ```rust
 use elegance::{Accent, Knob, KnobSize};
@@ -570,11 +668,16 @@ ui.add(
 .accessible_name("Timebase");
 ```
 
+</details>
+
 ### ColorPicker
 
 ![ColorPicker](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/color_picker.png)
 
 Bound to a `Color32`. Renders as a compact swatch-and-hex trigger; clicking opens a popover containing any combination of a curated palette grid, an auto-tracked recents row, a continuous saturation/value plane plus hue slider, an alpha slider, and a hex input. Builder toggles let you mix-and-match: a palette-only picker for status colors, a continuous picker for free-form brand colors, or both stacked. Recent picks are kept in egui's temporary memory for the session, keyed by `id_salt`. Hex parsing accepts `#RGB`, `#RRGGBB`, `#RRGGBBAA` (with or without `#`). The three continuous surfaces are keyboard-operable: `Tab` to one and the SV plane takes `←`/`→` for saturation and `↑`/`↓` for value, while the hue and alpha strips take `←`/`→` plus `Home`/`End`, with `Shift` for a 10x nudge. On the hue strip `End` stops one step short of the far edge, where the circle closes back onto the red that `Home` gives. Grabbing a surface with the pointer focuses it, and a run of keyboard adjustments records one recents entry, the same way a pointer gesture records one on release.
+
+<details>
+<summary>Example</summary>
 
 ```rust
 use elegance::ColorPicker;
@@ -590,11 +693,16 @@ ui.add(
 );
 ```
 
+</details>
+
 ### FileDropZone
 
 ![FileDropZone](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/file_drop_zone.png)
 
 A click-and-drop file target: dashed border, upload icon, and prompt. The widget renders the visual treatment and drag-over state; the caller handles the dropped files reported on `FileDropResponse.dropped_files` and opens a native picker on click (use a crate like `rfd`).
+
+<details>
+<summary>Example</summary>
 
 ```rust
 use elegance::FileDropZone;
@@ -611,11 +719,16 @@ for file in &drop.dropped_files {
 }
 ```
 
+</details>
+
 ### Spinner · ProgressBar
 
 ![Spinners and progress bars](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/feedback.png)
 
 `Spinner` is the indeterminate loader — an animated sweeping arc. `ProgressBar` is determinate: a pill-shaped bar with an optional inline label.
+
+<details>
+<summary>Example</summary>
 
 ```rust
 use elegance::{Accent, ProgressBar, Spinner};
@@ -626,11 +739,16 @@ ui.add(ProgressBar::new(0.6));
 ui.add(ProgressBar::new(1.0).accent(Accent::Amber).text("Complete"));
 ```
 
+</details>
+
 ### ProgressRing
 
 ![ProgressRing](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/progress_ring.png)
 
 A determinate circular progress indicator — a ring-shaped cousin of `ProgressBar`. A faint track plus an accent-coloured arc that sweeps clockwise from 12 o'clock as the fraction grows. Centre text defaults to the rounded percent; override with `.text(...)` and add a small muted sub-caption with `.caption(...)`. Doubles as a circular gauge: pass `.zones(GaugeZones::new(warn, crit))` to colour the arc by which threshold band the fraction falls in (`success`/`warning`/`danger`), `.unit("...")` to render a baseline-aligned suffix next to the value, and `.caption_below("...")` to anchor a descriptive caption beneath the ring instead of inside. For indeterminate "still working" loaders, use `Spinner` instead.
+
+<details>
+<summary>Example</summary>
 
 ```rust
 use elegance::{Accent, GaugeZones, ProgressRing};
@@ -660,11 +778,16 @@ ui.add(
 ui.add(ProgressRing::new(0.3).size(32.0).text(""));
 ```
 
+</details>
+
 ### RadialGauge · LinearGauge
 
 ![Gauges — radial and linear](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/gauge.png)
 
 Two widgets for displaying a value (as a `0..1` fraction) against optional threshold zones. `RadialGauge` is a half-circle dashboard speedometer with a needle and a value readout in the bowl; `LinearGauge` is a horizontal meter with optional faded threshold bands behind the fill plus tick-and-label markers above. For the donut form (a circular gauge with no needle), use `ProgressRing` with `.zones(...)`. Pass `GaugeZones::new(warn, crit)` to drive the fill colour automatically (success/warning/danger based on which band the value falls into). Without zones, the fill defaults to the theme's focus accent.
+
+<details>
+<summary>Example</summary>
 
 ```rust
 use elegance::{GaugeZones, LinearGauge, RadialGauge};
@@ -686,11 +809,16 @@ ui.add(
 );
 ```
 
+</details>
+
 ### Steps
 
 ![Steps — cells, numbered, labeled](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/steps.png)
 
 A stepped progress indicator for discrete, countable stages. Three visual styles share the same state model (`total`, `current`, `errored`): `StepsStyle::Cells` paints a segmented bar of uniform rounded cells, suited to compact "N of M" progress. `StepsStyle::Numbered` paints numbered circles connected by thin lines, with a checkmark on completed dots and a glow on the active one. `StepsStyle::Labeled` (via `Steps::labeled`) paints taller pills containing text labels — horizontal by default (a progress bar with readable stage names), or call `.vertical()` for a wizard-sidebar layout. Done cells use the theme's success green, the active one uses the focus accent, and errors use danger red.
+
+<details>
+<summary>Example</summary>
 
 ```rust
 use elegance::{Steps, StepsStyle};
@@ -715,9 +843,14 @@ ui.add(
 );
 ```
 
+</details>
+
 ### StatCard
 
 A compact dashboard tile for a single numeric KPI. The headline value sits above a comparison subtitle (`"vs last 7 days"`) and an optional 44 pt filled-area sparkline of recent values, tinted by the card's accent. A small delta chip shows direction of change with semantic colouring: by default, up is good (green); call `.invert_delta(true)` for metrics where down is good (latency, error rate). Pass `.loading(true)` while data is in flight to render a shimmer placeholder.
+
+<details>
+<summary>Example</summary>
 
 ```rust
 use elegance::{Accent, StatCard};
@@ -748,11 +881,16 @@ ui.add(
 ui.add(StatCard::new("Revenue today").accent(Accent::Green).loading(true));
 ```
 
+</details>
+
 ### Card · CollapsingSection
 
 ![Containers](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/containers.png)
 
 Both take a body closure and return an `InnerResponse<R>`.
+
+<details>
+<summary>Example</summary>
 
 ```rust
 use elegance::{Card, CollapsingSection};
@@ -776,9 +914,14 @@ CollapsingSection::new("advanced", "Show advanced options").show(ui, |ui| {
 });
 ```
 
+</details>
+
 ### Accordion
 
 A grouped stack of collapsible items inside one bordered panel. Each row gets a chevron, a title, and optional subtitle, icon halo, and right-aligned meta slot (badges, counts, status dots). Use `.exclusive(true)` to allow only one item open at a time, or `.flush(true)` to drop the outer border for inline use inside a form.
+
+<details>
+<summary>Example</summary>
 
 ```rust
 use elegance::{Accordion, Accent, Badge, BadgeTone};
@@ -799,11 +942,16 @@ Accordion::new("settings").exclusive(true).show(ui, |acc| {
 });
 ```
 
+</details>
+
 ### Menu · MenuItem
 
 ![Menu](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/menu.png)
 
 Click-to-open popup attached to any trigger `Response`. `Esc`, outside-click, or item-click all dismiss. For a desktop-style top-of-window strip with brand, multiple menus, and status, see [`MenuBar`](#menubar).
+
+<details>
+<summary>Example</summary>
 
 ```rust
 use elegance::{Button, ButtonSize, Menu, MenuItem};
@@ -817,9 +965,14 @@ Menu::new("row_actions").show_below(&trigger, |ui| {
 });
 ```
 
+</details>
+
 `MenuItem` also supports `.icon("📄")` (a leading glyph in the gutter), `.checked(bool)` (a checkmark for togglable items), and `.radio(bool)` (a filled dot for mutually-exclusive choices). Items in the same menu align cleanly when they all opt in to the same gutter style.
 
 For nested menus, drop a `SubMenuItem` inside any menu body — it renders as a `MenuItem` with a right-pointing chevron and opens its body as a flyout submenu when hovered:
+
+<details>
+<summary>Example</summary>
 
 ```rust
 use elegance::{MenuBar, MenuItem, SubMenuItem};
@@ -838,6 +991,8 @@ MenuBar::new("app").show(ui, |bar| {
 });
 ```
 
+</details>
+
 `MenuSection::new("Edit")` adds a small uppercase muted header for grouping items within any menu body.
 
 ### ContextMenu
@@ -845,6 +1000,9 @@ MenuBar::new("app").show(ui, |bar| {
 ![ContextMenu](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/context_menu.png)
 
 Right-click popup anchored to the cursor. Hosts the same `MenuItem`, `MenuSection`, and `SubMenuItem` widgets as the rest of the menu family, so the styling is consistent. The target `Response` needs a click sense for egui to register the secondary click — most interactive widgets already do; for plain labels add `.sense(egui::Sense::click())`.
+
+<details>
+<summary>Example</summary>
 
 ```rust
 use elegance::{ContextMenu, MenuItem, MenuSection, SubMenuItem};
@@ -865,11 +1023,16 @@ ContextMenu::new("file_row").show(&row, |ui| {
 });
 ```
 
+</details>
+
 ### MenuBar
 
 ![MenuBar](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/menu_bar.png)
 
 Desktop-style top-of-window menu strip: an optional brand on the left, a row of click-to-open menus (File, Edit, View, …), and an optional status slot on the right. Once any menu is open, hovering a sibling trigger switches to it — the same "menu mode" feel native menubars have. Each dropdown is a themed panel; populate it with `MenuItem`s, separators, and section headers. `MenuItem` exposes `.checked(bool)` (checkbox toggles), `.radio(bool)` (mutually-exclusive choices), `.icon(...)` (leading glyph), `.shortcut("⌘N")`, `.danger()`, and `.enabled(false)`.
+
+<details>
+<summary>Example</summary>
 
 ```rust
 use elegance::{MenuBar, MenuItem, Theme};
@@ -898,9 +1061,14 @@ MenuBar::new("app_menubar")
     });
 ```
 
+</details>
+
 For custom widgets, `bar.ui()` exposes the strip's `Ui` for content inline with the triggers, and `bar.trailing(|ui| …)` pins content to the right edge, outside the status. Call `trailing` after the last menu; it lays out right to left, so the first widget added sits at the edge.
 
 For an app that hides the native title bar (`ViewportBuilder::with_decorations(false)`), `.title_bar(true)` lets the strip stand in for it: dragging its empty area moves the window and double-clicking toggles maximised, while triggers and buttons keep their own clicks. The trailing slot holds the window controls:
+
+<details>
+<summary>Example</summary>
 
 ```rust
 use elegance::{Button, ButtonSize, glyphs};
@@ -916,6 +1084,8 @@ MenuBar::new("app_menubar").brand("Elegance").title_bar(true).show(ui, |bar| {
 });
 ```
 
+</details>
+
 For a single click-to-open menu attached to an arbitrary trigger button (e.g. row actions, a toolbar overflow), reach for [`Menu`](#menu--menuitem) directly instead.
 
 ### Modal
@@ -923,6 +1093,9 @@ For a single click-to-open menu attached to an arbitrary trigger button (e.g. ro
 ![Modal](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/modal.png)
 
 Centered dialog over a dimmed backdrop. `Esc`, backdrop-click, or the built-in × button all flip the bound `open` flag back to `false`.
+
+<details>
+<summary>Example</summary>
 
 ```rust
 use elegance::Modal;
@@ -934,6 +1107,8 @@ Modal::new("stats", &mut open)
     });
 ```
 
+</details>
+
 Disable individual dismissal paths with `.close_on_escape(false)` / `.close_on_backdrop(false)`, or block all user-driven dismissal at once with `.closable(false)` — which also hides the × — to hold the dialog open while a task runs. The caller can still close it from code by setting `open = false`.
 
 ### Drawer
@@ -941,6 +1116,9 @@ Disable individual dismissal paths with `.close_on_escape(false)` / `.close_on_b
 ![Drawer](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/drawer.png)
 
 Side-anchored slide-in overlay panel: full-height, dimmed backdrop, slides over the page rather than carving space out of it. Reach for `Drawer` when the content is too tall for a `Modal` but doesn't deserve its own route — record inspectors, edit forms, filter sidebars. `Esc`, backdrop-click, and the built-in × button all flip the bound `open` flag back to `false`. The slide animation, focus capture, and focus restore on close are built in.
+
+<details>
+<summary>Example</summary>
 
 ```rust
 use elegance::{Drawer, DrawerSide};
@@ -970,6 +1148,8 @@ Drawer::new("inspector", &mut open)
     });
 ```
 
+</details>
+
 For a *persistent* (non-overlay) side panel that resizes the surrounding content, use `egui::SidePanel` directly with the elegance palette — `Drawer` is the modal slide-in case.
 
 ### Popover
@@ -977,6 +1157,9 @@ For a *persistent* (non-overlay) side panel that resizes the surrounding content
 ![Popover](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/popover.png)
 
 Click-anchored floating panel that points at a trigger. Lighter than `Modal`: no backdrop, no focus trap. Pick a side with `PopoverSide` (top, bottom, left, right), optionally set a `title`, and fill the body closure with whatever you like. `Esc`, outside-click, or a second trigger-click dismiss.
+
+<details>
+<summary>Example</summary>
 
 ```rust
 use elegance::{Accent, Button, ButtonSize, Popover, PopoverSide};
@@ -994,9 +1177,14 @@ Popover::new("delete_branch")
     });
 ```
 
+</details>
+
 ### Tooltip
 
 Hover-triggered, themed callout that explains a trigger widget. One-line label by default; opt into a bold heading and a keyboard-shortcut row (label + small key chips) for richer hints. Visibility is driven by egui's tooltip system, so the standard delay, grace-window chaining between siblings, and dismiss-on-click behaviour come for free. For a click-anchored panel the user can interact with, reach for [`Popover`](#popover) instead.
+
+<details>
+<summary>Example</summary>
 
 ```rust
 use elegance::{Button, Tooltip};
@@ -1008,11 +1196,16 @@ Tooltip::new("Write the working tree to disk. Remote sync runs in the background
     .show(&trigger);
 ```
 
+</details>
+
 ### Callout
 
 ![Callouts — info, warning, success](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/callout.png)
 
 Full-width inline banner for persistent context: experimental features, unsaved changes, failed builds, maintenance windows. `CalloutTone` picks the accent (`Info`, `Success`, `Warning`, `Danger`, `Neutral`). The closure slot is a right-to-left action area — add primary button first. Opt into a trailing × with `.dismissable(&mut open)`. The default treatment is a card-colored banner with a leading accent stripe; call `.tinted()` for a louder severity-tinted background with a matching tinted border, when the banner needs to read as a discrete alert rather than inline page chrome.
+
+<details>
+<summary>Example</summary>
 
 ```rust
 use elegance::{Accent, Button, Callout, CalloutTone};
@@ -1026,6 +1219,8 @@ Callout::new(CalloutTone::Warning)
     });
 ```
 
+</details>
+
 Unlike [`Toast`](#toast--toasts) it does not auto-dismiss, and unlike [submit-flash feedback](#submit-flash-feedback) it's a whole surface rather than a pulse on another widget.
 
 ### Toast · Toasts
@@ -1033,6 +1228,9 @@ Unlike [`Toast`](#toast--toasts) it does not auto-dismiss, and unlike [submit-fl
 ![Toast](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/toast.png)
 
 Non-blocking notifications. `Toast::show(ctx)` enqueues from any callback that has `&Context`; `Toasts::new().render(ctx)` draws the stack once per frame. Auto-dismissed with fade-out after ~4 s (override with `.duration(…)` or `.persistent()`).
+
+<details>
+<summary>Example</summary>
 
 ```rust
 use elegance::{BadgeTone, Toast, Toasts};
@@ -1047,9 +1245,14 @@ Toast::new("Deploy complete")
 Toasts::new().render(ctx);
 ```
 
+</details>
+
 ### LogBar
 
 Expandable bottom log bar — a monospace console with timestamped rows colour-coded by kind: `Sys`, `Out` (→), `In` (←), `Err`. Owned state — construct once on your app struct, push entries from anywhere with `&mut self`, and render once per frame.
+
+<details>
+<summary>Example</summary>
 
 ```rust
 use elegance::LogBar;
@@ -1066,6 +1269,8 @@ log.err("retry budget exceeded");
 log.show(ui);
 ```
 
+</details>
+
 ### Pairing
 
 ![Pairing](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/pairing.png)
@@ -1075,6 +1280,9 @@ One-to-one pairing between two lists, drawn as bezier curves between port circle
 Pairs are stored as `(left_id, right_id)` tuples in a caller-owned `Vec`; transient selection state lives in egui memory keyed by the widget's id salt. Each side supports up to 64 items — layout uses fixed-size stack buffers so there is zero heap allocation per frame.
 
 Each node takes an optional leading icon glyph. `.icon_tone(BadgeTone)` tints that glyph with a status tone resolved against the palette at paint time — so a column of nodes can read green/red for healthy/unreachable in the same vocabulary as the app's badges — and `.icon_color(impl Into<Color32>)` sets an explicit colour for tints outside that vocabulary. Untinted icons stay in the muted icon colour.
+
+<details>
+<summary>Example</summary>
 
 ```rust
 use elegance::{BadgeTone, PairItem, Pairing, glyphs};
@@ -1102,6 +1310,8 @@ Pairing::new("client-server", &clients, &servers, &mut pairs)
     .show(ui);
 ```
 
+</details>
+
 ### SortableList
 
 ![Sortable list](https://raw.githubusercontent.com/matrix-research-inc/egui-elegance/main/docs/images/sortable_list.png)
@@ -1109,6 +1319,9 @@ Pairing::new("client-server", &clients, &servers, &mut pairs)
 Drag-and-drop list of rows: press a row's grip handle, drag to a new position, release. The source row collapses out of layout and a ghost copy floats under the cursor; a focus-accent-tinted slot opens at the predicted drop position so the user sees where the row will land. Releasing on the source's own slot is a no-op; pressing Escape mid-drag cancels.
 
 Each row supports an optional leading icon glyph, a title, an optional subtitle line, and an optional trailing status pill toned via `BadgeTone`. Items are reordered in place in the caller-owned `Vec<SortableItem>`; transient drag state lives in egui memory keyed by the widget's id salt.
+
+<details>
+<summary>Example</summary>
 
 ```rust
 use elegance::{BadgeTone, SortableItem, SortableList};
@@ -1127,6 +1340,8 @@ let mut items = vec![
 
 SortableList::new("deployment-targets", &mut items).show(ui);
 ```
+
+</details>
 
 ## Submit-flash feedback
 
