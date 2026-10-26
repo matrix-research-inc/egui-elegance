@@ -4,6 +4,12 @@ Notable changes to `egui-elegance`. Where a version has [GitHub release notes](h
 
 Versions before 0.11.0 predate tagging; see the git history for those.
 
+## Unreleased
+
+### Added
+
+- `DockLayout::deserialize_lenient` loads a saved layout while skipping tabs that no longer deserialize, for use directly or via `#[serde(deserialize_with = ...)]`. Needs a self-describing format (JSON, RON).
+
 ## [0.17.1](https://github.com/matrix-research-inc/egui-elegance/releases/tag/v0.17.1) — 2026-10-26
 
 ### Added
