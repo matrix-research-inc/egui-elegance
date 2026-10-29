@@ -18,6 +18,9 @@ const LABEL_DOT_GAP: f32 = 6.0;
 /// tracks the label if a caller rescales the typography.
 const DOT_TO_LABEL: f32 = 0.46;
 
+/// Per-option predicate set by [`Select::option_enabled`].
+type OptionEnabled<'a, T> = Box<dyn Fn(&T) -> bool + 'a>;
+
 /// A styled drop-down select.
 ///
 /// Bind the selection to any `PartialEq + Clone` type — an enum, an index,
@@ -56,6 +59,8 @@ pub struct Select<'a, T: PartialEq + Clone> {
     value: &'a mut T,
     label: Option<WidgetText>,
     options: Vec<(T, Cow<'a, str>)>,
+    /// Set by [`Select::option_enabled`]; every option is enabled without it.
+    option_enabled: Option<OptionEnabled<'a, T>>,
     width: Option<f32>,
     enabled: bool,
     /// Whether the selection has moved off the last committed value. Resolved
@@ -69,6 +74,7 @@ impl<'a, T: PartialEq + Clone> std::fmt::Debug for Select<'a, T> {
         f.debug_struct("Select")
             .field("id_salt", &self.id_salt)
             .field("option_labels", &labels)
+            .field("option_enabled", &self.option_enabled.is_some())
             .field("width", &self.width)
             .field("enabled", &self.enabled)
             .field("staged", &self.staged)
@@ -85,6 +91,7 @@ impl<'a, T: PartialEq + Clone> Select<'a, T> {
             value,
             label: None,
             options: Vec::new(),
+            option_enabled: None,
             width: None,
             enabled: true,
             staged: false,
@@ -160,6 +167,32 @@ impl<'a, T: PartialEq + Clone> Select<'a, T> {
         self
     }
 
+    /// Decide per option whether it can be picked. Options for which
+    /// `enabled` returns `false` stay in the list, dimmed, but clicking them
+    /// neither changes the value nor closes the popup. Prefer this to
+    /// filtering options out when they only temporarily don't apply, so the
+    /// list keeps its shape and still shows what exists.
+    ///
+    /// A current value that is disabled stays selected; this only stops the
+    /// user from picking a disabled option.
+    ///
+    /// ```no_run
+    /// # use elegance::Select;
+    /// # egui::__run_test_ui(|ui| {
+    /// let mut rate = 48_000_u32;
+    /// let max_rate = 96_000;
+    /// ui.add(
+    ///     Select::new("rate", &mut rate)
+    ///         .options([(44_100, "44.1 kHz"), (48_000, "48 kHz"), (192_000, "192 kHz")])
+    ///         .option_enabled(|&r| r <= max_rate),
+    /// );
+    /// # });
+    /// ```
+    pub fn option_enabled(mut self, enabled: impl Fn(&T) -> bool + 'a) -> Self {
+        self.option_enabled = Some(Box::new(enabled));
+        self
+    }
+
     /// Enable or disable the select. A disabled select is dimmed and cannot
     /// be opened, mirroring [`Button::enabled`](crate::Button::enabled) — so a
     /// select can be greyed out inline without wrapping it in
@@ -199,6 +232,7 @@ impl<'a> Select<'a, String> {
             value,
             label: None,
             options,
+            option_enabled: None,
             width: None,
             enabled: true,
             staged: false,
@@ -317,6 +351,9 @@ impl<'a, T: PartialEq + Clone> Widget for Select<'a, T> {
 
                     ComboBox::from_id_salt(self.id_salt)
                         .width(width)
+                        // Close only when an enabled option is picked (below),
+                        // so a click on a disabled one leaves the list open.
+                        .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
                         .selected_text(
                             egui::RichText::new(&selected_label)
                                 .color(p.text)
@@ -331,11 +368,22 @@ impl<'a, T: PartialEq + Clone> Widget for Select<'a, T> {
                             ui.spacing_mut().item_spacing.y = 2.0;
                             for (opt_value, opt_label) in self.options.iter() {
                                 let selected = opt_value == &*self.value;
-                                if select_option(ui, opt_label.as_ref(), selected, &theme).clicked()
-                                    && opt_value != &*self.value
-                                {
-                                    *self.value = opt_value.clone();
-                                    changed = true;
+                                let opt_enabled =
+                                    self.option_enabled.as_ref().is_none_or(|f| f(opt_value));
+                                let clicked = select_option(
+                                    ui,
+                                    opt_label.as_ref(),
+                                    selected,
+                                    opt_enabled,
+                                    &theme,
+                                )
+                                .clicked();
+                                if clicked {
+                                    ui.close();
+                                    if !selected {
+                                        *self.value = opt_value.clone();
+                                        changed = true;
+                                    }
                                 }
                             }
                         })
@@ -394,7 +442,13 @@ fn paint_chevron(ui: &egui::Ui, rect: egui::Rect, color: Color32, is_popup_open:
 /// at a fixed offset across hover/selected/inactive states. egui's own
 /// `ui.selectable_label` goes through `Button::selectable`, whose frame's
 /// `expansion` changes between states, which shifts the text by ~1px on hover.
-fn select_option(ui: &mut Ui, label: &str, selected: bool, theme: &Theme) -> Response {
+fn select_option(
+    ui: &mut Ui,
+    label: &str,
+    selected: bool,
+    enabled: bool,
+    theme: &Theme,
+) -> Response {
     let p = &theme.palette;
     let t = &theme.typography;
 
@@ -407,10 +461,16 @@ fn select_option(ui: &mut Ui, label: &str, selected: bool, theme: &Theme) -> Res
         ui.available_width().max(content_w + pad_x * 2.0),
         galley.size().y.max(t.body) + pad_y * 2.0,
     );
-    let (rect, response) = ui.allocate_exact_size(desired, Sense::click());
+    let sense = if enabled {
+        Sense::click()
+    } else {
+        Sense::hover()
+    };
+    let (rect, response) = ui.allocate_exact_size(desired, sense);
+    response.widget_info(|| WidgetInfo::selected(Role::Button, enabled, selected, label));
 
     if ui.is_rect_visible(rect) {
-        let bg = if response.hovered() {
+        let bg = if response.hovered() && enabled {
             with_alpha(p.focus, 60)
         } else if selected {
             with_alpha(p.focus, 40)
@@ -422,7 +482,8 @@ fn select_option(ui: &mut Ui, label: &str, selected: bool, theme: &Theme) -> Res
             ui.painter().rect_filled(rect, radius, bg);
         }
         let label_pos = Pos2::new(rect.min.x + pad_x, rect.center().y - galley.size().y * 0.5);
-        ui.painter().galley(label_pos, galley, p.text);
+        let color = if enabled { p.text } else { p.text_faint };
+        ui.painter().galley(label_pos, galley, color);
     }
     response
 }

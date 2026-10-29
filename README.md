@@ -242,6 +242,12 @@ ui.add(
 
 // Disable inline — no need to wrap in `ui.add_enabled_ui`:
 ui.add(Select::strings("env", &mut env, ["Production", "Staging"]).enabled(false));
+
+// Grey out options that don't currently apply, rather than hiding them:
+ui.add(
+    Select::strings("env", &mut env, ["Production", "Staging", "Development"])
+        .option_enabled(|env| env != "Production"),
+);
 ```
 
 </details>
