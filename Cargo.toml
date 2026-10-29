@@ -22,6 +22,10 @@ exclude = [
     "tests/visual.rs",
 ]
 
+[package.metadata.docs.rs]
+# Document the `serde`-gated API too.
+all-features = true
+
 [lib]
 name = "elegance"
 path = "src/lib.rs"
