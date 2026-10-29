@@ -288,9 +288,7 @@ fn render_hero() {
     let image = harness
         .render()
         .unwrap_or_else(|e| panic!("render hero: {e}"));
-    let path = format!("{OUTPUT_DIR}/hero.png");
-    image.save(&path).expect("save png");
-    println!("wrote {} ({}×{})", path, image.width(), image.height());
+    save_png("hero", &image);
 }
 
 fn render_buttons() {
@@ -2241,8 +2239,25 @@ where
     let image = harness
         .render()
         .unwrap_or_else(|e| panic!("render {name}: {e}"));
+    save_png(name, &image);
+}
+
+/// Write `image` to `docs/images/{name}.png`, unless the file there already
+/// holds the same pixels.
+///
+/// PNG encoding differs across `png` crate versions, so re-saving an
+/// unchanged render can still change the file's bytes. Comparing decoded
+/// pixels keeps a run from dirtying every image when only one widget changed.
+fn save_png(name: &str, image: &image::RgbaImage) {
     let path = format!("{OUTPUT_DIR}/{name}.png");
-    image.save(&path).expect("save png");
+    let unchanged = image::open(&path).is_ok_and(|existing| existing.to_rgba8() == *image);
+    if unchanged {
+        println!("unchanged {path}");
+        return;
+    }
+    image
+        .save(&path)
+        .unwrap_or_else(|e| panic!("save {path}: {e}"));
     println!("wrote {} ({}×{})", path, image.width(), image.height());
 }
 
