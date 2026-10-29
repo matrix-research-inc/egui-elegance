@@ -12,6 +12,8 @@ Versions before 0.11.0 predate tagging; see the git history for those.
 
 ### Fixed
 
+- Stock egui widgets losing the theme after the OS switches between dark and light mode.
+- docs.rs builds, failing since 0.17.2. docs.rs now also documents the `serde` API.
 - `Select` options now have accessible names.
 
 ## [0.17.3](https://github.com/matrix-research-inc/egui-elegance/releases/tag/v0.17.3) — 2026-10-29

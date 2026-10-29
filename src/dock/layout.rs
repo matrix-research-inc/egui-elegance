@@ -559,8 +559,11 @@ impl<T> DockLayout<T> {
     /// convert to the same value keep only the first.
     ///
     /// This migrates a saved layout whose tabs have changed form, such as
-    /// names saved by an older version. To simply skip tabs that no longer
-    /// deserialize, use [`Self::deserialize_lenient`].
+    /// names saved by an older version.
+    #[cfg_attr(
+        feature = "serde",
+        doc = "To simply skip tabs that no longer deserialize, use [`Self::deserialize_lenient`]."
+    )]
     ///
     /// ```
     /// use elegance::DockLayout;
