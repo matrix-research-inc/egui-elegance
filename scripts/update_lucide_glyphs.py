@@ -22,8 +22,8 @@ Dependencies (``pip install picosvg fonttools``):
 """
 
 import os
+from http.client import HTTPException, HTTPSConnection
 from pathlib import Path
-from urllib.request import urlopen
 
 from fontTools.pens.reverseContourPen import ReverseContourPen
 from fontTools.pens.transformPen import TransformPen
@@ -33,9 +33,13 @@ from fontTools.ttLib import TTFont
 from picosvg.svg import SVG
 
 LUCIDE_TAG = "1.11.0"
-LUCIDE_BASE = (
-    f"https://raw.githubusercontent.com/lucide-icons/lucide/{LUCIDE_TAG}/icons"
-)
+LUCIDE_HOST = "raw.githubusercontent.com"
+LUCIDE_PATH = f"/lucide-icons/lucide/{LUCIDE_TAG}/icons"
+
+# Per-address connect/read timeout. Without one, a network where IPv6
+# resolves but doesn't route waits out the OS connect timeout (~75 s) on
+# each IPv6 address before falling back to IPv4.
+FETCH_TIMEOUT_S = 10.0
 
 # (lucide_name, codepoint). Codepoint conventions:
 #   * U+2713 / U+2717 (check / x) overwrite DejaVu's character glyphs so
@@ -103,7 +107,10 @@ CAP_HEIGHT = 1500.0
 ADVANCE = 1716
 
 
-def fetch_svg(name: str) -> str:
+def fetch_svg(conn: HTTPSConnection, name: str) -> str:
+    """Fetch one icon over ``conn``, which is reused across icons so any
+    slow address fallback is paid once per run rather than once per icon.
+    A missing or renamed icon raises rather than baking nothing."""
     # Allow an offline cache for fast iteration: if LUCIDE_SVG_DIR points
     # to a directory containing `<name>.svg` files, use those; otherwise
     # fetch from the pinned Lucide release tag.
@@ -112,9 +119,27 @@ def fetch_svg(name: str) -> str:
         local = Path(cache) / f"{name}.svg"
         if local.exists():
             return local.read_text()
-    url = f"{LUCIDE_BASE}/{name}.svg"
-    with urlopen(url) as resp:
-        return resp.read().decode("utf-8")
+
+    path = f"{LUCIDE_PATH}/{name}.svg"
+    try:
+        body, status = _get(conn, path)
+    except (HTTPException, ConnectionError):
+        # The server may drop an idle kept-alive connection; reconnect once.
+        conn.close()
+        body, status = _get(conn, path)
+    if status != 200:
+        raise RuntimeError(
+            f"fetch https://{LUCIDE_HOST}{path}: HTTP {status} "
+            f"(is `{name}` in Lucide {LUCIDE_TAG}?)"
+        )
+    return body.decode("utf-8")
+
+
+def _get(conn: HTTPSConnection, path: str) -> tuple[bytes, int]:
+    conn.request("GET", path)
+    resp = conn.getresponse()
+    # Read the whole body even on error so the connection stays reusable.
+    return resp.read(), resp.status
 
 
 def build_glyph(svg_text: str):
@@ -169,13 +194,18 @@ def main():
     _ = font["glyf"].glyphs
 
     has_pua = False
-    for icon_name, codepoint in LUCIDE_GLYPHS:
-        svg = fetch_svg(icon_name)
-        glyph = build_glyph(svg)
-        name = install_glyph(font, codepoint, glyph)
-        print(f"  U+{codepoint:04X} → {name} (lucide:{icon_name})")
-        if codepoint >= 0xE000:
-            has_pua = True
+    # Connects lazily, so a fully cached run never touches the network.
+    conn = HTTPSConnection(LUCIDE_HOST, timeout=FETCH_TIMEOUT_S)
+    try:
+        for icon_name, codepoint in LUCIDE_GLYPHS:
+            svg = fetch_svg(conn, icon_name)
+            glyph = build_glyph(svg)
+            name = install_glyph(font, codepoint, glyph)
+            print(f"  U+{codepoint:04X} → {name} (lucide:{icon_name})")
+            if codepoint >= 0xE000:
+                has_pua = True
+    finally:
+        conn.close()
 
     font["maxp"].numGlyphs = len(font.getGlyphOrder())
     if has_pua:
