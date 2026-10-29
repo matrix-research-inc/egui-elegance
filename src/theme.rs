@@ -407,8 +407,12 @@ impl Theme {
 
     /// Install the theme into an [`egui::Context`].
     ///
-    /// This updates `ctx.style()` so that stock widgets (labels, sliders,
-    /// scroll bars, etc.) inherit the palette, registers the bundled
+    /// This writes both of egui's styles (dark and light), so stock widgets
+    /// (labels, sliders, scroll bars, etc.) inherit the palette whichever one
+    /// egui has active, including after the OS switches dark/light mode. To
+    /// follow the OS instead, install a theme picked from [`Context::theme`]
+    /// every frame (e.g. [`Theme::frost`] for `Light`, [`Theme::slate`]
+    /// otherwise). It also registers the bundled
     /// `Elegance Symbols` font as a lowest-priority Proportional + Monospace
     /// fallback so glyphs like `→ ⌫ ⋯` render out of the box, and stores
     /// the theme in context memory so elegance widgets can read it back.
@@ -433,7 +437,7 @@ impl Theme {
         if unchanged {
             return;
         }
-        ctx.global_style_mut(|style| self.apply_to_style(style));
+        ctx.all_styles_mut(|style| self.apply_to_style(style));
         ctx.data_mut(|d| d.insert_temp(Self::storage_id(), self));
     }
 
@@ -506,7 +510,7 @@ impl Theme {
         sp.indent = 16.0;
 
         // Interaction. Override after install via
-        // `ctx.style_mut(|s| s.interaction.tooltip_delay = ...)` to taste.
+        // `ctx.all_styles_mut(|s| s.interaction.tooltip_delay = ...)` to taste.
         style.interaction.tooltip_delay = 0.35;
         style.interaction.tooltip_grace_time = 0.2;
 
