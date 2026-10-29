@@ -4,6 +4,16 @@ Notable changes to `egui-elegance`. Where a version has [GitHub release notes](h
 
 Versions before 0.11.0 predate tagging; see the git history for those.
 
+## Unreleased
+
+### Added
+
+- `Select::option_enabled` greys out options that can't be picked, leaving them in the list.
+
+### Fixed
+
+- `Select` options now have accessible names.
+
 ## [0.17.3](https://github.com/matrix-research-inc/egui-elegance/releases/tag/v0.17.3) — 2026-10-29
 
 ### Added
