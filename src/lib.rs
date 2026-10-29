@@ -259,6 +259,15 @@ pub mod glyphs {
     /// breadcrumb (pairs with [`FOLDER`]).
     /// Source: [Lucide `folder-open`](https://lucide.dev/icons/folder-open).
     pub const FOLDER_OPEN: char = '\u{E024}';
+    /// Play icon, for starting playback, a run, or a simulation.
+    /// Source: [Lucide `play`](https://lucide.dev/icons/play).
+    pub const PLAY: char = '\u{E025}';
+    /// Pause icon, for suspending playback or a run (pairs with [`PLAY`]).
+    /// Source: [Lucide `pause`](https://lucide.dev/icons/pause).
+    pub const PAUSE: char = '\u{E026}';
+    /// Stop icon, for ending playback, a run, or a recording (pairs with
+    /// [`PLAY`]). Source: [Lucide `square`](https://lucide.dev/icons/square).
+    pub const STOP: char = '\u{E027}';
     /// Check / done mark, mapped at standard U+2713 so plain `'✓'` literals
     /// also pick up the elegance treatment.
     /// Source: [Lucide `check`](https://lucide.dev/icons/check).

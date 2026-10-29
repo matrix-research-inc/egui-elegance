@@ -2086,7 +2086,7 @@ fn render_glyphs() {
                             .trim_end()
                             .to_string()
                     };
-                    let rows: [(&str, String); 13] = [
+                    let rows: [(&str, String); 14] = [
                         ("Arrows", "← ↑ → ↓ ↩ ↲ ↵".to_string()),
                         ("Ellipsis", "⋮ ⋯".to_string()),
                         ("Modifier keys", "⌃ ⌘ ⌥ ⇧ ⇪".to_string()),
@@ -2110,6 +2110,7 @@ fn render_glyphs() {
                             icons(&[g::SEARCH, g::ZOOM_IN, g::ZOOM_OUT, g::FILTER]),
                         ),
                         ("Visibility", icons(&[g::EYE, g::EYE_OFF])),
+                        ("Media", icons(&[g::PLAY, g::PAUSE, g::STOP])),
                         (
                             "Edit",
                             icons(&[g::PLUS, g::PENCIL, g::COPY, g::TRASH, g::SAVE]),

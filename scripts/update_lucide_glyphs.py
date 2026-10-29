@@ -85,6 +85,10 @@ LUCIDE_GLYPHS = [
     ("save", 0xE022),
     ("folder", 0xE023),
     ("folder-open", 0xE024),
+    # Media transport. `square` is exposed as STOP (intent-named).
+    ("play", 0xE025),
+    ("pause", 0xE026),
+    ("square", 0xE027),
     ("check", 0x2713),
     ("x", 0x2717),
 ]
