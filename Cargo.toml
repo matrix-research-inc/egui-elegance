@@ -1,6 +1,6 @@
 [package]
 name = "egui-elegance"
-version = "0.17.4"
+version = "0.18.0"
 edition = "2024"
 rust-version = "1.95"
 authors = ["Stephen Berry"]
