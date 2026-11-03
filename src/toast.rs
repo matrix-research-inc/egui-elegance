@@ -113,26 +113,34 @@ impl Toast {
 
     /// Enqueue the toast. It is shown on the next frame that renders
     /// [`Toasts`].
+    ///
+    /// The auto-dismiss countdown starts on that frame, not here. A toast
+    /// raised while no frames run (the window hidden or minimized) therefore
+    /// gets its full [`duration`](Self::duration) once it can be seen, rather
+    /// than expiring against time that passed while nobody could read it.
     pub fn show(self, ctx: &Context) {
-        let now = ctx.input(|i| i.time);
         ctx.data_mut(|d| {
             let mut state = d.get_temp::<ToastState>(storage_id()).unwrap_or_default();
-            let id = state.next_id;
-            state.next_id = state.next_id.wrapping_add(1);
-            state.queue.push_back(ToastEntry {
-                id,
-                title: self.title,
-                description: self.description,
-                tone: self.tone,
-                duration: self.duration.map(|d| d.as_secs_f64()),
-                birth: now,
-                dismiss_start: None,
-                hover_pause_total: 0.0,
-                hover_pause_started: None,
-            });
+            state.pending.push(self);
             d.insert_temp(storage_id(), state);
         });
         ctx.request_repaint();
+    }
+
+    /// Start this toast's lifetime at `now`, the time of the first frame
+    /// that renders it.
+    fn into_entry(self, id: u64, now: f64) -> ToastEntry {
+        ToastEntry {
+            id,
+            title: self.title,
+            description: self.description,
+            tone: self.tone,
+            duration: self.duration.map(|d| d.as_secs_f64()),
+            birth: now,
+            dismiss_start: None,
+            hover_pause_total: 0.0,
+            hover_pause_started: None,
+        }
     }
 }
 
@@ -214,6 +222,16 @@ impl Toasts {
         let mut state = ctx
             .data_mut(|d| d.get_temp::<ToastState>(storage_id()))
             .unwrap_or_default();
+
+        // Admit toasts enqueued since the last render, stamping their birth
+        // with this frame's time. `Toast::show` cannot stamp it: egui's input
+        // time is the last frame's, which goes stale while no frames run, so
+        // a toast raised then would be born in the past and expire unseen.
+        for toast in std::mem::take(&mut state.pending) {
+            let id = state.next_id;
+            state.next_id = state.next_id.wrapping_add(1);
+            state.queue.push_back(toast.into_entry(id, now));
+        }
 
         // Expire fully-faded toasts, then cap the queue to max_visible by
         // dropping oldest (front).
@@ -408,6 +426,9 @@ impl Toasts {
 
 #[derive(Clone, Default)]
 struct ToastState {
+    /// Enqueued by [`Toast::show`] and not yet rendered; their lifetimes start
+    /// when [`Toasts::render`] admits them to `queue`.
+    pending: Vec<Toast>,
     queue: VecDeque<ToastEntry>,
     next_id: u64,
 }
@@ -420,7 +441,7 @@ struct ToastEntry {
     tone: BadgeTone,
     /// Auto-dismiss duration in seconds. `None` = persistent.
     duration: Option<f64>,
-    /// Context time when the toast was enqueued.
+    /// Context time of the first frame that rendered the toast.
     birth: f64,
     /// Context time when the user clicked ×. Triggers an immediate fade-out.
     dismiss_start: Option<f64>,
