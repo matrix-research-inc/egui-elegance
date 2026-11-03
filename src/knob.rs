@@ -474,7 +474,8 @@ impl<'a, T: Numeric> Widget for Knob<'a, T> {
             } else {
                 Sense::hover()
             };
-            let (rect, mut response) = ui.allocate_exact_size(Vec2::splat(dial_diameter), sense);
+            let (rect, mut response) =
+                crate::enabled::allocate_exact_size(ui, Vec2::splat(dial_diameter), sense, enabled);
             let center = rect.center();
 
             // ---- interaction ----
@@ -832,7 +833,7 @@ impl<'a, T: Numeric> Widget for Knob<'a, T> {
                 ui.add(egui::Label::new(rich).wrap_mode(egui::TextWrapMode::Extend));
             }
 
-            response.widget_info(|| WidgetInfo::labeled(Role::Slider, true, &label_text));
+            response.widget_info(|| WidgetInfo::labeled(Role::Slider, enabled, &label_text));
             response
         })
         .inner

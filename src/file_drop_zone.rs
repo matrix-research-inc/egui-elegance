@@ -129,7 +129,8 @@ impl FileDropZone {
         } else {
             Sense::hover()
         };
-        let (rect, mut response) = ui.allocate_exact_size(desired, sense);
+        let (rect, mut response) =
+            crate::enabled::allocate_exact_size(ui, desired, sense, self.enabled);
 
         let (files_dragging, pointer) = ui
             .ctx()

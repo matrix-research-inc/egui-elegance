@@ -8,8 +8,8 @@
 //! see [`TagInput`](crate::TagInput).
 
 use egui::{
-    Color32, CornerRadius, FontId, FontSelection, Id, Rect, Response, Role, Sense, Shape, Stroke,
-    StrokeKind, TextEdit, Ui, Vec2, WidgetInfo, WidgetText, pos2, vec2,
+    Color32, CornerRadius, FontId, FontSelection, Id, Rect, Response, Sense, Shape, Stroke,
+    StrokeKind, TextEdit, Ui, Vec2, WidgetText, pos2, vec2,
 };
 
 use crate::Accent;
@@ -200,6 +200,14 @@ impl<'a> RemovableChip<'a> {
 
         let mut removed = false;
 
+        // Speak the placeholder (or "Removable chip" when none is set) as
+        // the field label. The current text is announced separately by the
+        // OS, so the widget label should describe the field's purpose.
+        let label_for_a11y = self
+            .placeholder
+            .map(str::to_owned)
+            .unwrap_or_else(|| "Removable chip".to_string());
+
         let inner = ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing = vec2(gap, 0.0);
             ui.add_space(pad_x);
@@ -242,7 +250,11 @@ impl<'a> RemovableChip<'a> {
                 if let Some(ph) = self.placeholder {
                     te = te.hint_text(egui::RichText::new(ph).color(p.text_faint));
                 }
+                // The editor is the chip's one text field for assistive tech,
+                // so it carries the chip's name: without a placeholder it
+                // would have none.
                 ui.add_enabled(self.enabled, te)
+                    .accessible_name(label_for_a11y)
             });
 
             // Reserve the (×) button's footprint now so the chip's
@@ -260,6 +272,14 @@ impl<'a> RemovableChip<'a> {
             let (close_rect, close_resp) = ui.allocate_exact_size(close_size, sense);
 
             ui.add_space((pad_x - gap).max(0.0));
+
+            // The chip's response is this row's, so disable the row for
+            // egui as well as for our own painting. Done last so it only
+            // decides the response: nothing is painted in the row after
+            // it, and the editor above already fades through `add_enabled`.
+            if !self.enabled {
+                ui.disable();
+            }
 
             (edit_response, close_rect, close_resp)
         });
@@ -336,17 +356,7 @@ impl<'a> RemovableChip<'a> {
             StrokeKind::Inside,
         );
 
-        // Speak the placeholder (or "Removable chip" when none is set) as
-        // the field label. The current text is announced separately by the
-        // OS, so the widget label should describe the field's purpose.
-        let label_for_a11y = self
-            .placeholder
-            .map(str::to_owned)
-            .unwrap_or_else(|| "Removable chip".to_string());
         let response = inner.response;
-        response
-            .widget_info(|| WidgetInfo::labeled(Role::TextInput, self.enabled, &label_for_a11y));
-
         RemovableChipResponse { response, removed }
     }
 }

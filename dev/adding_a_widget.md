@@ -120,9 +120,11 @@ impl Widget for MyWidget {
         // 1. Measure.
         let desired = /* compute size from theme padding, typography, content */;
 
-        // 2. Allocate + sense.
+        // 2. Allocate + sense. `crate::enabled` creates the response disabled
+        //    when `self.enabled` is false, as egui's own widgets would be.
         let sense = if self.enabled { Sense::click() } else { Sense::hover() };
-        let (rect, response) = ui.allocate_exact_size(desired, sense);
+        let (rect, response) =
+            crate::enabled::allocate_exact_size(ui, desired, sense, self.enabled);
 
         // 3. Paint.
         if ui.is_rect_visible(rect) {
@@ -143,6 +145,8 @@ impl Widget for MyWidget {
 ```
 
 The order — **measure, allocate, paint-if-visible, widget_info, return** — is the same in every leaf widget; follow it. `Button::ui` is the canonical reference.
+
+A widget with its own `enabled` flag must return a response that egui also sees as disabled, so that `Response::enabled` is false and callers can explain it with `on_disabled_hover_text`. Allocate or interact through [`src/enabled.rs`](../src/enabled.rs) rather than calling `Ui::allocate_exact_size` or `Ui::interact` directly. It wraps only the allocation in `Ui::add_enabled`, so the widget keeps its layout and ids and its painting is not faded. Don't wrap the widget in `Ui::add_enabled_ui` for this, since a scope lays out differently from a plain allocation.
 
 ### 3.3 Container widgets — `show(ui, add_contents)`
 
