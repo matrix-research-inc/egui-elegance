@@ -8,8 +8,8 @@ use eframe::egui;
 use egui_kittest::Harness;
 use egui_kittest::kittest::{NodeT, Queryable};
 use elegance::{
-    BadgeTone, Drawer, DrawerSide, MenuBar, MenuItem, Modal, Select, TextInput, Theme, Toast,
-    Toasts,
+    BadgeTone, Drawer, DrawerSide, MenuBar, MenuItem, Modal, RemovableChip, Select, TextInput,
+    Theme, Toast, Toasts,
 };
 
 fn new_harness<'a>(app: impl FnMut(&mut egui::Ui) + 'a) -> Harness<'a> {
@@ -681,4 +681,24 @@ fn unlabelled_widgets_take_an_accessible_name_from_their_response() {
         let _ = harness.get_by_role_and_label(role, name);
     }
     let _ = harness.get_by_label("Range");
+}
+
+#[test]
+fn removable_chip_is_one_named_text_field() {
+    // The chip's row and its editor both covered the field; a screen reader
+    // should reach it once, named even without a placeholder.
+    let mut text = String::from("alpha");
+    let harness = new_harness(move |ui| {
+        Theme::slate().install(ui.ctx());
+        RemovableChip::new(&mut text).show(ui);
+    });
+
+    let fields: Vec<_> = harness
+        .query_all_by_role(egui::accesskit::Role::TextInput)
+        .collect();
+    assert_eq!(fields.len(), 1, "the chip should expose one text field");
+    assert_eq!(
+        fields[0].accesskit_node().label().as_deref(),
+        Some("Removable chip")
+    );
 }

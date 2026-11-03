@@ -107,7 +107,8 @@ impl<'a> Widget for Switch<'a> {
         } else {
             Sense::hover()
         };
-        let (rect, mut response) = ui.allocate_exact_size(desired, sense);
+        let (rect, mut response) =
+            crate::enabled::allocate_exact_size(ui, desired, sense, self.enabled);
 
         if self.enabled && response.clicked() {
             *self.state = !*self.state;

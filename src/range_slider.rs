@@ -312,7 +312,12 @@ impl<'a, T: Numeric> Widget for RangeSlider<'a, T> {
             } else {
                 Sense::hover()
             };
-            let (rect, bg_resp) = ui.allocate_exact_size(Vec2::new(total_w, row_h), bg_sense);
+            let (rect, bg_resp) = crate::enabled::allocate_exact_size(
+                ui,
+                Vec2::new(total_w, row_h),
+                bg_sense,
+                self.enabled,
+            );
 
             let thumb_pad = thumb_d * 0.5;
             let track_left = rect.min.x + thumb_pad;
@@ -356,10 +361,17 @@ impl<'a, T: Numeric> Widget for RangeSlider<'a, T> {
             } else {
                 Sense::hover()
             };
-            let thumb_resp = [
-                ui.interact(thumb_rects[0], base_id.with("low"), thumb_sense),
-                ui.interact(thumb_rects[1], base_id.with("high"), thumb_sense),
-            ];
+            // Disabled with the strip: the caller's response is the union of
+            // all three, and a union is enabled if any part is.
+            let thumb_resp = [("low", 0), ("high", 1)].map(|(side, i)| {
+                crate::enabled::interact(
+                    ui,
+                    thumb_rects[i],
+                    base_id.with(side),
+                    thumb_sense,
+                    self.enabled,
+                )
+            });
 
             let mut new_low = low_v;
             let mut new_high = high_v;

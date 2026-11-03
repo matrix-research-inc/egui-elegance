@@ -59,6 +59,7 @@ mod commit;
 mod context_menu;
 mod dock;
 mod drawer;
+mod enabled;
 mod file_drop_zone;
 mod flash;
 mod focus;

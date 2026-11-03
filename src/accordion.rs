@@ -437,13 +437,15 @@ impl<'a, 'u> AccordionItem<'a, 'u> {
         let row_h = row_content_h + pad_y * 2.0;
 
         let avail_w = owner.ui.available_size_before_wrap().x;
-        let (row_rect, row_resp) = owner.ui.allocate_exact_size(
+        let (row_rect, row_resp) = crate::enabled::allocate_exact_size(
+            owner.ui,
             Vec2::new(avail_w, row_h),
             if disabled {
                 Sense::hover()
             } else {
                 Sense::click()
             },
+            !disabled,
         );
 
         if !disabled {

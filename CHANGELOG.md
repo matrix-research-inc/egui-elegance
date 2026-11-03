@@ -4,6 +4,23 @@ Notable changes to `egui-elegance`. Where a version has [GitHub release notes](h
 
 Versions before 0.11.0 predate tagging; see the git history for those.
 
+## Unreleased
+
+### Added
+
+- `Button::disabled_reason` disables a button and shows why, as a tooltip and to screen readers.
+
+### Changed
+
+- **Breaking:** disabled widgets now return disabled responses, as egui's own do. `Response::enabled()` is `false`, `on_disabled_hover_text` shows, `on_hover_text` no longer does, and `hovered()` is `false` (use `contains_pointer()`). Switch disabled-state tooltips to `on_disabled_hover_text`. Applies to `Button`, `Switch`, `Knob`, `RangeSlider`, `FileDropZone`, `RemovableChip`, `MenuItem`, `SubMenuItem` and accordion items.
+
+### Fixed
+
+- A toast raised while the window was hidden no longer expires before it is seen.
+- A disabled `SubMenuItem` no longer opens its flyout on hover.
+- A disabled `Knob` now reports as disabled to screen readers.
+- A `RemovableChip` without a placeholder now has an accessible name.
+
 ## [0.17.4](https://github.com/matrix-research-inc/egui-elegance/releases/tag/v0.17.4) — 2026-10-29
 
 ### Added

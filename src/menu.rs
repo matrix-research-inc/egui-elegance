@@ -295,7 +295,7 @@ impl Widget for MenuItem {
         // the popup's right edge — `allocate_exact_size` would clamp the
         // returned rect to `desired` and the shortcut would sit right
         // after the label.
-        let (rect, response) = ui.allocate_at_least(desired, sense);
+        let (rect, response) = crate::enabled::allocate_at_least(ui, desired, sense, self.enabled);
 
         if ui.is_rect_visible(rect) {
             let is_hovered = response.hovered() && self.enabled;
@@ -524,12 +524,16 @@ fn sub_menu_show<R>(
     let clicked_by_pointer = button_response.clicked_by(PointerButton::Primary);
     let clicked_by_keyboard_or_access = clicked && !clicked_by_pointer;
 
-    if ui.is_enabled() && is_open && clicked_by_keyboard_or_access {
+    // egui's original reads `ui.is_enabled()`, which is only the parent's
+    // state. The trigger's response is disabled when either the parent or
+    // `SubMenuItem::enabled(false)` disables it.
+    let enabled = button_response.enabled();
+    if enabled && is_open && clicked_by_keyboard_or_access {
         set_open = Some(false);
         is_open = false;
     }
 
-    let should_open = ui.is_enabled() && ((!was_open && clicked) || (is_hovered && !is_any_open));
+    let should_open = enabled && ((!was_open && clicked) || (is_hovered && !is_any_open));
     if should_open {
         set_open = Some(true);
         is_open = true;

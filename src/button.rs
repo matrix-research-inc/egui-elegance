@@ -100,6 +100,8 @@ pub struct Button {
     min_width: Option<f32>,
     full_width: bool,
     enabled: bool,
+    /// Set by [`Button::disabled_reason`]; `Some` disables the button.
+    disabled_reason: Option<String>,
     loading: bool,
 }
 
@@ -113,6 +115,7 @@ impl std::fmt::Debug for Button {
             .field("min_width", &self.min_width)
             .field("full_width", &self.full_width)
             .field("enabled", &self.enabled)
+            .field("disabled_reason", &self.disabled_reason)
             .field("loading", &self.loading)
             .finish()
     }
@@ -135,6 +138,7 @@ impl Button {
             min_width: None,
             full_width: false,
             enabled: true,
+            disabled_reason: None,
             loading: false,
         }
     }
@@ -223,9 +227,36 @@ impl Button {
     }
 
     /// Disable the button.
+    ///
+    /// To also tell the user why, use [`Button::disabled_reason`].
     #[inline]
     pub fn enabled(mut self, enabled: bool) -> Self {
         self.enabled = enabled;
+        self
+    }
+
+    /// Disable the button and say why. `Some(reason)` disables it and shows
+    /// `reason` as a tooltip on hover and as its accessible description.
+    /// `None` leaves the button as it is.
+    ///
+    /// The reason doubles as the disabled state, so the two cannot drift
+    /// apart the way a separate [`enabled`](Self::enabled) condition and
+    /// tooltip text can:
+    ///
+    /// ```no_run
+    /// # use elegance::Button;
+    /// # egui::__run_test_ui(|ui| {
+    /// # let has_target = false;
+    /// let reason = (!has_target).then_some("Pick a target first");
+    /// ui.add(Button::new("Deploy").disabled_reason(reason));
+    /// # });
+    /// ```
+    ///
+    /// Combines with [`enabled`](Self::enabled): the button is disabled if
+    /// either disables it, and the tooltip shows only when a reason is given.
+    #[inline]
+    pub fn disabled_reason<S: Into<String>>(mut self, reason: Option<S>) -> Self {
+        self.disabled_reason = reason.map(Into::into);
         self
     }
 
@@ -335,13 +366,14 @@ impl Widget for Button {
             desired.x = ui.available_width().max(desired.x);
         }
 
-        let interactive = self.enabled && !self.loading;
+        let enabled = self.enabled && self.disabled_reason.is_none();
+        let interactive = enabled && !self.loading;
         let sense = if interactive {
             Sense::click()
         } else {
             Sense::hover()
         };
-        let (rect, response) = ui.allocate_exact_size(desired, sense);
+        let (rect, response) = crate::enabled::allocate_exact_size(ui, desired, sense, enabled);
 
         let visible = ui.is_rect_visible(rect);
         if visible {
@@ -350,7 +382,7 @@ impl Widget for Button {
                 &theme,
                 self.accent,
                 self.outline,
-                self.enabled,
+                enabled,
                 self.loading,
                 &response,
             );
@@ -389,8 +421,22 @@ impl Widget for Button {
         }
 
         response.widget_info(|| WidgetInfo::labeled(Role::Button, interactive, self.text.text()));
-        response
+        match self.disabled_reason {
+            Some(reason) => explain_disabled(response, reason),
+            None => response,
+        }
     }
+}
+
+/// Show why a disabled button is disabled: as its tooltip and as its
+/// accessible description.
+fn explain_disabled(response: Response, reason: String) -> Response {
+    // `on_disabled_hover_text`, unlike `on_hover_text`, leaves the accessible
+    // description unset, so set it here.
+    response.ctx.accesskit_node_builder(response.id, |node| {
+        node.set_description(reason.clone());
+    });
+    response.on_disabled_hover_text(reason)
 }
 
 /// The laid-out content of a [`Button`], before it is allocated.
