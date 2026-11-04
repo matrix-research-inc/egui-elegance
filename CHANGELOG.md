@@ -9,11 +9,12 @@ Versions before 0.11.0 predate tagging; see the git history for those.
 ### Added
 
 - `Select::size` sizes a select like a `Button` or `SegmentedButton` of that size, so it lines up in a row of them.
-- `Select::corner_radius` and `Select::borderless` let a select sit as a cell in a strip of segmented buttons.
+- `Select::corner_radius` and `Select::bordered(false)` let a select sit as a cell in a strip of segmented buttons.
 
 ### Fixed
 
-- A `Select` with a fixed `.width(...)` keeps that width when its selected label is longer, truncating the label instead of growing over its neighbours.
+- A `Select` with a fixed `.width(...)` keeps that width when its selected label, or its field label, is longer, truncating the selected label instead of growing over its neighbours.
+- A `Select` sized to its options no longer shifts width by a point between selections in a theme whose horizontal control padding is not a whole number.
 
 ## [0.18.0](https://github.com/matrix-research-inc/egui-elegance/releases/tag/v0.18.0) — 2026-11-03
 

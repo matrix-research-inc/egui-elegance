@@ -6,8 +6,8 @@
 use std::borrow::Cow;
 
 use egui::{
-    Color32, ComboBox, CornerRadius, FontId, Pos2, Response, Role, Sense, Stroke, TextWrapMode, Ui,
-    Vec2, Widget, WidgetInfo, WidgetText,
+    Color32, ComboBox, CornerRadius, Pos2, Rect, Response, Role, Sense, Stroke, TextWrapMode, Ui,
+    UiBuilder, Vec2, Widget, WidgetInfo, WidgetText,
 };
 
 use crate::ButtonSize;
@@ -67,7 +67,7 @@ pub struct Select<'a, T: PartialEq + Clone> {
     size: Option<ButtonSize>,
     /// Set by [`Select::corner_radius`]; the theme's control radius without it.
     corner_radius: Option<CornerRadius>,
-    borderless: bool,
+    bordered: bool,
     enabled: bool,
     /// Whether the selection has moved off the last committed value. Resolved
     /// by [`Select::saved`] at build time; `false` when it was never called.
@@ -84,7 +84,7 @@ impl<'a, T: PartialEq + Clone> std::fmt::Debug for Select<'a, T> {
             .field("width", &self.width)
             .field("size", &self.size)
             .field("corner_radius", &self.corner_radius)
-            .field("borderless", &self.borderless)
+            .field("bordered", &self.bordered)
             .field("enabled", &self.enabled)
             .field("staged", &self.staged)
             .finish()
@@ -104,7 +104,7 @@ impl<'a, T: PartialEq + Clone> Select<'a, T> {
             width: None,
             size: None,
             corner_radius: None,
-            borderless: false,
+            bordered: true,
             enabled: true,
             staged: false,
         }
@@ -184,7 +184,8 @@ impl<'a, T: PartialEq + Clone> Select<'a, T> {
     /// Size the field like a [`Button`](crate::Button) or
     /// [`SegmentedButton`](crate::SegmentedButton) of `size`: the same height,
     /// padding, and label font, so a select set in a row of them lines up.
-    /// Without it the select keeps its own input metrics.
+    /// The open list's rows keep the body font. Without it the select keeps
+    /// its own input metrics.
     pub fn size(mut self, size: ButtonSize) -> Self {
         self.size = Some(size);
         self
@@ -198,10 +199,10 @@ impl<'a, T: PartialEq + Clone> Select<'a, T> {
         self
     }
 
-    /// Draw the field without its border, filled like an off
-    /// [`SegmentedButton`](crate::SegmentedButton) and tinted the same way on
-    /// hover, so it can sit as a cell in a strip of them. The focus ring still
-    /// shows while the list is open. Default: `false`.
+    /// Toggle the 1-px border. Defaults to on. Without it the field is filled
+    /// like an off [`SegmentedButton`](crate::SegmentedButton) and tinted the
+    /// same way on hover, so it can sit as a cell in a strip of them. The
+    /// focus ring still shows while the list is open.
     ///
     /// ```no_run
     /// # use elegance::{ButtonSize, SegmentedButton, Select};
@@ -212,7 +213,7 @@ impl<'a, T: PartialEq + Clone> Select<'a, T> {
     ///         Select::new("rate", &mut rate)
     ///             .options([(1, "Full"), (2, "Half"), (4, "Quarter")])
     ///             .size(ButtonSize::Large)
-    ///             .borderless(true)
+    ///             .bordered(false)
     ///             .corner_radius(egui::CornerRadius { nw: 8, sw: 8, ne: 0, se: 0 })
     ///             .width(120.0),
     ///     );
@@ -224,8 +225,8 @@ impl<'a, T: PartialEq + Clone> Select<'a, T> {
     /// });
     /// # });
     /// ```
-    pub fn borderless(mut self, borderless: bool) -> Self {
-        self.borderless = borderless;
+    pub fn bordered(mut self, bordered: bool) -> Self {
+        self.bordered = bordered;
         self
     }
 
@@ -298,7 +299,7 @@ impl<'a> Select<'a, String> {
             width: None,
             size: None,
             corner_radius: None,
-            borderless: false,
+            bordered: true,
             enabled: true,
             staged: false,
         }
@@ -370,26 +371,34 @@ impl<'a, T: PartialEq + Clone> Widget for Select<'a, T> {
                     ui.add_space(2.0);
                 }
 
-                // A sized select takes a button's padding, and its height:
-                // the label row plus that padding, as a `SegmentedButton`
-                // measures it. This is the select's own child `Ui`, so the
-                // spacing goes no further than the field. The height is set
-                // as the field's minimum, with no vertical padding, because
-                // egui rounds a frame's margin to whole points and a button's
-                // padding need not be whole. The horizontal padding is
-                // rounded here as egui will round it, so the width below
-                // counts what the frame takes.
+                // A sized select takes a button's padding, and its height as a
+                // `SegmentedButton` measures it: a laid-out line (which epaint
+                // rounds to whole pixels) plus that padding, and never less
+                // than the font size plus it. This is the select's own child
+                // `Ui`, so the spacing goes no further than the field. The
+                // height is set as the field's minimum, with no vertical
+                // padding, because egui rounds a frame's margin to whole
+                // points and a button's padding need not be whole.
                 let font_size = match self.size {
                     Some(size) => {
                         let padding = size.padding(&theme);
                         let font_size = size.font_size(&theme);
-                        let row = ui.fonts_mut(|f| f.row_height(&FontId::proportional(font_size)));
+                        let line = crate::theme::placeholder_galley(
+                            ui,
+                            "Ag",
+                            font_size,
+                            false,
+                            f32::INFINITY,
+                        )
+                        .size()
+                        .y;
                         let sp = ui.spacing_mut();
-                        sp.button_padding = Vec2::new(padding.x.round(), 0.0);
-                        sp.interact_size.y = row + 2.0 * padding.y;
+                        sp.button_padding = Vec2::new(padding.x, 0.0);
+                        sp.interact_size.y =
+                            (line + 2.0 * padding.y).max(font_size + 2.0 * padding.y);
                         // The chevron's slot is square, so one taller than
-                        // the text row would stretch a small field.
-                        sp.icon_width = sp.icon_width.min(row);
+                        // the line would stretch a small field.
+                        sp.icon_width = sp.icon_width.min(line);
                         font_size
                     }
                     None => t.body,
@@ -399,7 +408,8 @@ impl<'a, T: PartialEq + Clone> Widget for Select<'a, T> {
                     // so picking a different value never resizes the field and
                     // shifts its neighbours. Mirrors the layout in egui's
                     // `ComboBox`: text, icon spacing, icon, then the button
-                    // padding on both sides.
+                    // padding on both sides, rounded as egui rounds a frame's
+                    // margin.
                     let widest = self
                         .options
                         .iter()
@@ -410,13 +420,8 @@ impl<'a, T: PartialEq + Clone> Widget for Select<'a, T> {
                         })
                         .fold(0.0, f32::max);
                     let sp = ui.spacing();
-                    widest + sp.icon_spacing + sp.icon_width + 2.0 * sp.button_padding.x
+                    widest + sp.icon_spacing + sp.icon_width + 2.0 * sp.button_padding.x.round()
                 });
-                // `ComboBox` widens its button to fit the selected text, so a
-                // fixed width holds only if that text truncates to it.
-                if self.width.is_some() {
-                    ui.set_max_width(width);
-                }
                 let chevron_color = p.text_muted;
 
                 // Resolve the displayed label for the current value. Owned so
@@ -444,7 +449,7 @@ impl<'a, T: PartialEq + Clone> Widget for Select<'a, T> {
                             w.corner_radius = radius;
                         }
                     }
-                    if self.borderless {
+                    if !self.bordered {
                         // The off `SegmentedButton` look: no border at rest
                         // or on hover, where the fill lightens instead.
                         v.widgets.inactive.bg_stroke = Stroke::NONE;
@@ -459,44 +464,62 @@ impl<'a, T: PartialEq + Clone> Widget for Select<'a, T> {
                     if self.width.is_some() {
                         combo = combo.wrap_mode(TextWrapMode::Truncate);
                     }
-                    combo
-                        // Close only when an enabled option is picked (below),
-                        // so a click on a disabled one leaves the list open.
-                        .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
-                        .selected_text(
-                            egui::RichText::new(&selected_label)
-                                .color(p.text)
-                                .size(font_size),
-                        )
-                        .icon(move |ui, rect, _visuals, is_popup_open| {
-                            paint_chevron(ui, rect, chevron_color, is_popup_open);
-                        })
-                        .show_ui(ui, |ui| {
-                            ui.set_min_width(width);
-                            // Tight stacking. `select_option` handles its own padding.
-                            ui.spacing_mut().item_spacing.y = 2.0;
-                            for (opt_value, opt_label) in self.options.iter() {
-                                let selected = opt_value == &*self.value;
-                                let opt_enabled =
-                                    self.option_enabled.as_ref().is_none_or(|f| f(opt_value));
-                                let clicked = select_option(
-                                    ui,
-                                    opt_label.as_ref(),
-                                    selected,
-                                    opt_enabled,
-                                    &theme,
-                                )
-                                .clicked();
-                                if clicked {
-                                    ui.close();
-                                    if !selected {
-                                        *self.value = opt_value.clone();
-                                        changed = true;
+                    let show = |ui: &mut Ui| {
+                        combo
+                            // Close only when an enabled option is picked (below),
+                            // so a click on a disabled one leaves the list open.
+                            .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
+                            .selected_text(
+                                egui::RichText::new(&selected_label)
+                                    .color(p.text)
+                                    .size(font_size),
+                            )
+                            .icon(move |ui, rect, _visuals, is_popup_open| {
+                                paint_chevron(ui, rect, chevron_color, is_popup_open);
+                            })
+                            .show_ui(ui, |ui| {
+                                ui.set_min_width(width);
+                                // Tight stacking. `select_option` handles its own padding.
+                                ui.spacing_mut().item_spacing.y = 2.0;
+                                for (opt_value, opt_label) in self.options.iter() {
+                                    let selected = opt_value == &*self.value;
+                                    let opt_enabled =
+                                        self.option_enabled.as_ref().is_none_or(|f| f(opt_value));
+                                    let clicked = select_option(
+                                        ui,
+                                        opt_label.as_ref(),
+                                        selected,
+                                        opt_enabled,
+                                        &theme,
+                                    )
+                                    .clicked();
+                                    if clicked {
+                                        ui.close();
+                                        if !selected {
+                                            *self.value = opt_value.clone();
+                                            changed = true;
+                                        }
                                     }
                                 }
-                            }
-                        })
-                        .response
+                            })
+                            .response
+                    };
+                    // `ComboBox` widens its button to fit the selected text, so
+                    // a fixed width holds only if that text truncates to it:
+                    // lay the field out in a child exactly that wide. Not this
+                    // `Ui`, which already holds the label and cannot narrow
+                    // below it.
+                    match self.width {
+                        Some(width) => {
+                            let max_rect = Rect::from_min_size(
+                                ui.cursor().min,
+                                Vec2::new(width, ui.available_height()),
+                            );
+                            ui.scope_builder(UiBuilder::new().max_rect(max_rect), show)
+                                .inner
+                        }
+                        None => show(ui),
+                    }
                 });
 
                 if let Some(field_label) = field_label {
