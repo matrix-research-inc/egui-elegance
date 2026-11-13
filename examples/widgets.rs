@@ -3164,7 +3164,6 @@ impl DockViewer for DemoDockViewer<'_> {
     fn tab_strip_ui(&mut self, ui: &mut egui::Ui, context: &mut DockGroupContext<'_, DemoTab>) {
         if ui
             .add(DockStripButton::new(glyphs::PLUS, "New tab"))
-            .on_hover_text("New tab")
             .clicked()
         {
             *self.untitled += 1;

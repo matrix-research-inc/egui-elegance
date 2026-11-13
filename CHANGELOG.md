@@ -12,7 +12,7 @@ Versions before 0.11.0 predate tagging; see the git history for those.
 
 ### Changed
 
-- `Button::icon` shows its label as a tooltip, since the icon alone doesn't say what the button does.
+- `Button::icon` and `DockStripButton` show their name as a tooltip, since the icon alone doesn't say what the button does. Drop any `on_hover_text` that repeats it.
 
 ## [0.21.0](https://github.com/matrix-research-inc/egui-elegance/releases/tag/v0.21.0) — 2026-11-13
 
