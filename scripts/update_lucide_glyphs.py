@@ -96,6 +96,7 @@ LUCIDE_GLYPHS = [
     # Files, pairing with folder / folder-open above.
     ("file", 0xE028),
     ("file-text", 0xE029),
+    ("file-image", 0xE02E),
     # Machines.
     ("server", 0xE02A),
     ("monitor", 0xE02B),

@@ -4,6 +4,16 @@ Notable changes to `egui-elegance`. Where a version has [GitHub release notes](h
 
 Versions before 0.11.0 predate tagging; see the git history for those.
 
+## Unreleased
+
+### Added
+
+- `glyphs::FILE_IMAGE`, for image files.
+
+### Changed
+
+- `Button::icon` shows its label as a tooltip, since the icon alone doesn't say what the button does.
+
 ## [0.21.0](https://github.com/matrix-research-inc/egui-elegance/releases/tag/v0.21.0) — 2026-11-13
 
 ### Added

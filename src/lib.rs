@@ -288,6 +288,9 @@ pub mod glyphs {
     /// Two stacked rows, for stacked layouts or a "split down" action
     /// (pairs with [`COLUMNS`]). Source: [Lucide `rows-2`](https://lucide.dev/icons/rows-2).
     pub const ROWS: char = '\u{E02D}';
+    /// Image-file icon, for pictures and other image files (pairs with
+    /// [`FILE`]). Source: [Lucide `file-image`](https://lucide.dev/icons/file-image).
+    pub const FILE_IMAGE: char = '\u{E02E}';
     /// Check / done mark, mapped at standard U+2713 so plain `'✓'` literals
     /// also pick up the elegance treatment.
     /// Source: [Lucide `check`](https://lucide.dev/icons/check).
