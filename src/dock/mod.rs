@@ -331,10 +331,9 @@ impl<T> DockGroupContext<'_, T> {
         &self.tabs[self.active]
     }
 
-    /// An id for this group, unique to it within the app, for keying egui
-    /// state such as a popup. It stays the same while tabs are switched,
-    /// added, or moved, and across a save and load, for as long as the group
-    /// exists.
+    /// A stable id for this group, for keying egui state such as a popup. It
+    /// survives tab changes, splits around the group, and a save and load,
+    /// for as long as the group exists.
     pub fn id(&self) -> Id {
         self.id
     }

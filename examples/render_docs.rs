@@ -2084,7 +2084,7 @@ fn render_glyphs() {
                             .trim_end()
                             .to_string()
                     };
-                    let rows: [(&str, String); 15] = [
+                    let rows = [
                         ("Arrows", "← ↑ → ↓ ↩ ↲ ↵".to_string()),
                         ("Ellipsis", "⋮ ⋯".to_string()),
                         ("Modifier keys", "⌃ ⌘ ⌥ ⇧ ⇪".to_string()),

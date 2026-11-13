@@ -191,6 +191,9 @@ impl DropTarget {
 ///
 /// Lookups take any borrowed form of `T`, as `HashMap` does, so a
 /// `DockLayout<String>` accepts `&str`.
+///
+/// `==` also compares focus and internal ids; compare [`Self::to_node`] to
+/// compare shapes.
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct DockLayout<T> {
@@ -241,15 +244,16 @@ impl<T: Clone + Eq + Hash> DockLayout<T> {
     /// order, and its splits and fractions. `None` when the layout is empty.
     ///
     /// This is a snapshot for inspecting or comparing layouts, as in a test.
-    /// It leaves out each group's active tab and which group has focus, so
-    /// edit a layout with its own methods rather than through
-    /// [`Self::from_node`]`(layout.to_node())`.
+    /// It leaves out each group's active tab and the focused group, and
+    /// rebuilding with [`Self::from_node`] resets those and each pane's
+    /// [`DockGroupContext::id`](crate::DockGroupContext::id), so edit a layout
+    /// with its own methods instead.
     ///
     /// ```
     /// use elegance::{DockLayout, DockNode, DockSide};
     ///
-    /// let mut layout: DockLayout<String> = DockLayout::single(["editor"]);
-    /// layout.insert_beside("editor", "console".to_string(), DockSide::Bottom);
+    /// let mut layout = DockLayout::<String>::single(["editor"]);
+    /// layout.insert_beside("editor", "console", DockSide::Bottom);
     /// assert_eq!(
     ///     layout.to_node(),
     ///     Some(DockNode::column(
@@ -876,12 +880,7 @@ impl<T> Node<T> {
                 fraction,
                 first,
                 second,
-            } => DockNode::Split {
-                direction: *direction,
-                fraction: *fraction,
-                first: Box::new(first.to_node()),
-                second: Box::new(second.to_node()),
-            },
+            } => DockNode::split(*direction, *fraction, first.to_node(), second.to_node()),
         }
     }
 
@@ -1038,8 +1037,8 @@ fn split_node<T>(node: &mut Node<T>, side: DockSide, added: Node<T>, share: f32)
 mod tests {
     use super::*;
 
-    fn three_pane() -> DockLayout<String> {
-        DockLayout::<String>::from_node(DockNode::row(
+    fn three_pane_node() -> DockNode<String> {
+        DockNode::row(
             0.25,
             DockNode::tabs(["files"]),
             DockNode::column(
@@ -1047,7 +1046,11 @@ mod tests {
                 DockNode::tabs(["editor", "preview"]),
                 DockNode::tabs(["console"]),
             ),
-        ))
+        )
+    }
+
+    fn three_pane() -> DockLayout<String> {
+        DockLayout::from_node(three_pane_node())
     }
 
     #[test]
@@ -1688,29 +1691,19 @@ mod tests {
     #[test]
     fn to_node_reads_back_the_shape() {
         assert_eq!(DockLayout::<String>::new().to_node(), None);
+        let node = three_pane_node();
+        let mut layout = DockLayout::from_node(node.clone());
+        assert_eq!(layout.to_node(), Some(node.clone()));
 
-        // Duplicates and empty groups are already gone from the layout.
-        let layout = DockLayout::<String>::from_node(DockNode::row(
-            0.25,
-            DockNode::tabs(["files", "editor"]),
-            DockNode::column(0.7, DockNode::tabs(["editor"]), DockNode::Tabs(vec![])),
-        ));
-        assert_eq!(layout.to_node(), Some(DockNode::tabs(["files", "editor"])));
+        // Active tabs and focus are left out.
+        layout.activate("preview");
+        assert_eq!(layout.to_node(), Some(node.clone()));
 
-        // Two layouts of the same shape match, however they were built.
-        let mut built = DockLayout::<String>::single(["files"]);
-        built.insert_node_beside(
-            "files",
-            DockNode::column(
-                0.7,
-                DockNode::tabs(["editor", "preview"]),
-                DockNode::tabs(["console"]),
-            ),
-            DockSide::Right,
-            0.75,
-        );
-        built.activate("preview");
-        assert_ne!(built, three_pane());
-        assert_eq!(built.to_node(), three_pane().to_node());
+        // The dropped empty group takes id 0, so the ids differ from
+        // `layout`'s while the shape matches.
+        let shifted =
+            DockLayout::from_node(DockNode::row(0.5, DockNode::Tabs(vec![]), node.clone()));
+        assert_ne!(shifted, DockLayout::from_node(node.clone()));
+        assert_eq!(shifted.to_node(), Some(node));
     }
 }
