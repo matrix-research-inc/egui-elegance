@@ -4,6 +4,14 @@ Notable changes to `egui-elegance`. Where a version has [GitHub release notes](h
 
 Versions before 0.11.0 predate tagging; see the git history for those.
 
+## Unreleased
+
+### Added
+
+- `DockLayout::to_node` reads a layout's shape back as a `DockNode`, e.g. to compare layouts in tests.
+- `DockGroupContext::id` gives a stable id for each pane, for keying state such as a popup.
+- `glyphs::FILE` and `FILE_TEXT`.
+
 ## [0.20.0](https://github.com/matrix-research-inc/egui-elegance/releases/tag/v0.20.0) — 2026-11-13
 
 ### Added

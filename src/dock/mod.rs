@@ -72,7 +72,9 @@ pub use layout::{DockLayout, DockNode, DockSide, SplitDirection};
 
 use std::hash::Hash;
 
-use egui::{Align2, Color32, FontId, Response, Role, Sense, Ui, Vec2b, Widget, WidgetInfo, vec2};
+use egui::{
+    Align2, Color32, FontId, Id, Response, Role, Sense, Ui, Vec2b, Widget, WidgetInfo, vec2,
+};
 
 use crate::tab_paint::{self, TabContent};
 use crate::theme::Theme;
@@ -314,6 +316,7 @@ pub struct DockGroupContext<'a, T> {
     /// Index of the active tab in `tabs`.
     active: usize,
     group: GroupId,
+    id: Id,
     actions: &'a mut Vec<TabAction<T>>,
 }
 
@@ -326,6 +329,13 @@ impl<T> DockGroupContext<'_, T> {
     /// The group's active tab.
     pub fn active_tab(&self) -> &T {
         &self.tabs[self.active]
+    }
+
+    /// A stable id for this group, for keying egui state such as a popup. It
+    /// survives tab changes, splits around the group, and a save and load,
+    /// for as long as the group exists.
+    pub fn id(&self) -> Id {
+        self.id
     }
 
     /// Add `tab` to the end of this group, activate it, and focus the group.

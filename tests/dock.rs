@@ -17,12 +17,15 @@ struct App {
     min_tab_width: f32,
     /// Skip showing the dock, as an app does while a tab page is hidden.
     hidden: bool,
-    /// Give each strip buttons through `DockViewer::tab_strip_ui`.
-    strip_buttons: bool,
+    viewer: Viewer,
 }
 
+#[derive(Default)]
 struct Viewer {
+    /// Give each strip buttons through `DockViewer::tab_strip_ui`.
     strip_buttons: bool,
+    /// Each group's `DockGroupContext::id`, from the last frame.
+    strip_ids: Vec<egui::Id>,
 }
 
 impl DockViewer for Viewer {
@@ -64,6 +67,7 @@ impl DockViewer for Viewer {
     /// "new beside X" adds "X+" to X's group. The `files` group can also
     /// open `preview`, a tab in another group.
     fn tab_strip_ui(&mut self, ui: &mut egui::Ui, context: &mut DockGroupContext<'_, String>) {
+        self.strip_ids.push(context.id());
         if !self.strip_buttons {
             return;
         }
@@ -93,16 +97,11 @@ fn harness_sized(layout: DockLayout<String>, size: egui::Vec2) -> Harness<'stati
             if app.hidden {
                 return;
             }
+            app.viewer.strip_ids.clear();
             let out = Dock::new("dock")
                 .min_pane_size(app.min_pane)
                 .min_tab_width(app.min_tab_width)
-                .show(
-                    ui,
-                    &mut app.layout,
-                    &mut Viewer {
-                        strip_buttons: app.strip_buttons,
-                    },
-                );
+                .show(ui, &mut app.layout, &mut app.viewer);
             app.events.extend(out.events);
         },
         App {
@@ -111,7 +110,7 @@ fn harness_sized(layout: DockLayout<String>, size: egui::Vec2) -> Harness<'stati
             min_pane: 96.0,
             min_tab_width: 120.0,
             hidden: false,
-            strip_buttons: false,
+            viewer: Viewer::default(),
         },
     );
     harness.run();
@@ -676,7 +675,7 @@ fn activating_a_hidden_tab_scrolls_it_into_view() {
 
 fn with_strip_buttons() -> Harness<'static, App> {
     let mut harness = harness(three_pane());
-    harness.state_mut().strip_buttons = true;
+    harness.state_mut().viewer.strip_buttons = true;
     harness.run();
     harness
 }
@@ -728,6 +727,29 @@ fn adding_a_tab_already_open_activates_it_where_it_is() {
 }
 
 #[test]
+fn a_group_keeps_its_id_while_its_tabs_change() {
+    let mut harness = with_strip_buttons();
+    let before = harness.state().viewer.strip_ids.clone();
+    let unique: std::collections::HashSet<_> = before.iter().collect();
+    assert_eq!(unique.len(), 3, "{before:?}");
+
+    harness.get_by_label("preview").click();
+    harness.run();
+    harness.get_by_label("new beside preview").click();
+    harness.run();
+    assert_eq!(
+        harness.state().layout.group_tabs("preview"),
+        ["editor", "preview", "preview+"]
+    );
+    assert_eq!(harness.state().viewer.strip_ids, before);
+
+    // Closing `files` collapses the root split, moving the other groups up.
+    harness.state_mut().layout.remove_tab("files");
+    harness.run();
+    assert_eq!(harness.state().viewer.strip_ids, before[1..]);
+}
+
+#[test]
 fn strip_widgets_leave_room_for_the_overflow_button() {
     let layout = DockLayout::from_node(DockNode::row(
         0.5,
@@ -735,7 +757,7 @@ fn strip_widgets_leave_room_for_the_overflow_button() {
         DockNode::tabs(["editor", "c", "d"]),
     ));
     let mut harness = harness_sized(layout, egui::vec2(160.0, 300.0));
-    harness.state_mut().strip_buttons = true;
+    harness.state_mut().viewer.strip_buttons = true;
     harness.state_mut().min_pane = 20.0;
     harness.run();
 

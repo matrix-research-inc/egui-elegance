@@ -270,6 +270,12 @@ pub mod glyphs {
     /// Stop icon, for ending playback, a run, or a recording (pairs with
     /// [`PLAY`]). Source: [Lucide `square`](https://lucide.dev/icons/square).
     pub const STOP: char = '\u{E027}';
+    /// File icon, for files in a tree, list, or tab (pairs with [`FOLDER`]).
+    /// Source: [Lucide `file`](https://lucide.dev/icons/file).
+    pub const FILE: char = '\u{E028}';
+    /// Text-file icon, for documents and other files with text content
+    /// (pairs with [`FILE`]). Source: [Lucide `file-text`](https://lucide.dev/icons/file-text).
+    pub const FILE_TEXT: char = '\u{E029}';
     /// Check / done mark, mapped at standard U+2713 so plain `'✓'` literals
     /// also pick up the elegance treatment.
     /// Source: [Lucide `check`](https://lucide.dev/icons/check).

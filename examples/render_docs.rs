@@ -2084,7 +2084,7 @@ fn render_glyphs() {
                             .trim_end()
                             .to_string()
                     };
-                    let rows: [(&str, String); 14] = [
+                    let rows = [
                         ("Arrows", "← ↑ → ↓ ↩ ↲ ↵".to_string()),
                         ("Ellipsis", "⋮ ⋯".to_string()),
                         ("Modifier keys", "⌃ ⌘ ⌥ ⇧ ⇪".to_string()),
@@ -2136,15 +2136,12 @@ fn render_glyphs() {
                             ]),
                         ),
                         (
+                            "Files",
+                            icons(&[g::FILE, g::FILE_TEXT, g::FOLDER, g::FOLDER_OPEN]),
+                        ),
+                        (
                             "Navigation",
-                            icons(&[
-                                g::HOME,
-                                g::FOLDER,
-                                g::FOLDER_OPEN,
-                                g::MENU,
-                                g::EXTERNAL_LINK,
-                                g::PIN,
-                            ]),
+                            icons(&[g::HOME, g::MENU, g::EXTERNAL_LINK, g::PIN]),
                         ),
                     ];
                     for (label, glyphs) in &rows {
