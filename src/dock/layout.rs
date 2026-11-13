@@ -136,12 +136,16 @@ pub(crate) enum Node<T> {
     Group(TabGroup<T>),
 }
 
-/// Which edge of a group a tab was dropped on.
+/// An edge of a tab group: where a split places a new group beside it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Side {
+pub enum DockSide {
+    /// The new group goes to the left.
     Left,
+    /// The new group goes to the right.
     Right,
+    /// The new group goes above.
     Top,
+    /// The new group goes below.
     Bottom,
 }
 
@@ -152,7 +156,7 @@ pub(crate) enum DropTarget {
     /// the dragged tab is removed).
     Group { group: GroupId, index: usize },
     /// Split the group and place the tab in the new half on `side`.
-    Edge { group: GroupId, side: Side },
+    Edge { group: GroupId, side: DockSide },
 }
 
 impl DropTarget {
@@ -389,6 +393,72 @@ impl<T: Clone + Eq + Hash> DockLayout<T> {
         true
     }
 
+    /// Move `tab` out of its group into a new group on `side` of it, splitting
+    /// the pane evenly, as dropping the tab on that edge of its own pane does.
+    /// The new group gets focus. Use it for a tab context menu's "Split
+    /// Right".
+    ///
+    /// Returns `false` and changes nothing if `tab` is not in the layout or
+    /// is the only tab in its group.
+    ///
+    /// ```
+    /// use elegance::{DockLayout, DockSide};
+    ///
+    /// let mut layout = DockLayout::<String>::single(["main.rs", "lib.rs"]);
+    /// assert!(layout.split_tab("lib.rs", DockSide::Right));
+    /// assert_eq!(layout.group_count(), 2);
+    /// assert_eq!(layout.group_tabs("lib.rs"), ["lib.rs"]);
+    /// // A tab alone in its group has nothing to split from.
+    /// assert!(!layout.split_tab("lib.rs", DockSide::Right));
+    /// ```
+    pub fn split_tab<Q>(&mut self, tab: &Q, side: DockSide) -> bool
+    where
+        T: Borrow<Q>,
+        Q: Eq + ?Sized,
+    {
+        let Some(group) = self.group_of(tab) else {
+            return false;
+        };
+        self.move_tab(tab, DropTarget::Edge { group, side })
+    }
+
+    /// Put `tab` in a new group on `side` of the group holding `anchor`,
+    /// splitting that pane evenly. The new group gets focus. Use it to open a
+    /// tab beside another, such as a document next to the one the user
+    /// right-clicked.
+    ///
+    /// A `tab` already in the layout is moved there, as dragging it onto that
+    /// edge does. Returns `false` and changes nothing if `anchor` is not in
+    /// the layout, or if `tab` is `anchor` and alone in its group.
+    ///
+    /// ```
+    /// use elegance::{DockLayout, DockNode, DockSide};
+    ///
+    /// let mut layout = DockLayout::<String>::from_node(DockNode::row(
+    ///     0.3,
+    ///     DockNode::tabs(["files"]),
+    ///     DockNode::tabs(["main.rs"]),
+    /// ));
+    /// assert!(layout.insert_beside("main.rs", "output", DockSide::Bottom));
+    /// assert_eq!(layout.group_count(), 3);
+    /// assert_eq!(layout.active_tabs(), ["files", "main.rs", "output"]);
+    /// ```
+    pub fn insert_beside<Q>(&mut self, anchor: &Q, tab: impl Into<T>, side: DockSide) -> bool
+    where
+        T: Borrow<Q>,
+        Q: Eq + ?Sized,
+    {
+        let Some(group) = self.group_of(anchor) else {
+            return false;
+        };
+        let tab = tab.into();
+        if self.contains::<T>(&tab) {
+            return self.move_tab::<T>(&tab, DropTarget::Edge { group, side });
+        }
+        self.split_group(group, side, tab);
+        true
+    }
+
     pub(crate) fn group_of<Q>(&self, tab: &Q) -> Option<GroupId>
     where
         T: Borrow<Q>,
@@ -450,6 +520,19 @@ impl<T: Clone + Eq + Hash> DockLayout<T> {
         id
     }
 
+    /// Split `group` evenly, placing `tab` in a new focused group on `side`.
+    /// The caller guarantees that `group` exists and `tab` is not already in
+    /// the layout.
+    fn split_group(&mut self, group: GroupId, side: DockSide, tab: T) {
+        let new_id = self.alloc_group();
+        let node = self.root.as_mut().and_then(|r| r.group_node_mut(group));
+        debug_assert!(node.is_some(), "split_group: group {group} not in layout");
+        if let Some(node) = node {
+            split_node(node, side, tab, new_id);
+            self.focused = Some(new_id);
+        }
+    }
+
     /// Apply a completed drag. Returns `true` if the layout changed.
     pub(crate) fn move_tab<Q>(&mut self, tab: &Q, target: DropTarget) -> bool
     where
@@ -502,11 +585,7 @@ impl<T: Clone + Eq + Hash> DockLayout<T> {
                 };
                 // The target group survives: either it differs from the
                 // source, or it kept at least one other tab.
-                let new_id = self.alloc_group();
-                if let Some(node) = self.root.as_mut().and_then(|r| r.group_node_mut(group)) {
-                    split_node(node, side, moved, new_id);
-                }
-                self.focused = Some(new_id);
+                self.split_group(group, side, moved);
                 return true;
             }
         }
@@ -763,7 +842,7 @@ fn prune<T>(node: Node<T>) -> Option<Node<T>> {
 
 /// Replace the leaf `node` with an even split of it and a new group `new_id`
 /// holding `tab` on `side`.
-fn split_node<T>(node: &mut Node<T>, side: Side, tab: T, new_id: GroupId) {
+fn split_node<T>(node: &mut Node<T>, side: DockSide, tab: T, new_id: GroupId) {
     let added = Node::Group(TabGroup {
         id: new_id,
         tabs: vec![tab],
@@ -779,10 +858,10 @@ fn split_node<T>(node: &mut Node<T>, side: Side, tab: T, new_id: GroupId) {
         }),
     );
     let (direction, first, second) = match side {
-        Side::Left => (SplitDirection::Row, added, existing),
-        Side::Right => (SplitDirection::Row, existing, added),
-        Side::Top => (SplitDirection::Column, added, existing),
-        Side::Bottom => (SplitDirection::Column, existing, added),
+        DockSide::Left => (SplitDirection::Row, added, existing),
+        DockSide::Right => (SplitDirection::Row, existing, added),
+        DockSide::Top => (SplitDirection::Column, added, existing),
+        DockSide::Bottom => (SplitDirection::Column, existing, added),
     };
     *node = Node::Split {
         direction,
@@ -1009,7 +1088,7 @@ mod tests {
             "preview",
             DropTarget::Edge {
                 group: files_group,
-                side: Side::Bottom,
+                side: DockSide::Bottom,
             }
         ));
         assert_eq!(layout.group_count(), 4);
@@ -1029,7 +1108,7 @@ mod tests {
             "b",
             DropTarget::Edge {
                 group,
-                side: Side::Left,
+                side: DockSide::Left,
             }
         ));
         assert_eq!(layout.group_count(), 2);
@@ -1045,16 +1124,94 @@ mod tests {
             "a",
             DropTarget::Edge {
                 group,
-                side: Side::Right,
+                side: DockSide::Right,
             }
         ));
         assert_eq!(layout, before);
     }
 
     #[test]
+    fn split_tab_moves_the_tab_to_a_new_focused_group() {
+        let mut layout = three_pane();
+        assert!(layout.split_tab("preview", DockSide::Right));
+        assert_eq!(layout.group_count(), 4);
+        assert_eq!(layout.group_tabs("editor"), vec!["editor"]);
+        assert_eq!(layout.group_tabs("preview"), vec!["preview"]);
+        // The editor pane became a row split: `editor` left, `preview` right.
+        let Some(Node::Split { second, .. }) = &layout.root else {
+            panic!("expected root split");
+        };
+        let Node::Split { first, .. } = &**second else {
+            panic!("expected column split");
+        };
+        assert!(matches!(
+            **first,
+            Node::Split {
+                direction: SplitDirection::Row,
+                ..
+            }
+        ));
+        let ids = layout.tabs();
+        let pos = |t| ids.iter().position(|x| *x == t).unwrap();
+        assert!(pos("editor") < pos("preview"));
+        // The new group has focus, so a new tab joins it.
+        layout.add_tab("diff");
+        assert_eq!(layout.group_tabs("diff"), vec!["preview", "diff"]);
+    }
+
+    #[test]
+    fn split_tab_rejects_a_lone_or_unknown_tab() {
+        let mut layout = three_pane();
+        let before = layout.clone();
+        assert!(!layout.split_tab("files", DockSide::Left));
+        assert!(!layout.split_tab("missing", DockSide::Left));
+        assert_eq!(layout, before);
+    }
+
+    #[test]
+    fn insert_beside_adds_a_new_tab_in_a_new_group() {
+        let mut layout = three_pane();
+        assert!(layout.insert_beside("files", "outline", DockSide::Top));
+        assert_eq!(layout.group_count(), 4);
+        assert_eq!(layout.group_tabs("outline"), vec!["outline"]);
+        // `outline` above `files`.
+        let ids = layout.tabs();
+        let pos = |t| ids.iter().position(|x| *x == t).unwrap();
+        assert!(pos("outline") < pos("files"));
+        layout.add_tab("symbols");
+        assert_eq!(layout.group_tabs("symbols"), vec!["outline", "symbols"]);
+    }
+
+    #[test]
+    fn insert_beside_moves_a_present_tab() {
+        let mut layout = three_pane();
+        assert!(layout.insert_beside("files", "console", DockSide::Bottom));
+        // `console`'s old group emptied and collapsed; it now sits under `files`.
+        assert_eq!(layout.group_count(), 3);
+        assert_eq!(layout.tabs().iter().filter(|t| **t == "console").count(), 1);
+        let ids = layout.tabs();
+        let pos = |t| ids.iter().position(|x| *x == t).unwrap();
+        assert!(pos("files") < pos("console") && pos("console") < pos("editor"));
+
+        // Inserting a tab beside itself splits it from its group.
+        assert!(layout.insert_beside("editor", "editor", DockSide::Left));
+        assert_eq!(layout.group_tabs("editor"), vec!["editor"]);
+        assert_eq!(layout.group_tabs("preview"), vec!["preview"]);
+    }
+
+    #[test]
+    fn insert_beside_rejects_a_missing_anchor_or_lone_self_split() {
+        let mut layout = three_pane();
+        let before = layout.clone();
+        assert!(!layout.insert_beside("missing", "x", DockSide::Right));
+        assert!(!layout.insert_beside("files", "files", DockSide::Right));
+        assert_eq!(layout, before);
+    }
+
+    #[test]
     fn group_ids_stay_unique_after_splits() {
         let mut layout = DockLayout::<String>::single(["a", "b", "c"]);
-        for (tab, side) in [("b", Side::Right), ("c", Side::Bottom)] {
+        for (tab, side) in [("b", DockSide::Right), ("c", DockSide::Bottom)] {
             let group = layout.group_of("a").unwrap();
             layout.move_tab(tab, DropTarget::Edge { group, side });
         }
@@ -1242,7 +1399,7 @@ mod tests {
             "b",
             DropTarget::Edge {
                 group: g,
-                side: Side::Right,
+                side: DockSide::Right,
             },
         );
         assert!(moved);

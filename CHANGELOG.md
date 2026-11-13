@@ -4,6 +4,16 @@ Notable changes to `egui-elegance`. Where a version has [GitHub release notes](h
 
 Versions before 0.11.0 predate tagging; see the git history for those.
 
+## Unreleased
+
+### Added
+
+- `DockLayout::split_tab` and `DockLayout::insert_beside` split a pane from code, e.g. for a tab context menu's "Split Right"; `DockSide` picks the edge.
+
+### Changed
+
+- **Breaking:** `DockViewer::context_menu` takes a `&mut DockTabContext`. It lists the tab's group and can `split` or `close` the tab directly; the dock applies the action and emits the usual events. Add the parameter to your override.
+
 ## [0.18.1](https://github.com/matrix-research-inc/egui-elegance/releases/tag/v0.18.1) — 2026-11-04
 
 ### Added

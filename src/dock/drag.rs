@@ -5,7 +5,7 @@ use std::hash::{DefaultHasher, Hash, Hasher};
 
 use egui::{CornerRadius, Painter, Pos2, Rect, Stroke, StrokeKind, Vec2, pos2};
 
-use super::layout::{DropTarget, GroupId, Side};
+use super::layout::{DockSide, DropTarget, GroupId};
 use super::show::STRIP_PAD_Y;
 use crate::theme::{Theme, with_alpha};
 
@@ -86,10 +86,10 @@ pub(crate) fn hit_test(geoms: &[GroupGeom], pos: Pos2, drag: &DragState) -> Opti
         (pos.y - body.min.y) / body.height().max(1.0),
     );
     let edges = [
-        (rel.x, Side::Left),
-        (1.0 - rel.x, Side::Right),
-        (rel.y, Side::Top),
-        (1.0 - rel.y, Side::Bottom),
+        (rel.x, DockSide::Left),
+        (1.0 - rel.x, DockSide::Right),
+        (rel.y, DockSide::Top),
+        (1.0 - rel.y, DockSide::Bottom),
     ];
     let (distance, side) = edges
         .into_iter()
@@ -144,13 +144,13 @@ fn marker_rect(geom: &GroupGeom, index: usize) -> Rect {
     )
 }
 
-fn edge_region(rect: Rect, side: Side) -> Rect {
+fn edge_region(rect: Rect, side: DockSide) -> Rect {
     let c = rect.center();
     match side {
-        Side::Left => Rect::from_min_max(rect.min, pos2(c.x, rect.max.y)),
-        Side::Right => Rect::from_min_max(pos2(c.x, rect.min.y), rect.max),
-        Side::Top => Rect::from_min_max(rect.min, pos2(rect.max.x, c.y)),
-        Side::Bottom => Rect::from_min_max(pos2(rect.min.x, c.y), rect.max),
+        DockSide::Left => Rect::from_min_max(rect.min, pos2(c.x, rect.max.y)),
+        DockSide::Right => Rect::from_min_max(pos2(c.x, rect.min.y), rect.max),
+        DockSide::Top => Rect::from_min_max(rect.min, pos2(rect.max.x, c.y)),
+        DockSide::Bottom => Rect::from_min_max(pos2(rect.min.x, c.y), rect.max),
     }
 }
 
@@ -231,28 +231,28 @@ mod tests {
             at(10.0, 120.0),
             DropTarget::Edge {
                 group: 0,
-                side: Side::Left
+                side: DockSide::Left
             }
         );
         assert_eq!(
             at(290.0, 120.0),
             DropTarget::Edge {
                 group: 0,
-                side: Side::Right
+                side: DockSide::Right
             }
         );
         assert_eq!(
             at(150.0, 40.0),
             DropTarget::Edge {
                 group: 0,
-                side: Side::Top
+                side: DockSide::Top
             }
         );
         assert_eq!(
             at(150.0, 195.0),
             DropTarget::Edge {
                 group: 0,
-                side: Side::Bottom
+                side: DockSide::Bottom
             }
         );
     }

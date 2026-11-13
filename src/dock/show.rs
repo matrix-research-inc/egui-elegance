@@ -9,7 +9,7 @@ use egui::{
 
 use super::drag::{self, DragState, GroupGeom};
 use super::layout::{DockLayout, GroupId, Node, SplitDirection, TabGroup};
-use super::{Dock, DockEvent, DockTab, DockViewer};
+use super::{Dock, DockEvent, DockTab, DockTabContext, DockViewer, TabAction};
 use crate::tab_paint::{self, TAB_GAP, TabContent, TabState};
 use crate::theme::{Theme, with_alpha};
 use crate::{ContextMenu, Menu, MenuItem};
@@ -90,7 +90,7 @@ pub(super) fn show<T: Clone + Eq + Hash>(
     let Outcome {
         geoms,
         mut events,
-        closes,
+        actions,
         new_drag,
         focus,
         mut changed,
@@ -104,7 +104,7 @@ pub(super) fn show<T: Clone + Eq + Hash>(
             dragging: drag.is_some(),
             geoms: Vec::new(),
             events: Vec::new(),
-            closes: Vec::new(),
+            actions: Vec::new(),
             new_drag: None,
             focus: None,
             changed: false,
@@ -123,7 +123,7 @@ pub(super) fn show<T: Clone + Eq + Hash>(
         Outcome {
             geoms: pass.geoms,
             events: pass.events,
-            closes: pass.closes,
+            actions: pass.actions,
             new_drag: pass.new_drag,
             focus: pass.focus,
             changed: pass.changed,
@@ -133,10 +133,20 @@ pub(super) fn show<T: Clone + Eq + Hash>(
     if let Some(id) = focus {
         layout.set_focused(id);
     }
-    for tab in closes {
-        if let Some(removed) = layout.remove_tab(&tab) {
-            events.push(DockEvent::TabClosed(removed));
-            changed = true;
+    for action in actions {
+        match action {
+            TabAction::Close(tab) => {
+                if let Some(removed) = layout.remove_tab(&tab) {
+                    events.push(DockEvent::TabClosed(removed));
+                    changed = true;
+                }
+            }
+            TabAction::Split(tab, side) => {
+                if layout.split_tab(&tab, side) {
+                    events.push(DockEvent::TabMoved(tab));
+                    changed = true;
+                }
+            }
         }
     }
 
@@ -206,7 +216,7 @@ fn pane_radius(theme: &Theme) -> CornerRadius {
 struct Outcome<T> {
     geoms: Vec<GroupGeom>,
     events: Vec<DockEvent<T>>,
-    closes: Vec<T>,
+    actions: Vec<TabAction<T>>,
     new_drag: Option<DragState>,
     focus: Option<GroupId>,
     changed: bool,
@@ -223,7 +233,9 @@ struct Pass<'a, T> {
     dragging: bool,
     geoms: Vec<GroupGeom>,
     events: Vec<DockEvent<T>>,
-    closes: Vec<T>,
+    /// Tab closes and splits, applied once the pass no longer borrows the
+    /// layout.
+    actions: Vec<TabAction<T>>,
     new_drag: Option<DragState>,
     focus: Option<GroupId>,
     changed: bool,
@@ -433,12 +445,20 @@ impl<T: Clone + Eq + Hash> Pass<'_, T> {
             }
 
             if tab.context_menu {
-                let viewer = &mut *self.viewer;
-                ContextMenu::new("tab").show(&resp, |ui| viewer.context_menu(ui, id));
+                let (viewer, actions, group_tabs) =
+                    (&mut *self.viewer, &mut self.actions, &group.tabs);
+                ContextMenu::new("tab").show(&resp, |ui| {
+                    let mut context = DockTabContext {
+                        group_tabs,
+                        index: i,
+                        actions,
+                    };
+                    viewer.context_menu(ui, id, &mut context);
+                });
             }
 
             if close_resp.as_ref().is_some_and(Response::clicked) {
-                self.closes.push(id.clone());
+                self.actions.push(TabAction::Close(id.clone()));
             } else if resp.drag_started() {
                 activate = Some(i);
                 let grab = resp.interact_pointer_pos().unwrap_or(tab_rect.center());

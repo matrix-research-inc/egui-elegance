@@ -68,7 +68,7 @@ mod drag;
 mod layout;
 mod show;
 
-pub use layout::{DockLayout, DockNode, SplitDirection};
+pub use layout::{DockLayout, DockNode, DockSide, SplitDirection};
 
 use std::hash::Hash;
 
@@ -175,14 +175,31 @@ pub trait DockViewer {
 
     /// Fill the right-click menu of a tab whose [`DockTab::context_menu`]
     /// is set. Add [`crate::MenuItem`]s and friends; clicking one closes
-    /// the menu.
+    /// the menu. `context` describes where the tab sits and acts on it:
     ///
-    /// The layout is borrowed while the dock is drawn, so record what the
-    /// user picked and apply it to the [`DockLayout`] after [`Dock::show`]
-    /// returns (for example with [`DockLayout::group_tabs`] and
-    /// [`DockLayout::remove_tab`]).
-    fn context_menu(&mut self, ui: &mut Ui, tab: &Self::Tab) {
-        let _ = (ui, tab);
+    /// ```
+    /// # use elegance::{DockSide, DockTabContext, MenuItem};
+    /// # fn menu(ui: &mut egui::Ui, context: &mut DockTabContext<'_, String>) {
+    /// let split = MenuItem::new("Split Right").enabled(context.can_split());
+    /// if ui.add(split).clicked() {
+    ///     context.split(DockSide::Right);
+    /// }
+    /// if ui.add(MenuItem::new("Close")).clicked() {
+    ///     context.close();
+    /// }
+    /// # }
+    /// ```
+    ///
+    /// For anything else, record what the user picked and apply it to the
+    /// [`DockLayout`] after [`Dock::show`] returns, since the layout is
+    /// borrowed while the dock draws.
+    fn context_menu(
+        &mut self,
+        ui: &mut Ui,
+        tab: &Self::Tab,
+        context: &mut DockTabContext<'_, Self::Tab>,
+    ) {
+        let _ = (ui, tab, context);
     }
 
     /// Draw the dock when the layout has no tabs. Defaults to a muted
@@ -199,6 +216,58 @@ pub trait DockViewer {
     }
 }
 
+/// A tab's place in the layout, and actions on it, for
+/// [`DockViewer::context_menu`]. The [`DockLayout`] is borrowed while the
+/// dock draws, so actions are queued and the dock applies them, in order,
+/// once drawing is done, emitting the same [`DockEvent`]s as the equivalent
+/// drag or click.
+#[derive(Debug)]
+pub struct DockTabContext<'a, T> {
+    group_tabs: &'a [T],
+    /// This tab's index in `group_tabs`.
+    index: usize,
+    actions: &'a mut Vec<TabAction<T>>,
+}
+
+impl<T: Clone> DockTabContext<'_, T> {
+    /// The tabs in this tab's group, in strip order, including the tab
+    /// itself.
+    pub fn group_tabs(&self) -> &[T] {
+        self.group_tabs
+    }
+
+    /// Whether [`Self::split`] would split this tab from its group: it
+    /// shares the group with at least one other tab.
+    pub fn can_split(&self) -> bool {
+        self.group_tabs.len() > 1
+    }
+
+    /// Move this tab into a new group on `side` of its own, as
+    /// [`DockLayout::split_tab`] does. The new group gets focus. Emits
+    /// [`DockEvent::TabMoved`]. Does nothing if [`Self::can_split`] is
+    /// `false`.
+    pub fn split(&mut self, side: DockSide) {
+        let tab = self.group_tabs[self.index].clone();
+        self.actions.push(TabAction::Split(tab, side));
+    }
+
+    /// Close this tab, as its close button does. Emits
+    /// [`DockEvent::TabClosed`]. This ignores [`DockTab::closable`], so a
+    /// menu offering "Close" on a tab the app keeps open should check that
+    /// itself.
+    pub fn close(&mut self) {
+        let tab = self.group_tabs[self.index].clone();
+        self.actions.push(TabAction::Close(tab));
+    }
+}
+
+/// A change to a tab requested while the dock draws, applied after.
+#[derive(Debug)]
+pub(crate) enum TabAction<T> {
+    Close(T),
+    Split(T, DockSide),
+}
+
 /// Something that happened in a [`Dock`] during a frame.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum DockEvent<T> {
@@ -207,7 +276,8 @@ pub enum DockEvent<T> {
     /// The user closed a tab. The dock has already removed it from the
     /// layout; the app can free any associated state.
     TabClosed(T),
-    /// The user dragged a tab to a new position or group.
+    /// The user moved a tab to a new position or group, by dragging it or
+    /// with [`DockTabContext::split`].
     TabMoved(T),
     /// The arrangement changed: a tab was activated, closed or moved, or a
     /// splitter was released. Useful as a signal to persist the layout.
