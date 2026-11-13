@@ -442,7 +442,7 @@ impl Theme {
             return;
         }
         // Once per context: egui ignores a second plugin of the same type.
-        ctx.add_plugin(crate::focus::FocusVisible);
+        ctx.add_plugin(crate::focus::FocusVisible::default());
         ctx.all_styles_mut(|style| self.apply_to_style(style));
         ctx.data_mut(|d| d.insert_temp(Self::storage_id(), self));
     }

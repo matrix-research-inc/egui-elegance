@@ -1,7 +1,7 @@
 //! Shared focus policy: when to draw focus, and focus on press for value
 //! widgets.
 
-use egui::{Context, Event, Id, RawInput, Response, TouchPhase};
+use egui::{Context, Event, Key, RawInput, Response, TouchPhase};
 
 /// Whether to draw `response`'s focus indicator: it has focus, and the user
 /// is navigating with the keyboard.
@@ -14,55 +14,69 @@ use egui::{Context, Event, Id, RawInput, Response, TouchPhase};
 ///
 /// Draw a widget's focus indicator only when this is true. Use plain
 /// [`Response::has_focus`] for keyboard handling, which applies however the
-/// widget got focus.
-pub(crate) fn shows_focus(response: &Response) -> bool {
-    response.has_focus() && keyboard_navigation(&response.ctx)
-}
-
-/// Whether the latest input was the keyboard (or an assistive technology)
-/// rather than a pointer, as recorded by [`FocusVisible`].
+/// widget got focus. Text fields are the exception: like `:focus-visible`,
+/// they show focus however they got it, since the caret is where typing goes.
 ///
-/// Without the plugin, which [`Theme::install`](crate::Theme::install)
-/// registers, there is no record, and focus always shows.
-fn keyboard_navigation(ctx: &Context) -> bool {
-    ctx.data(|d| d.get_temp::<bool>(keyboard_navigation_id()))
-        .unwrap_or(true)
+/// Without [`FocusVisible`], which [`Theme::install`](crate::Theme::install)
+/// registers, there is no record of the input, and focus always shows.
+pub(crate) fn shows_focus(response: &Response) -> bool {
+    response.has_focus()
+        && response
+            .ctx
+            .with_plugin(|plugin: &mut FocusVisible| plugin.keyboard)
+            .unwrap_or(true)
 }
 
-fn keyboard_navigation_id() -> Id {
-    Id::unique("elegance::keyboard_navigation")
-}
-
-/// Records whether the latest input was the keyboard or a pointer, for
-/// [`shows_focus`].
+/// Records whether the latest input was the keyboard (or an assistive
+/// technology) rather than a pointer, for [`shows_focus`].
 ///
 /// A plugin rather than a check inside widgets, because it has to see every
 /// frame's input: the click that opens a modal arrives in a frame where the
 /// modal's close button doesn't exist yet to look.
-pub(crate) struct FocusVisible;
+#[derive(Default)]
+pub(crate) struct FocusVisible {
+    keyboard: bool,
+}
 
 impl egui::Plugin for FocusVisible {
     fn debug_name(&self) -> &'static str {
         "elegance::FocusVisible"
     }
 
-    fn setup(&mut self, ctx: &Context) {
-        ctx.data_mut(|d| d.insert_temp(keyboard_navigation_id(), false));
-    }
-
-    fn input_hook(&mut self, ctx: &Context, input: &mut RawInput) {
-        let latest = input.events.iter().rev().find_map(|event| match event {
-            Event::Key { pressed: true, .. } | Event::AccessKitActionRequest(_) => Some(true),
-            Event::PointerButton { pressed: true, .. }
-            | Event::Touch {
-                phase: TouchPhase::Start,
-                ..
-            } => Some(false),
-            _ => None,
-        });
-        if let Some(keyboard) = latest {
-            ctx.data_mut(|d| d.insert_temp(keyboard_navigation_id(), keyboard));
+    fn input_hook(&mut self, _ctx: &Context, input: &mut RawInput) {
+        if let Some(keyboard) = input.events.iter().rev().find_map(modality) {
+            self.keyboard = keyboard;
         }
+    }
+}
+
+/// `Some(true)` for keyboard or assistive-technology input, `Some(false)` for
+/// a pointer press or touch, `None` for input that says nothing either way.
+///
+/// A modifier alone says nothing: it accompanies Shift-click, Ctrl-scroll and
+/// switching apps, which are pointer or system gestures. Browsers ignore it
+/// for `:focus-visible` too.
+fn modality(event: &Event) -> Option<bool> {
+    match event {
+        Event::Key {
+            key:
+                Key::ShiftLeft
+                | Key::ShiftRight
+                | Key::ControlLeft
+                | Key::ControlRight
+                | Key::AltLeft
+                | Key::AltRight
+                | Key::SuperLeft
+                | Key::SuperRight,
+            ..
+        } => None,
+        Event::Key { pressed: true, .. } | Event::AccessKitActionRequest(_) => Some(true),
+        Event::PointerButton { pressed: true, .. }
+        | Event::Touch {
+            phase: TouchPhase::Start,
+            ..
+        } => Some(false),
+        _ => None,
     }
 }
 
