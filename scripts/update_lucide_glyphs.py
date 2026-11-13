@@ -96,6 +96,12 @@ LUCIDE_GLYPHS = [
     # Files, pairing with folder / folder-open above.
     ("file", 0xE028),
     ("file-text", 0xE029),
+    # Machines.
+    ("server", 0xE02A),
+    ("monitor", 0xE02B),
+    # Split layouts, e.g. "split right" / "split down".
+    ("columns-2", 0xE02C),
+    ("rows-2", 0xE02D),
     ("check", 0x2713),
     ("x", 0x2717),
 ]

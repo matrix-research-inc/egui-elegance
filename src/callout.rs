@@ -170,8 +170,8 @@ impl<'a> Callout<'a> {
     /// where the body wraps to multiple lines below the title.
     ///
     /// Use this when the body is longer than ~one short sentence. The
-    /// default layout puts title and body on the same row and truncates the
-    /// body to fit, which keeps short banners ("Unsaved changes. You have 3
+    /// default layout puts title and body on the same row and truncates
+    /// them to fit beside the actions, which keeps short banners ("Unsaved changes. You have 3
     /// edits...") tidy alongside right-aligned action buttons but cuts off
     /// any longer prose. In multiline mode the row reads:
     ///
@@ -299,26 +299,19 @@ impl<'a> Callout<'a> {
 
                         let actions_inner = ui
                             .horizontal(|ui| {
-                                if let Some(title) = title {
-                                    ui.add(
-                                        egui::Label::new(
-                                            egui::RichText::new(title.text())
-                                                .color(p.text)
-                                                .size(body_size)
-                                                .strong(),
-                                        )
-                                        .wrap(),
-                                    );
-                                }
-                                ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                                    if let Some(open) = open
-                                        && dismiss_button(ui, &theme).clicked()
-                                    {
-                                        *open = false;
+                                trailing_then(ui, &theme, open, add_actions, |ui| {
+                                    if let Some(title) = title {
+                                        ui.add(
+                                            egui::Label::new(
+                                                egui::RichText::new(title.text())
+                                                    .color(p.text)
+                                                    .size(body_size)
+                                                    .strong(),
+                                            )
+                                            .wrap(),
+                                        );
                                     }
-                                    add_actions(ui)
                                 })
-                                .inner
                             })
                             .inner;
 
@@ -341,52 +334,54 @@ impl<'a> Callout<'a> {
             } else {
                 ui.horizontal(|ui| {
                     ui.spacing_mut().item_spacing.x = 10.0;
-
-                    // Icon.
-                    ui.add(
-                        egui::Label::new(
-                            egui::RichText::new(&icon_str)
-                                .color(icon_color)
-                                .size(body_size + 1.0),
-                        )
-                        .wrap_mode(egui::TextWrapMode::Extend),
-                    );
-
-                    // Title (strong).
-                    if let Some(title) = title {
+                    trailing_then(ui, &theme, open, add_actions, |ui| {
+                        // Icon.
                         ui.add(
                             egui::Label::new(
+                                egui::RichText::new(&icon_str)
+                                    .color(icon_color)
+                                    .size(body_size + 1.0),
+                            )
+                            .wrap_mode(egui::TextWrapMode::Extend),
+                        );
+
+                        // Title (strong) then body (muted), as one line that
+                        // truncates once, so a long title leaves no stray
+                        // ellipsis for the body.
+                        let mut line = egui::text::LayoutJob::default();
+                        let mut append = |text: egui::RichText, leading_space: f32| {
+                            text.append_to(
+                                &mut line,
+                                ui.style(),
+                                egui::FontSelection::Default,
+                                Align::Center,
+                            );
+                            if let Some(section) = line.sections.last_mut() {
+                                section.leading_space = leading_space;
+                            }
+                        };
+                        if let Some(title) = &title {
+                            append(
                                 egui::RichText::new(title.text())
                                     .color(p.text)
                                     .size(body_size)
                                     .strong(),
-                            )
-                            .wrap_mode(egui::TextWrapMode::Extend),
-                        );
-                    }
-
-                    // Body (muted).
-                    if let Some(body) = body {
-                        ui.add(
-                            egui::Label::new(
+                                0.0,
+                            );
+                        }
+                        if let Some(body) = &body {
+                            let gap = if title.is_some() { 10.0 } else { 0.0 };
+                            append(
                                 egui::RichText::new(body.text())
                                     .color(p.text_muted)
                                     .size(body_size),
-                            )
-                            .wrap_mode(egui::TextWrapMode::Truncate),
-                        );
-                    }
-
-                    // Right-aligned action slot and optional dismiss button.
-                    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                        if let Some(open) = open
-                            && dismiss_button(ui, &theme).clicked()
-                        {
-                            *open = false;
+                                gap,
+                            );
                         }
-                        add_actions(ui)
+                        if !line.is_empty() {
+                            ui.add(egui::Label::new(line).wrap_mode(egui::TextWrapMode::Truncate));
+                        }
                     })
-                    .inner
                 })
                 .inner
             }
@@ -416,6 +411,35 @@ impl<'a> Callout<'a> {
 
         frame_response
     }
+}
+
+/// Lay out a row's trailing controls (dismiss button, then the caller's
+/// actions) from the right edge first, then `leading` left to right in the
+/// width they leave, so long text truncates or wraps short of the buttons
+/// instead of running under them.
+fn trailing_then<R>(
+    ui: &mut Ui,
+    theme: &Theme,
+    open: Option<&mut bool>,
+    add_actions: impl FnOnce(&mut Ui) -> R,
+    leading: impl FnOnce(&mut Ui),
+) -> R {
+    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+        let spacing = ui.spacing().item_spacing;
+        if let Some(open) = open
+            && dismiss_button(ui, theme).clicked()
+        {
+            *open = false;
+        }
+        let inner = add_actions(ui);
+        ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
+            // The caller's actions may have changed the spacing.
+            ui.spacing_mut().item_spacing = spacing;
+            leading(ui);
+        });
+        inner
+    })
+    .inner
 }
 
 /// Compact × dismiss button. Renders as two diagonal strokes so it doesn't

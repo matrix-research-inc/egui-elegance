@@ -2122,6 +2122,8 @@ fn render_glyphs() {
                                 g::LOCK,
                                 g::POWER,
                                 g::NETWORK,
+                                g::SERVER,
+                                g::MONITOR,
                             ]),
                         ),
                         (
@@ -2143,6 +2145,7 @@ fn render_glyphs() {
                             "Navigation",
                             icons(&[g::HOME, g::MENU, g::EXTERNAL_LINK, g::PIN]),
                         ),
+                        ("Layout", icons(&[g::COLUMNS, g::ROWS])),
                     ];
                     for (label, glyphs) in &rows {
                         ui.add(egui::Label::new(theme.muted_text(*label)));

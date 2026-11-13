@@ -2,7 +2,7 @@
 
 use egui::{
     Color32, CornerRadius, FontSelection, Response, Role, Sense, Stroke, Ui, Vec2, Widget,
-    WidgetInfo, WidgetText, vec2,
+    WidgetInfo, WidgetText, accesskit, vec2,
 };
 
 use crate::theme::Theme;
@@ -16,10 +16,15 @@ use crate::theme::Theme;
 /// ui.add(Checkbox::new(&mut enabled, "Enable feature"));
 /// # });
 /// ```
+///
+/// To draw the box alone, as in a table's header row, give it a label and
+/// call [`Checkbox::hide_label`], so it still has an accessible name.
 #[must_use = "Add this widget with `ui.add(...)`."]
 pub struct Checkbox<'a> {
     checked: &'a mut bool,
     label: WidgetText,
+    hide_label: bool,
+    indeterminate: bool,
 }
 
 impl<'a> std::fmt::Debug for Checkbox<'a> {
@@ -27,6 +32,8 @@ impl<'a> std::fmt::Debug for Checkbox<'a> {
         f.debug_struct("Checkbox")
             .field("checked", &*self.checked)
             .field("label", &self.label.text())
+            .field("hide_label", &self.hide_label)
+            .field("indeterminate", &self.indeterminate)
             .finish()
     }
 }
@@ -37,7 +44,43 @@ impl<'a> Checkbox<'a> {
         Self {
             checked,
             label: label.into(),
+            hide_label: false,
+            indeterminate: false,
         }
+    }
+
+    /// Draw the box without its label. The label is still the box's
+    /// accessible name, so pass what it controls ("Select all rows").
+    pub fn hide_label(mut self) -> Self {
+        self.hide_label = true;
+        self
+    }
+
+    /// Show the box as partly selected, with a dash instead of a check, as
+    /// a "select all" box does when only some items are selected.
+    ///
+    /// This only changes how the box looks: a click still toggles
+    /// `checked`. For a "select all" box, pass `checked` as "all selected",
+    /// so a click on a partly selected box selects everything.
+    ///
+    /// ```no_run
+    /// # use elegance::Checkbox;
+    /// # egui::__run_test_ui(|ui| {
+    /// # let mut rows = vec![true, false, true];
+    /// let selected = rows.iter().filter(|&&on| on).count();
+    /// let mut all = selected == rows.len();
+    /// let partly = selected > 0 && !all;
+    /// let select_all = Checkbox::new(&mut all, "Select all rows")
+    ///     .hide_label()
+    ///     .indeterminate(partly);
+    /// if ui.add(select_all).changed() {
+    ///     rows.iter_mut().for_each(|on| *on = all);
+    /// }
+    /// # });
+    /// ```
+    pub fn indeterminate(mut self, indeterminate: bool) -> Self {
+        self.indeterminate = indeterminate;
+        self
     }
 }
 
@@ -50,20 +93,20 @@ impl<'a> Widget for Checkbox<'a> {
         let box_size = 14.0;
         let gap = 6.0;
 
-        let galley = egui::WidgetText::from(
-            egui::RichText::new(self.label.text())
-                .color(p.text)
-                .size(t.body),
-        )
-        .into_galley(
-            ui,
-            Some(egui::TextWrapMode::Extend),
-            ui.available_width(),
-            FontSelection::FontId(egui::FontId::proportional(t.body)),
-        );
-
-        let text_size = galley.size();
-        let desired = vec2(box_size + gap + text_size.x, box_size.max(text_size.y));
+        let label = self.label.text();
+        let galley = (!self.hide_label && !label.is_empty()).then(|| {
+            egui::WidgetText::from(egui::RichText::new(label).color(p.text).size(t.body))
+                .into_galley(
+                    ui,
+                    Some(egui::TextWrapMode::Extend),
+                    ui.available_width(),
+                    FontSelection::FontId(egui::FontId::proportional(t.body)),
+                )
+        });
+        let desired = match &galley {
+            Some(g) => vec2(box_size + gap + g.size().x, box_size.max(g.size().y)),
+            None => Vec2::splat(box_size),
+        };
         let (rect, mut response) = ui.allocate_exact_size(desired, Sense::click());
 
         if response.clicked() {
@@ -72,7 +115,7 @@ impl<'a> Widget for Checkbox<'a> {
         }
 
         if ui.is_rect_visible(rect) {
-            let checked = *self.checked;
+            let filled = *self.checked || self.indeterminate;
             let is_hovered = response.hovered();
 
             let box_rect = egui::Rect::from_min_size(
@@ -80,7 +123,7 @@ impl<'a> Widget for Checkbox<'a> {
                 Vec2::splat(box_size),
             );
 
-            let (fill, stroke) = if checked {
+            let (fill, stroke) = if filled {
                 (p.focus, Stroke::new(1.0, p.focus))
             } else if is_hovered {
                 (p.input_bg, Stroke::new(1.0, p.focus))
@@ -96,7 +139,15 @@ impl<'a> Widget for Checkbox<'a> {
                 egui::StrokeKind::Inside,
             );
 
-            if checked {
+            if self.indeterminate {
+                let m = box_rect.min;
+                let s = box_size;
+                let y = box_rect.center().y;
+                ui.painter().line_segment(
+                    [egui::pos2(m.x + s * 0.25, y), egui::pos2(m.x + s * 0.75, y)],
+                    Stroke::new(1.6, Color32::WHITE),
+                );
+            } else if *self.checked {
                 // Draw a crisp checkmark.
                 let m = box_rect.min;
                 let s = box_size;
@@ -108,11 +159,23 @@ impl<'a> Widget for Checkbox<'a> {
                 ui.painter().line_segment([b, c], stroke);
             }
 
-            let text_pos = egui::pos2(box_rect.max.x + gap, rect.center().y - text_size.y * 0.5);
-            ui.painter().galley(text_pos, galley, p.text);
+            if let Some(galley) = galley {
+                let text_pos = egui::pos2(
+                    box_rect.max.x + gap,
+                    rect.center().y - galley.size().y * 0.5,
+                );
+                ui.painter().galley(text_pos, galley, p.text);
+            }
         }
 
-        response.widget_info(|| WidgetInfo::labeled(Role::CheckBox, true, self.label.text()));
+        response.widget_info(|| {
+            WidgetInfo::selected(Role::CheckBox, ui.is_enabled(), *self.checked, label)
+        });
+        if self.indeterminate {
+            response.ctx.accesskit_node_builder(response.id, |node| {
+                node.set_toggled(accesskit::Toggled::Mixed);
+            });
+        }
         response
     }
 }
