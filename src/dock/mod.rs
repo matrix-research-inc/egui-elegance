@@ -230,15 +230,17 @@ pub trait DockViewer {
     ///
     /// ```
     /// # use elegance::{DockGroupContext, DockStripButton, glyphs};
-    /// # fn strip(ui: &mut egui::Ui, context: &mut DockGroupContext<'_, String>) {
+    /// # fn strip(ui: &mut egui::Ui, context: &mut DockGroupContext<'_, String>, untitled: &mut u32) {
     /// if ui.add(DockStripButton::new(glyphs::PLUS, "New tab")).clicked() {
-    ///     context.add(format!("untitled {}", context.tabs().len() + 1));
+    ///     *untitled += 1;
+    ///     context.add(format!("untitled {untitled}"));
     /// }
     /// # }
     /// ```
     ///
     /// The `ui` is one tab tall and lays out right to left, so the first
-    /// widget added sits at the right edge. [`DockStripButton`] matches the
+    /// widget added sits at the right edge. It stops short of the strip's
+    /// left end, keeping room for the overflow button. [`DockStripButton`] matches the
     /// strip's own buttons.
     fn tab_strip_ui(&mut self, ui: &mut Ui, context: &mut DockGroupContext<'_, Self::Tab>) {
         let _ = (ui, context);
@@ -305,7 +307,7 @@ impl<T: Clone> DockTabContext<'_, T> {
 
 /// A tab group, and actions on it, for [`DockViewer::tab_strip_ui`]. As
 /// with [`DockTabContext`], actions are queued and the dock applies them
-/// once drawing is done, emitting [`DockEvent`]s.
+/// once drawing is done.
 #[derive(Debug)]
 pub struct DockGroupContext<'a, T> {
     tabs: &'a [T],
@@ -327,8 +329,9 @@ impl<T> DockGroupContext<'_, T> {
     }
 
     /// Add `tab` to the end of this group, activate it, and focus the group.
-    /// Emits [`DockEvent::TabAdded`]. A tab already in the layout is
-    /// activated where it is instead, as [`DockLayout::add_tab`] does.
+    /// A tab already in the layout is activated where it is instead, as
+    /// [`DockLayout::add_tab`] does. Emits only [`DockEvent::LayoutChanged`],
+    /// and only if the layout changed, since the app chose the tab.
     pub fn add(&mut self, tab: impl Into<T>) {
         self.actions.push(TabAction::Add(tab.into(), self.group));
     }
@@ -382,7 +385,7 @@ impl Widget for DockStripButton {
                 rect.center(),
                 Align2::CENTER_CENTER,
                 self.glyph,
-                FontId::proportional(tab_paint::ICON_SIZE),
+                FontId::proportional(show::STRIP_GLYPH_SIZE),
                 color,
             );
         }
@@ -395,9 +398,6 @@ impl Widget for DockStripButton {
 pub enum DockEvent<T> {
     /// The user selected a different tab in a group.
     TabActivated(T),
-    /// The user added a tab with [`DockGroupContext::add`]. The dock has
-    /// already put it in the layout.
-    TabAdded(T),
     /// The user closed a tab. The dock has already removed it from the
     /// layout; the app can free any associated state.
     TabClosed(T),

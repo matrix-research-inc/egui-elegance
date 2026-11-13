@@ -26,6 +26,10 @@ const SHORT_TAB_WIDTH: f32 = 72.0;
 /// in an overflowing strip.
 pub(super) const STRIP_BUTTON_WIDTH: f32 = 24.0;
 const STRIP_BUTTON_RADIUS: u8 = 4;
+/// Glyph size in a [`DockStripButton`](super::DockStripButton). Lucide glyphs
+/// ink well inside their em box, so this inks a "+" about as large as a tab's
+/// close cross.
+pub(super) const STRIP_GLYPH_SIZE: f32 = 15.0;
 /// Space between the tabs and the viewer's strip widgets.
 const STRIP_UI_GAP: f32 = 4.0;
 /// Distance from either end of an overflowing strip within which a dragged
@@ -138,20 +142,7 @@ pub(super) fn show<T: Clone + Eq + Hash>(
     }
     for action in actions {
         match action {
-            TabAction::Add(tab, group) => {
-                if layout.contains::<T>(&tab) {
-                    let newly_active = !layout.active_tabs().contains(&&tab);
-                    layout.activate::<T>(&tab);
-                    if newly_active {
-                        events.push(DockEvent::TabActivated(tab));
-                        changed = true;
-                    }
-                } else {
-                    layout.add_tab_to(group, tab.clone());
-                    events.push(DockEvent::TabAdded(tab));
-                    changed = true;
-                }
-            }
+            TabAction::Add(tab, group) => changed |= layout.add_tab_in(Some(group), tab),
             TabAction::Close(tab) => {
                 if let Some(removed) = layout.remove_tab(&tab) {
                     events.push(DockEvent::TabClosed(removed));
@@ -382,8 +373,10 @@ impl<T: Clone + Eq + Hash> Pass<'_, T> {
         let row = self.strip_ui(group, row);
         let widths = fit_widths(&natural, min_width, (row.width() - gaps).max(0.0));
         let content_width = widths.iter().sum::<f32>() + gaps;
-        let overflow_button = (content_width > row.width() + 0.5)
-            .then(|| Rect::from_min_max(pos2(row.max.x - STRIP_BUTTON_WIDTH, row.min.y), row.max));
+        let overflow_button = (content_width > row.width() + 0.5).then(|| {
+            let left = (row.max.x - STRIP_BUTTON_WIDTH).max(row.min.x);
+            Rect::from_min_max(pos2(left, row.min.y), row.max)
+        });
         let tab_clip = match overflow_button {
             // A pane narrower than the button keeps an empty, not inverted, clip.
             Some(button) => Rect::from_min_max(
@@ -565,15 +558,23 @@ impl<T: Clone + Eq + Hash> Pass<'_, T> {
     }
 
     /// Run [`DockViewer::tab_strip_ui`] at the right end of a group's tab
-    /// `row`, and return the part of `row` left for the tabs.
+    /// `row`, and return the part of `row` left for the tabs. The widgets
+    /// leave room at the left for the overflow button.
     fn strip_ui(&mut self, group: &TabGroup<T>, row: Rect) -> Rect {
+        let room = Rect::from_min_max(
+            pos2(
+                (row.min.x + STRIP_BUTTON_WIDTH + STRIP_UI_GAP).min(row.max.x),
+                row.min.y,
+            ),
+            row.max,
+        );
         let mut child = self.ui.new_child(
             UiBuilder::new()
                 .id_salt((self.base_id, "strip_ui", group.id))
-                .max_rect(row)
+                .max_rect(room)
                 .layout(Layout::right_to_left(Align::Center)),
         );
-        child.set_clip_rect(row.intersect(self.ui.clip_rect()));
+        child.set_clip_rect(room.intersect(self.ui.clip_rect()));
         let mut context = DockGroupContext {
             tabs: &group.tabs,
             active: group.active,

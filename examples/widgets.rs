@@ -1065,9 +1065,6 @@ impl App {
                         DockEvent::TabMoved(tab) => {
                             self.dock_log.push(format!("moved {}", tab.label()));
                         }
-                        DockEvent::TabAdded(tab) => {
-                            self.dock_log.push(format!("added {}", tab.label()));
-                        }
                         DockEvent::TabActivated(_) | DockEvent::LayoutChanged => {}
                     }
                 }

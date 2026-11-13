@@ -707,13 +707,7 @@ fn a_strip_widget_adds_a_tab_to_its_group() {
     let app = harness.state();
     assert_eq!(app.layout.group_tabs("console+"), ["console", "console+"]);
     assert_eq!(app.layout.focused_tab().unwrap(), "console+");
-    assert_eq!(
-        app.events,
-        [
-            DockEvent::TabAdded("console+".to_string()),
-            DockEvent::LayoutChanged
-        ]
-    );
+    assert_eq!(app.events, [DockEvent::LayoutChanged]);
 }
 
 #[test]
@@ -724,11 +718,48 @@ fn adding_a_tab_already_open_activates_it_where_it_is() {
     let app = harness.state();
     assert_eq!(app.layout.group_tabs("preview"), ["editor", "preview"]);
     assert_eq!(app.layout.focused_tab().unwrap(), "preview");
-    assert_eq!(
-        app.events,
-        [
-            DockEvent::TabActivated("preview".to_string()),
-            DockEvent::LayoutChanged
-        ]
-    );
+    assert_eq!(app.events, [DockEvent::LayoutChanged]);
+
+    // Already active: nothing changes, so nothing is reported.
+    harness.state_mut().events.clear();
+    harness.get_by_label("open preview").click();
+    harness.run();
+    assert!(harness.state().events.is_empty());
+}
+
+#[test]
+fn strip_widgets_leave_room_for_the_overflow_button() {
+    let layout = DockLayout::from_node(DockNode::row(
+        0.5,
+        DockNode::tabs(["files", "a", "b"]),
+        DockNode::tabs(["editor", "c", "d"]),
+    ));
+    let mut harness = harness_sized(layout, egui::vec2(160.0, 300.0));
+    harness.state_mut().strip_buttons = true;
+    harness.state_mut().min_pane = 20.0;
+    harness.run();
+
+    let dock = harness.get_by_label("dock").rect();
+    let overflow: Vec<_> = harness
+        .get_all_by_label("All tabs")
+        .map(|n| n.rect())
+        .collect();
+    assert_eq!(overflow.len(), 2);
+    let pane_split = dock.center().x;
+    for (button, pane) in overflow
+        .iter()
+        .zip([dock.min.x..=pane_split, pane_split..=dock.max.x])
+    {
+        assert!(
+            pane.contains(&button.min.x) && pane.contains(&button.max.x),
+            "{button:?}"
+        );
+    }
+    for label in ["new beside files", "open preview", "new beside editor"] {
+        let widget = harness.get_by_label(label).rect();
+        assert!(
+            overflow.iter().all(|b| !b.intersects(widget)),
+            "{label} overlaps"
+        );
+    }
 }
