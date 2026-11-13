@@ -411,7 +411,8 @@ impl<'a, T: Numeric> Widget for Slider<'a, T> {
                     painter.rect_filled(fill_rect, track_radius, accent_fill);
                 }
 
-                let active = response.has_focus() || response.is_pointer_button_down_on();
+                let active =
+                    crate::focus::shows_focus(&response) || response.is_pointer_button_down_on();
                 let halo = active.then(|| with_alpha(accent_fill, 55));
                 let line_body = if p.is_dark {
                     p.text

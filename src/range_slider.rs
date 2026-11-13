@@ -588,7 +588,8 @@ impl<'a, T: Numeric> Widget for RangeSlider<'a, T> {
                 for i in 0..2 {
                     let center = thumb_centers[i];
                     let active = self.enabled
-                        && (thumb_resp[i].has_focus() || thumb_resp[i].is_pointer_button_down_on());
+                        && (crate::focus::shows_focus(&thumb_resp[i])
+                            || thumb_resp[i].is_pointer_button_down_on());
                     let halo = active.then(|| with_alpha(accent_fill, 55));
                     let line_body = if p.is_dark {
                         p.text

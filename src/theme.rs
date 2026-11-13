@@ -427,6 +427,10 @@ impl Theme {
     /// font. A host call to `ctx.set_fonts(...)` after `Theme::install`
     /// still clobbers the symbols font (and egui's defaults, and anything
     /// else), but that's inherent to `set_fonts` taking over the registry.
+    ///
+    /// It also registers a plugin that notes whether the user is navigating
+    /// with the keyboard, so focus rings show after `Tab` but not after a
+    /// click.
     pub fn install(self, ctx: &Context) {
         install_symbols_font(ctx);
 
@@ -437,6 +441,8 @@ impl Theme {
         if unchanged {
             return;
         }
+        // Once per context: egui ignores a second plugin of the same type.
+        ctx.add_plugin(crate::focus::FocusVisible::default());
         ctx.all_styles_mut(|style| self.apply_to_style(style));
         ctx.data_mut(|d| d.insert_temp(Self::storage_id(), self));
     }

@@ -809,7 +809,7 @@ impl<'a, T: Numeric> Widget for Knob<'a, T> {
                 painter.line_segment([a, b], Stroke::new(g.indicator_w, ind_color));
 
                 // Focus ring.
-                if response.has_focus() {
+                if crate::focus::shows_focus(&response) {
                     painter.circle_stroke(
                         center,
                         g.rim_r + 4.0,

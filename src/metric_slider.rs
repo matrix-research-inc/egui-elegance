@@ -503,7 +503,8 @@ impl<'a> Widget for MetricSlider<'a> {
                 );
             }
 
-            let active = response.has_focus() || response.is_pointer_button_down_on();
+            let active =
+                crate::focus::shows_focus(&response) || response.is_pointer_button_down_on();
             let halo = active.then(|| with_alpha(accent_fill, 55));
             let line_body = if p.is_dark {
                 p.text

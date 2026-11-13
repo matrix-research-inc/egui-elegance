@@ -1,6 +1,84 @@
-//! Shared focus policy for value widgets.
+//! Shared focus policy: when to draw focus, and focus on press for value
+//! widgets.
 
-use egui::Response;
+use egui::{Context, Event, Key, RawInput, Response, TouchPhase};
+
+/// Whether to draw `response`'s focus indicator: it has focus, and the user
+/// is navigating with the keyboard.
+///
+/// Like the web's `:focus-visible`. Focus also lands on widgets without the
+/// keyboard: a modal focuses its close button when it opens, and a slider
+/// takes focus when grabbed (see [`focus_on_press`]). A ring there, after a
+/// mouse click, is noise; after `Tab` or a keyboard shortcut it shows where
+/// the next key press goes.
+///
+/// Draw a widget's focus indicator only when this is true. Use plain
+/// [`Response::has_focus`] for keyboard handling, which applies however the
+/// widget got focus. Text fields are the exception: like `:focus-visible`,
+/// they show focus however they got it, since the caret is where typing goes.
+///
+/// Without [`FocusVisible`], which [`Theme::install`](crate::Theme::install)
+/// registers, there is no record of the input, and focus always shows.
+pub(crate) fn shows_focus(response: &Response) -> bool {
+    response.has_focus()
+        && response
+            .ctx
+            .with_plugin(|plugin: &mut FocusVisible| plugin.keyboard)
+            .unwrap_or(true)
+}
+
+/// Records whether the latest input was the keyboard (or an assistive
+/// technology) rather than a pointer, for [`shows_focus`].
+///
+/// A plugin rather than a check inside widgets, because it has to see every
+/// frame's input: the click that opens a modal arrives in a frame where the
+/// modal's close button doesn't exist yet to look.
+#[derive(Default)]
+pub(crate) struct FocusVisible {
+    keyboard: bool,
+}
+
+impl egui::Plugin for FocusVisible {
+    fn debug_name(&self) -> &'static str {
+        "elegance::FocusVisible"
+    }
+
+    fn input_hook(&mut self, _ctx: &Context, input: &mut RawInput) {
+        if let Some(keyboard) = input.events.iter().rev().find_map(modality) {
+            self.keyboard = keyboard;
+        }
+    }
+}
+
+/// `Some(true)` for keyboard or assistive-technology input, `Some(false)` for
+/// a pointer press or touch, `None` for input that says nothing either way.
+///
+/// A modifier alone says nothing: it accompanies Shift-click, Ctrl-scroll and
+/// switching apps, which are pointer or system gestures. Browsers ignore it
+/// for `:focus-visible` too.
+fn modality(event: &Event) -> Option<bool> {
+    match event {
+        Event::Key {
+            key:
+                Key::ShiftLeft
+                | Key::ShiftRight
+                | Key::ControlLeft
+                | Key::ControlRight
+                | Key::AltLeft
+                | Key::AltRight
+                | Key::SuperLeft
+                | Key::SuperRight,
+            ..
+        } => None,
+        Event::Key { pressed: true, .. } | Event::AccessKitActionRequest(_) => Some(true),
+        Event::PointerButton { pressed: true, .. }
+        | Event::Touch {
+            phase: TouchPhase::Start,
+            ..
+        } => Some(false),
+        _ => None,
+    }
+}
 
 /// Give a value widget keyboard focus when the pointer grabs it.
 ///
