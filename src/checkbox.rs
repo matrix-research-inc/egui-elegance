@@ -1,11 +1,11 @@
 //! A checkbox with a focus accent.
 
 use egui::{
-    Color32, CornerRadius, FontSelection, Response, Role, Sense, Stroke, Ui, Vec2, Widget,
-    WidgetInfo, WidgetText, vec2,
+    Color32, CornerRadius, Response, Role, Sense, Stroke, Ui, Vec2, Widget, WidgetInfo, WidgetText,
+    vec2,
 };
 
-use crate::theme::Theme;
+use crate::theme::{Theme, placeholder_galley};
 
 /// A styled checkbox.
 ///
@@ -94,15 +94,8 @@ impl<'a> Widget for Checkbox<'a> {
         let gap = 6.0;
 
         let label = self.label.text();
-        let galley = (!self.hide_label && !label.is_empty()).then(|| {
-            egui::WidgetText::from(egui::RichText::new(label).color(p.text).size(t.body))
-                .into_galley(
-                    ui,
-                    Some(egui::TextWrapMode::Extend),
-                    ui.available_width(),
-                    FontSelection::FontId(egui::FontId::proportional(t.body)),
-                )
-        });
+        let galley = (!self.hide_label && !label.is_empty())
+            .then(|| placeholder_galley(ui, label, t.body, false, f32::INFINITY));
         let desired = match &galley {
             Some(g) => vec2(box_size + gap + g.size().x, box_size.max(g.size().y)),
             None => Vec2::splat(box_size),
@@ -164,11 +157,9 @@ impl<'a> Widget for Checkbox<'a> {
         }
 
         // A checkbox with no selected state is announced as mixed.
-        let selected = (!self.indeterminate).then_some(*self.checked);
-        response.widget_info(|| {
-            let mut info = WidgetInfo::labeled(Role::CheckBox, ui.is_enabled(), label);
-            info.selected = selected;
-            info
+        response.widget_info(|| WidgetInfo {
+            selected: (!self.indeterminate).then_some(*self.checked),
+            ..WidgetInfo::labeled(Role::CheckBox, ui.is_enabled(), label)
         });
         response
     }

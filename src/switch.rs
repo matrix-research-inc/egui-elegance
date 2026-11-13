@@ -16,12 +16,12 @@
 //! The knob transition is animated via [`egui::Context::animate_bool_responsive`].
 
 use egui::{
-    Color32, CornerRadius, FontSelection, Response, Role, Sense, Stroke, Ui, Vec2, Widget,
-    WidgetInfo, WidgetText, pos2, vec2,
+    Color32, CornerRadius, Response, Role, Sense, Stroke, Ui, Widget, WidgetInfo, WidgetText, pos2,
+    vec2,
 };
 
 use crate::Accent;
-use crate::theme::{Theme, mix, with_alpha};
+use crate::theme::{Theme, mix, placeholder_galley, with_alpha};
 
 /// A sliding on/off switch bound to a `&mut bool`.
 #[must_use = "Add this widget with `ui.add(...)`."]
@@ -95,23 +95,13 @@ impl<'a> Widget for Switch<'a> {
         let gap: f32 = 8.0;
 
         let label_text = self.label.text();
-        let has_label = !self.hide_label && !label_text.is_empty();
-
-        let galley = has_label.then(|| {
-            egui::WidgetText::from(egui::RichText::new(label_text).color(p.text).size(t.body))
-                .into_galley(
-                    ui,
-                    Some(egui::TextWrapMode::Extend),
-                    ui.available_width(),
-                    FontSelection::FontId(egui::FontId::proportional(t.body)),
-                )
-        });
-
-        let text_size = galley.as_ref().map_or(Vec2::ZERO, |g| g.size());
-        let desired = vec2(
-            track_w + if has_label { gap + text_size.x } else { 0.0 },
-            track_h.max(text_size.y),
-        );
+        // Uncoloured, so the paint call below can fade it when disabled.
+        let galley = (!self.hide_label && !label_text.is_empty())
+            .then(|| placeholder_galley(ui, label_text, t.body, false, f32::INFINITY));
+        let desired = match &galley {
+            Some(g) => vec2(track_w + gap + g.size().x, track_h.max(g.size().y)),
+            None => vec2(track_w, track_h),
+        };
 
         let sense = if self.enabled {
             Sense::click()
@@ -183,7 +173,7 @@ impl<'a> Widget for Switch<'a> {
                 .circle_filled(knob_center, knob_d * 0.5, knob_color);
 
             if let Some(g) = galley {
-                let text_pos = pos2(track_rect.max.x + gap, rect.center().y - text_size.y * 0.5);
+                let text_pos = pos2(track_rect.max.x + gap, rect.center().y - g.size().y * 0.5);
                 let color = if self.enabled { p.text } else { p.text_faint };
                 ui.painter().galley(text_pos, g, color);
             }

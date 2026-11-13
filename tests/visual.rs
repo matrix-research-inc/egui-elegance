@@ -443,6 +443,9 @@ fn toggles_ui(ui: &mut egui::Ui) {
         ui.add_space(16.0);
         ui.add(Switch::new(&mut switch_off, "Wi-Fi").hide_label());
     });
+    ui.horizontal(|ui| {
+        ui.add(Switch::new(&mut switch_on, "Disabled").enabled(false));
+    });
     ui.add_space(10.0);
 
     ui.label(theme.muted_text("Segmented"));
