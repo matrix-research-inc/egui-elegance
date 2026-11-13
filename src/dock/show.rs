@@ -9,7 +9,7 @@ use egui::{
 
 use super::drag::{self, DragState, GroupGeom};
 use super::layout::{DockLayout, GroupId, Node, SplitDirection, TabGroup};
-use super::{Dock, DockEvent, DockTab, DockTabContext, DockViewer, TabAction};
+use super::{Dock, DockEvent, DockGroupContext, DockTab, DockTabContext, DockViewer, TabAction};
 use crate::tab_paint::{self, TAB_GAP, TabContent, TabState};
 use crate::theme::{Theme, with_alpha};
 use crate::{ContextMenu, Menu, MenuItem};
@@ -22,9 +22,12 @@ const STRIP_PAD_X: f32 = 4.0;
 pub(super) const STRIP_PAD_Y: f32 = 4.0;
 /// Tabs with short labels are padded out to this width.
 const SHORT_TAB_WIDTH: f32 = 72.0;
-/// Width of the button that opens a menu of every tab in an overflowing strip.
-const OVERFLOW_BUTTON_WIDTH: f32 = 24.0;
-const OVERFLOW_BUTTON_RADIUS: u8 = 4;
+/// Width of a strip button, such as the one that opens a menu of every tab
+/// in an overflowing strip.
+pub(super) const STRIP_BUTTON_WIDTH: f32 = 24.0;
+const STRIP_BUTTON_RADIUS: u8 = 4;
+/// Space between the tabs and the viewer's strip widgets.
+const STRIP_UI_GAP: f32 = 4.0;
 /// Distance from either end of an overflowing strip within which a dragged
 /// tab scrolls it, and how fast, in points per second.
 const STRIP_AUTOSCROLL_EDGE: f32 = 32.0;
@@ -135,6 +138,20 @@ pub(super) fn show<T: Clone + Eq + Hash>(
     }
     for action in actions {
         match action {
+            TabAction::Add(tab, group) => {
+                if layout.contains::<T>(&tab) {
+                    let newly_active = !layout.active_tabs().contains(&&tab);
+                    layout.activate::<T>(&tab);
+                    if newly_active {
+                        events.push(DockEvent::TabActivated(tab));
+                        changed = true;
+                    }
+                } else {
+                    layout.add_tab_to(group, tab.clone());
+                    events.push(DockEvent::TabAdded(tab));
+                    changed = true;
+                }
+            }
             TabAction::Close(tab) => {
                 if let Some(removed) = layout.remove_tab(&tab) {
                     events.push(DockEvent::TabClosed(removed));
@@ -233,8 +250,8 @@ struct Pass<'a, T> {
     dragging: bool,
     geoms: Vec<GroupGeom>,
     events: Vec<DockEvent<T>>,
-    /// Tab closes and splits, applied once the pass no longer borrows the
-    /// layout.
+    /// Tab additions, closes and splits, applied once the pass no longer
+    /// borrows the layout.
     actions: Vec<TabAction<T>>,
     new_drag: Option<DragState>,
     focus: Option<GroupId>,
@@ -362,11 +379,11 @@ impl<T: Clone + Eq + Hash> Pass<'_, T> {
             pos2(strip.min.x + STRIP_PAD_X, tabs_top),
             pos2(strip.max.x - STRIP_PAD_X, tabs_top + tab_height),
         );
+        let row = self.strip_ui(group, row);
         let widths = fit_widths(&natural, min_width, (row.width() - gaps).max(0.0));
         let content_width = widths.iter().sum::<f32>() + gaps;
-        let overflow_button = (content_width > row.width() + 0.5).then(|| {
-            Rect::from_min_max(pos2(row.max.x - OVERFLOW_BUTTON_WIDTH, row.min.y), row.max)
-        });
+        let overflow_button = (content_width > row.width() + 0.5)
+            .then(|| Rect::from_min_max(pos2(row.max.x - STRIP_BUTTON_WIDTH, row.min.y), row.max));
         let tab_clip = match overflow_button {
             // A pane narrower than the button keeps an empty, not inverted, clip.
             Some(button) => Rect::from_min_max(
@@ -479,7 +496,7 @@ impl<T: Clone + Eq + Hash> Pass<'_, T> {
             paint_strip_fades(&tab_painter, tab_clip, strip_bg, offset > 0.5, hidden_right);
         }
         if let Some(button) = overflow_button
-            && let Some(i) = self.overflow_menu(group, &tabs, button, strip_bg)
+            && let Some(i) = self.overflow_menu(group, &tabs, button)
         {
             activate = Some(i);
         }
@@ -545,6 +562,32 @@ impl<T: Clone + Eq + Hash> Pass<'_, T> {
             tabs: tab_rects,
             tab_clip,
         });
+    }
+
+    /// Run [`DockViewer::tab_strip_ui`] at the right end of a group's tab
+    /// `row`, and return the part of `row` left for the tabs.
+    fn strip_ui(&mut self, group: &TabGroup<T>, row: Rect) -> Rect {
+        let mut child = self.ui.new_child(
+            UiBuilder::new()
+                .id_salt((self.base_id, "strip_ui", group.id))
+                .max_rect(row)
+                .layout(Layout::right_to_left(Align::Center)),
+        );
+        child.set_clip_rect(row.intersect(self.ui.clip_rect()));
+        let mut context = DockGroupContext {
+            tabs: &group.tabs,
+            active: group.active,
+            group: group.id,
+            actions: &mut self.actions,
+        };
+        self.viewer.tab_strip_ui(&mut child, &mut context);
+        let used = child.min_rect();
+        if used.width() > 0.0 {
+            let right = (used.min.x - STRIP_UI_GAP).max(row.min.x);
+            Rect::from_min_max(row.min, pos2(right, row.max.y))
+        } else {
+            row
+        }
     }
 
     /// Update and return the horizontal scroll offset of a group's tab strip.
@@ -632,9 +675,7 @@ impl<T: Clone + Eq + Hash> Pass<'_, T> {
         group: &TabGroup<T>,
         tabs: &[DockTab],
         button: Rect,
-        strip_bg: egui::Color32,
     ) -> Option<usize> {
-        let p = &self.theme.palette;
         let resp = self.ui.interact(
             button,
             self.base_id.with(("overflow", group.id)),
@@ -642,18 +683,8 @@ impl<T: Clone + Eq + Hash> Pass<'_, T> {
         );
         resp.widget_info(|| WidgetInfo::labeled(Role::Button, true, "All tabs"));
         let hovered = !self.dragging && resp.hovered();
-        if hovered {
-            self.ui.painter().rect_filled(
-                button.shrink(2.0),
-                CornerRadius::same(OVERFLOW_BUTTON_RADIUS),
-                p.depth_tint(strip_bg, 0.10),
-            );
-        }
-        paint_chevron_down(
-            self.ui.painter(),
-            button.center(),
-            if hovered { p.text } else { p.text_muted },
-        );
+        let color = paint_strip_button(self.ui.painter(), self.theme, button, hovered);
+        paint_chevron_down(self.ui.painter(), button.center(), color);
 
         let mut picked = None;
         Menu::new("tabs").show_below(&resp, |ui| {
@@ -747,6 +778,26 @@ fn paint_strip_fades(
     }
     if !mesh.is_empty() {
         painter.add(mesh);
+    }
+}
+
+/// Paint a strip button's hover fill, and return the colour for its glyph.
+pub(super) fn paint_strip_button(
+    painter: &egui::Painter,
+    theme: &Theme,
+    rect: Rect,
+    hovered: bool,
+) -> egui::Color32 {
+    let p = &theme.palette;
+    if hovered {
+        painter.rect_filled(
+            rect.shrink(2.0),
+            CornerRadius::same(STRIP_BUTTON_RADIUS),
+            p.depth_tint(tab_paint::strip_bg(theme), 0.10),
+        );
+        p.text
+    } else {
+        p.text_muted
     }
 }
 

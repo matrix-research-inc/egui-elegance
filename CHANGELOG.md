@@ -4,6 +4,19 @@ Notable changes to `egui-elegance`. Where a version has [GitHub release notes](h
 
 Versions before 0.11.0 predate tagging; see the git history for those.
 
+## Unreleased
+
+### Added
+
+- `DockViewer::tab_strip_ui` adds widgets to the right end of each tab strip, such as a "+" button; its `DockGroupContext` can `add` a tab to that group (emits `DockEvent::TabAdded`). `DockStripButton` matches the strip's own buttons.
+- `DockLayout::insert_node_beside` inserts several panes at once with a chosen share of the space.
+- `DockLayout::focused_tab` returns the focused group's active tab, e.g. to split beside it.
+- `DockTab::tint` colours a tab's label and icon.
+
+### Changed
+
+- **Breaking:** `DockEvent` has a new `TabAdded` variant, and `DockTab` is `#[non_exhaustive]`, so build it with `DockTab::new` and its builder methods.
+
 ## [0.19.0](https://github.com/matrix-research-inc/egui-elegance/releases/tag/v0.19.0) — 2026-11-13
 
 ### Added

@@ -296,6 +296,7 @@ impl BrowserTabs {
             let content = TabContent {
                 label: &tab.label,
                 icon: tab.icon.as_deref(),
+                tint: None,
                 dirty: tab.dirty,
                 closable: true,
             };

@@ -86,6 +86,16 @@ impl<T> DockNode<T> {
             second: Box::new(second),
         }
     }
+
+    fn for_each_tab<'a>(&'a self, f: &mut impl FnMut(&'a T)) {
+        match self {
+            Self::Tabs(tabs) => tabs.iter().for_each(f),
+            Self::Split { first, second, .. } => {
+                first.for_each_tab(f);
+                second.for_each_tab(f);
+            }
+        }
+    }
 }
 
 /// Stable identity of a tab group within one [`DockLayout`].
@@ -283,6 +293,31 @@ impl<T: Clone + Eq + Hash> DockLayout<T> {
         tabs
     }
 
+    /// The active tab of the focused group, or `None` if the layout is empty.
+    /// The focused group is the one the user last clicked or moved a tab
+    /// into, or that last gained a tab from code, falling back to the first
+    /// group. [`Self::add_tab`] adds there; pass this tab to
+    /// [`Self::insert_beside`] to open a pane next to it.
+    ///
+    /// ```
+    /// use elegance::{DockLayout, DockNode, DockSide};
+    ///
+    /// let mut layout = DockLayout::<String>::from_node(DockNode::row(
+    ///     0.5,
+    ///     DockNode::tabs(["files"]),
+    ///     DockNode::tabs(["main.rs", "lib.rs"]),
+    /// ));
+    /// layout.activate("lib.rs");
+    /// let focused = layout.focused_tab().cloned().unwrap();
+    /// assert!(layout.insert_beside(&focused, "output", DockSide::Bottom));
+    /// assert_eq!(layout.focused_tab().map(String::as_str), Some("output"));
+    /// ```
+    pub fn focused_tab(&self) -> Option<&T> {
+        self.focused_group()
+            .and_then(|id| self.group(id))
+            .and_then(TabGroup::active_tab)
+    }
+
     /// The tabs in the same group as `tab`, including `tab` itself, in strip
     /// order. Empty if `tab` is not in the layout.
     pub fn group_tabs<Q>(&self, tab: &Q) -> &[T]
@@ -312,21 +347,40 @@ impl<T: Clone + Eq + Hash> DockLayout<T> {
             return;
         }
         let target = self.focused_group();
-        match target.and_then(|id| self.group_mut(id)) {
-            Some(group) => {
-                group.tabs.push(tab);
-                group.active = group.tabs.len() - 1;
-            }
-            None => {
-                let id = self.alloc_group();
-                self.root = Some(Node::Group(TabGroup {
-                    id,
-                    tabs: vec![tab],
-                    active: 0,
-                }));
-                self.focused = Some(id);
-            }
+        self.push_tab(target, tab);
+    }
+
+    /// Add `tab`, which is not in the layout, to the end of `group` and
+    /// activate it, falling back to the focused group if `group` is gone.
+    pub(crate) fn add_tab_to(&mut self, group: GroupId, tab: T) {
+        debug_assert!(!self.contains::<T>(&tab), "add_tab_to: tab already present");
+        let target = match self.group(group) {
+            Some(_) => Some(group),
+            None => self.focused_group(),
+        };
+        self.push_tab(target, tab);
+    }
+
+    /// Append `tab`, which is not in the layout, to group `target`, then
+    /// activate and focus it. Without a target the layout is empty, and `tab`
+    /// starts its first group.
+    fn push_tab(&mut self, target: Option<GroupId>, tab: T) {
+        if let Some(id) = target
+            && let Some(group) = self.group_mut(id)
+        {
+            group.tabs.push(tab);
+            group.active = group.tabs.len() - 1;
+            self.focused = Some(id);
+            return;
         }
+        debug_assert!(self.root.is_none(), "push_tab: no target group");
+        let id = self.alloc_group();
+        self.root = Some(Node::Group(TabGroup {
+            id,
+            tabs: vec![tab],
+            active: 0,
+        }));
+        self.focused = Some(id);
     }
 
     /// Remove a tab and return it, or `None` if it was not in the layout.
@@ -448,14 +502,85 @@ impl<T: Clone + Eq + Hash> DockLayout<T> {
         T: Borrow<Q>,
         Q: Eq + ?Sized,
     {
+        self.insert_node_beside(anchor, DockNode::Tabs(vec![tab.into()]), side, 0.5)
+    }
+
+    /// Put the panes described by `node` on `side` of the group holding
+    /// `anchor`, giving them `fraction` of that pane's space. Use it to add
+    /// several panes at once with sizes of your choosing, where repeated
+    /// [`Self::insert_beside`] calls would halve the space each time. The
+    /// first group of `node` gets focus. `fraction` is clamped to `[0, 1]`,
+    /// and panes never shrink below
+    /// [`Dock::min_pane_size`](crate::Dock::min_pane_size).
+    ///
+    /// Tabs of `node` already in the layout are moved into it. A tab that
+    /// appears more than once in `node` keeps its first occurrence, and empty
+    /// groups are dropped. Returns `false` and changes nothing if `anchor` is
+    /// not in the layout, if `node` has no tabs, or if `node` holds every tab
+    /// in `anchor`'s group, which would leave nothing to insert beside.
+    ///
+    /// ```
+    /// use elegance::{DockLayout, DockNode, DockSide};
+    ///
+    /// let mut layout = DockLayout::<String>::single(["main.rs"]);
+    /// // Three equal panes along the bottom 40% of the dock.
+    /// let plots = DockNode::row(
+    ///     1.0 / 3.0,
+    ///     DockNode::tabs(["plot 1"]),
+    ///     DockNode::row(0.5, DockNode::tabs(["plot 2"]), DockNode::tabs(["plot 3"])),
+    /// );
+    /// assert!(layout.insert_node_beside("main.rs", plots, DockSide::Bottom, 0.4));
+    /// assert_eq!(layout.group_count(), 4);
+    /// assert_eq!(layout.focused_tab().map(String::as_str), Some("plot 1"));
+    /// ```
+    pub fn insert_node_beside<Q>(
+        &mut self,
+        anchor: &Q,
+        node: DockNode<T>,
+        side: DockSide,
+        fraction: f32,
+    ) -> bool
+    where
+        T: Borrow<Q>,
+        Q: Eq + ?Sized,
+    {
         let Some(group) = self.group_of(anchor) else {
             return false;
         };
-        let tab = tab.into();
-        if self.contains::<T>(&tab) {
-            return self.move_tab::<T>(&tab, DropTarget::Edge { group, side });
+        let mut incoming = HashSet::<T>::new();
+        node.for_each_tab(&mut |tab| {
+            incoming.insert(tab.clone());
+        });
+        let anchor_tabs = self.group(group).map_or(&[][..], |g| &g.tabs);
+        if incoming.is_empty() || anchor_tabs.iter().all(|tab| incoming.contains::<T>(tab)) {
+            return false;
         }
-        self.split_group(group, side, tab);
+
+        // Keep each tab's first occurrence and drop emptied groups. The
+        // subtree keeps at least one tab, since `incoming` is not empty.
+        let mut subtree = self.build(node);
+        subtree.for_each_group_mut(&mut |g| g.tabs.retain(|tab| incoming.remove::<T>(tab)));
+        let Some(subtree) = prune(subtree) else {
+            return false;
+        };
+        // Move tabs already in the layout. The anchor's group survives: it
+        // holds a tab not in `node`.
+        subtree.for_each_group(&mut |g| {
+            for tab in &g.tabs {
+                self.remove_tab::<T>(tab);
+            }
+        });
+        let mut first_group = None;
+        subtree.for_each_group(&mut |g| {
+            first_group.get_or_insert(g.id);
+        });
+
+        let leaf = self.root.as_mut().and_then(|r| r.group_node_mut(group));
+        debug_assert!(leaf.is_some(), "insert_node_beside: anchor group gone");
+        if let Some(leaf) = leaf {
+            split_node(leaf, side, subtree, fraction);
+            self.focused = first_group;
+        }
         true
     }
 
@@ -528,7 +653,12 @@ impl<T: Clone + Eq + Hash> DockLayout<T> {
         let node = self.root.as_mut().and_then(|r| r.group_node_mut(group));
         debug_assert!(node.is_some(), "split_group: group {group} not in layout");
         if let Some(node) = node {
-            split_node(node, side, tab, new_id);
+            let added = Node::Group(TabGroup {
+                id: new_id,
+                tabs: vec![tab],
+                active: 0,
+            });
+            split_node(node, side, added, 0.5);
             self.focused = Some(new_id);
         }
     }
@@ -840,32 +970,32 @@ fn prune<T>(node: Node<T>) -> Option<Node<T>> {
     }
 }
 
-/// Replace the leaf `node` with an even split of it and a new group `new_id`
-/// holding `tab` on `side`.
-fn split_node<T>(node: &mut Node<T>, side: DockSide, tab: T, new_id: GroupId) {
-    let added = Node::Group(TabGroup {
-        id: new_id,
-        tabs: vec![tab],
-        active: 0,
-    });
-    // Swap a placeholder in so the existing leaf can move into the split.
+/// Replace `node` with a split of it and `added` on `side`, giving `added`
+/// `share` of the space.
+fn split_node<T>(node: &mut Node<T>, side: DockSide, added: Node<T>, share: f32) {
+    let share = if share.is_finite() {
+        share.clamp(0.0, 1.0)
+    } else {
+        0.5
+    };
+    // Swap a placeholder in so the existing node can move into the split.
     let existing = std::mem::replace(
         node,
         Node::Group(TabGroup {
-            id: new_id,
+            id: 0,
             tabs: Vec::new(),
             active: 0,
         }),
     );
-    let (direction, first, second) = match side {
-        DockSide::Left => (SplitDirection::Row, added, existing),
-        DockSide::Right => (SplitDirection::Row, existing, added),
-        DockSide::Top => (SplitDirection::Column, added, existing),
-        DockSide::Bottom => (SplitDirection::Column, existing, added),
+    let (direction, first, second, fraction) = match side {
+        DockSide::Left => (SplitDirection::Row, added, existing, share),
+        DockSide::Right => (SplitDirection::Row, existing, added, 1.0 - share),
+        DockSide::Top => (SplitDirection::Column, added, existing, share),
+        DockSide::Bottom => (SplitDirection::Column, existing, added, 1.0 - share),
     };
     *node = Node::Split {
         direction,
-        fraction: 0.5,
+        fraction,
         first: Box::new(first),
         second: Box::new(second),
     };
@@ -1206,6 +1336,111 @@ mod tests {
         assert!(!layout.insert_beside("missing", "x", DockSide::Right));
         assert!(!layout.insert_beside("files", "files", DockSide::Right));
         assert_eq!(layout, before);
+    }
+
+    #[test]
+    fn focused_tab_follows_focus_and_falls_back_to_the_first_group() {
+        assert!(DockLayout::<String>::new().focused_tab().is_none());
+        let mut layout = three_pane();
+        assert_eq!(layout.focused_tab().unwrap(), "files");
+        layout.activate("preview");
+        assert_eq!(layout.focused_tab().unwrap(), "preview");
+        layout.remove_tab("editor");
+        layout.remove_tab("preview");
+        assert_eq!(layout.focused_tab().unwrap(), "files");
+    }
+
+    /// The split fraction of the root, and its children.
+    fn root_split(
+        layout: &DockLayout<String>,
+    ) -> (SplitDirection, f32, &Node<String>, &Node<String>) {
+        let Some(Node::Split {
+            direction,
+            fraction,
+            first,
+            second,
+        }) = &layout.root
+        else {
+            panic!("expected a root split");
+        };
+        (*direction, *fraction, first, second)
+    }
+
+    #[test]
+    fn insert_node_beside_gives_the_node_its_share() {
+        let plots = || DockNode::row(0.25, DockNode::tabs(["a"]), DockNode::tabs(["b"]));
+
+        let mut layout = DockLayout::<String>::single(["main"]);
+        assert!(layout.insert_node_beside("main", plots(), DockSide::Bottom, 0.4));
+        let (direction, fraction, first, second) = root_split(&layout);
+        assert_eq!(direction, SplitDirection::Column);
+        assert!((fraction - 0.6).abs() < 1e-6);
+        assert!(matches!(first, Node::Group(g) if g.tabs == ["main"]));
+        assert!(matches!(second, Node::Split { fraction, .. } if *fraction == 0.25));
+        assert_eq!(layout.focused_tab().unwrap(), "a");
+
+        let mut layout = DockLayout::<String>::single(["main"]);
+        assert!(layout.insert_node_beside("main", plots(), DockSide::Left, 0.3));
+        let (direction, fraction, first, _) = root_split(&layout);
+        assert_eq!(direction, SplitDirection::Row);
+        assert_eq!(fraction, 0.3);
+        assert!(matches!(first, Node::Split { .. }));
+
+        let mut layout = DockLayout::<String>::single(["main"]);
+        assert!(layout.insert_node_beside("main", plots(), DockSide::Right, f32::NAN));
+        assert_eq!(root_split(&layout).1, 0.5);
+    }
+
+    #[test]
+    fn insert_node_beside_moves_present_tabs_and_drops_duplicates() {
+        let mut layout = three_pane();
+        let node = DockNode::row(
+            0.5,
+            DockNode::tabs(["console", "log"]),
+            DockNode::tabs(["log"]),
+        );
+        assert!(layout.insert_node_beside("editor", node, DockSide::Right, 0.5));
+        // `console`'s old group emptied and the duplicate `log` group was
+        // dropped, leaving a single new group.
+        assert_eq!(layout.group_count(), 3);
+        assert_eq!(layout.group_tabs("log"), ["console", "log"]);
+        assert_eq!(layout.focused_tab().unwrap(), "console");
+
+        // The anchor itself can move, as long as its group keeps a tab.
+        assert!(layout.insert_node_beside(
+            "editor",
+            DockNode::tabs(["editor"]),
+            DockSide::Top,
+            0.5
+        ));
+        assert_eq!(layout.group_tabs("editor"), ["editor"]);
+        assert_eq!(layout.group_tabs("preview"), ["preview"]);
+    }
+
+    #[test]
+    fn insert_node_beside_rejects_without_changing_anything() {
+        let mut layout = three_pane();
+        let before = layout.clone();
+        let tabs = |t: &[&str]| DockNode::<String>::tabs(t.iter().copied());
+        assert!(!layout.insert_node_beside("missing", tabs(&["x"]), DockSide::Right, 0.5));
+        assert!(!layout.insert_node_beside("files", tabs(&[]), DockSide::Right, 0.5));
+        assert!(!layout.insert_node_beside("files", tabs(&["files"]), DockSide::Right, 0.5));
+        let whole_group = tabs(&["preview", "x", "editor"]);
+        assert!(!layout.insert_node_beside("editor", whole_group, DockSide::Right, 0.5));
+        assert_eq!(layout, before);
+    }
+
+    #[test]
+    fn add_tab_to_targets_its_group_or_falls_back_to_the_focused_one() {
+        let mut layout = three_pane();
+        let console = layout.group_of("console").unwrap();
+        layout.add_tab_to(console, "log".to_string());
+        assert_eq!(layout.group_tabs("log"), ["console", "log"]);
+        assert_eq!(layout.focused_tab().unwrap(), "log");
+
+        layout.activate("files");
+        layout.add_tab_to(GroupId::MAX, "notes".to_string());
+        assert_eq!(layout.group_tabs("notes"), ["files", "notes"]);
     }
 
     #[test]

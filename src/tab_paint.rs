@@ -19,7 +19,7 @@ pub(crate) const TAB_GAP: f32 = 2.0;
 const TAB_PAD_X: f32 = 10.0;
 const TAB_PAD_Y: f32 = 7.0;
 const TAB_RADIUS: f32 = 7.0;
-const ICON_SIZE: f32 = 12.0;
+pub(crate) const ICON_SIZE: f32 = 12.0;
 const INNER_GAP: f32 = 8.0;
 const DIRTY_SIZE: f32 = 7.0;
 const DIRTY_TO_CLOSE_GAP: f32 = 5.0;
@@ -35,6 +35,8 @@ const CLOSE_RADIUS: u8 = 4;
 pub(crate) struct TabContent<'a> {
     pub label: &'a str,
     pub icon: Option<&'a str>,
+    /// Replaces the theme's colours for the label and icon.
+    pub tint: Option<Color32>,
     pub dirty: bool,
     pub closable: bool,
 }
@@ -256,12 +258,17 @@ pub(crate) fn paint_content(
     state: TabState,
 ) {
     let p = &theme.palette;
-    let (label_color, icon_color) = if state.active {
-        (p.text, p.focus)
-    } else if state.hovered {
-        (p.text, p.text_muted)
-    } else {
-        (p.text_muted, p.text_faint)
+    let (label_color, icon_color) = match content.tint {
+        // Full strength where the label would use `text`, dimmed toward the
+        // strip where it would be muted.
+        Some(tint) if state.active || state.hovered => (tint, tint),
+        Some(tint) => {
+            let dimmed = mix(state.strip_bg, tint, 0.7);
+            (dimmed, dimmed)
+        }
+        None if state.active => (p.text, p.focus),
+        None if state.hovered => (p.text, p.text_muted),
+        None => (p.text_muted, p.text_faint),
     };
 
     let mut cursor_x = tab_rect.min.x + TAB_PAD_X;
