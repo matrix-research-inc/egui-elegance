@@ -4,8 +4,11 @@
 
 use eframe::egui::{self, Key, Pos2};
 use egui_kittest::Harness;
-use egui_kittest::kittest::Queryable as _;
-use elegance::{Dock, DockEvent, DockLayout, DockNode, DockTab, DockViewer, MenuItem, Theme};
+use egui_kittest::kittest::{NodeT as _, Queryable as _};
+use elegance::{
+    Dock, DockEvent, DockLayout, DockNode, DockSide, DockTab, DockTabContext, DockViewer, MenuItem,
+    Theme,
+};
 
 struct App {
     layout: DockLayout<String>,
@@ -23,7 +26,7 @@ impl DockViewer for Viewer {
 
     fn tab(&mut self, id: &String) -> DockTab {
         DockTab::new(id.as_str())
-            .context_menu(id == "editor")
+            .context_menu(id == "editor" || id == "files")
             .scroll(id == "log")
     }
 
@@ -36,8 +39,22 @@ impl DockViewer for Viewer {
         }
     }
 
-    fn context_menu(&mut self, ui: &mut egui::Ui, id: &String) {
+    fn context_menu(
+        &mut self,
+        ui: &mut egui::Ui,
+        id: &String,
+        context: &mut DockTabContext<'_, String>,
+    ) {
         ui.add(MenuItem::new(format!("menu {id}")));
+        let group = context.group_tabs().join(",");
+        ui.add(MenuItem::new(format!("group {group}")));
+        let split = MenuItem::new(format!("split {id}")).enabled(context.can_split());
+        if ui.add(split).clicked() {
+            context.split(DockSide::Right);
+        }
+        if ui.add(MenuItem::new(format!("close {id}"))).clicked() {
+            context.close();
+        }
     }
 }
 
@@ -178,6 +195,19 @@ fn right_clicking_a_tab_opens_its_context_menu() {
     harness.get_by_label("editor").click_secondary();
     harness.run();
     assert!(harness.query_by_label("menu editor").is_some());
+    // The menu sees the tab's group, so it can offer a split.
+    assert!(harness.query_by_label("group editor,preview").is_some());
+    let split = harness.get_by_label("split editor");
+    assert!(!split.accesskit_node().is_disabled());
+
+    // A tab alone in its group can't be split.
+    harness.key_press(Key::Escape);
+    harness.run();
+    harness.get_by_label("files").click_secondary();
+    harness.run();
+    assert!(harness.query_by_label("group files").is_some());
+    let split = harness.get_by_label("split files");
+    assert!(split.accesskit_node().is_disabled());
 
     // Tabs that don't opt in get no menu.
     harness.key_press(Key::Escape);
@@ -186,6 +216,40 @@ fn right_clicking_a_tab_opens_its_context_menu() {
     harness.run();
     assert!(harness.query_by_label_contains("menu").is_none());
     assert!(harness.state().events.is_empty());
+}
+
+#[test]
+fn a_context_menu_split_moves_the_tab_and_reports_it() {
+    let mut harness = harness(three_pane());
+    harness.get_by_label("editor").click_secondary();
+    harness.run();
+    harness.get_by_label("split editor").click();
+    harness.run();
+
+    let (tabs, groups) = state(&harness);
+    assert_eq!(tabs, ["files", "preview", "editor", "console"]);
+    assert_eq!(groups, 4);
+    let layout = &harness.state().layout;
+    assert_eq!(layout.group_tabs("editor"), ["editor"]);
+    let events = &harness.state().events;
+    assert!(events.contains(&DockEvent::TabMoved("editor".into())));
+    assert!(events.contains(&DockEvent::LayoutChanged));
+}
+
+#[test]
+fn a_context_menu_close_removes_the_tab_and_reports_it() {
+    let mut harness = harness(three_pane());
+    harness.get_by_label("files").click_secondary();
+    harness.run();
+    harness.get_by_label("close files").click();
+    harness.run();
+
+    let (tabs, groups) = state(&harness);
+    assert_eq!(tabs, ["editor", "preview", "console"]);
+    assert_eq!(groups, 2);
+    let events = &harness.state().events;
+    assert!(events.contains(&DockEvent::TabClosed("files".into())));
+    assert!(events.contains(&DockEvent::LayoutChanged));
 }
 
 #[test]

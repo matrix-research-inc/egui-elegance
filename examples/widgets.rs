@@ -10,14 +10,14 @@ use elegance::{
     Accent, Accordion, Avatar, AvatarGroup, AvatarPresence, AvatarSize, AvatarTone, Badge,
     BadgeTone, BrowserTab, BrowserTabs, BrowserTabsEvent, BuiltInTheme, Button, ButtonSize,
     Callout, CalloutTone, Card, Checkbox, CollapsingSection, ColorPicker, ContextMenu, Dock,
-    DockEvent, DockLayout, DockNode, DockTab, DockViewer, Drawer, DrawerSide, FileDropZone,
-    GaugeZones, Indicator, IndicatorState, Knob, KnobSize, LinearGauge, LogBar, Menu, MenuBar,
-    MenuItem, MenuSection, MetricSlider, Modal, PairItem, Pairing, PercentSlider, Popover,
-    PopoverSide, ProgressBar, ProgressRing, RadialGauge, RangeSlider, RemovableChip, Segment,
-    SegmentDot, SegmentedButton, SegmentedControl, SegmentedSize, Select, Slider, SliderHandle,
-    SortableItem, SortableList, Spinner, StatCard, StatusPill, Steps, StepsStyle, SubMenuItem,
-    Switch, TabBar, TagInput, TextArea, TextInput, Theme, ThemeSwitcher, Toast, Toasts, Tooltip,
-    TooltipSide, glyphs,
+    DockEvent, DockLayout, DockNode, DockSide, DockTab, DockTabContext, DockViewer, Drawer,
+    DrawerSide, FileDropZone, GaugeZones, Indicator, IndicatorState, Knob, KnobSize, LinearGauge,
+    LogBar, Menu, MenuBar, MenuItem, MenuSection, MetricSlider, Modal, PairItem, Pairing,
+    PercentSlider, Popover, PopoverSide, ProgressBar, ProgressRing, RadialGauge, RangeSlider,
+    RemovableChip, Segment, SegmentDot, SegmentedButton, SegmentedControl, SegmentedSize, Select,
+    Slider, SliderHandle, SortableItem, SortableList, Spinner, StatCard, StatusPill, Steps,
+    StepsStyle, SubMenuItem, Switch, TabBar, TagInput, TextArea, TextInput, Theme, ThemeSwitcher,
+    Toast, Toasts, Tooltip, TooltipSide, glyphs,
 };
 
 fn main() -> eframe::Result<()> {
@@ -3147,12 +3147,33 @@ impl DockViewer for DemoDockViewer {
     type Tab = DemoTab;
 
     fn tab(&mut self, tab: &DemoTab) -> DockTab {
-        let base = DockTab::new(tab.label());
+        let base = DockTab::new(tab.label()).context_menu(true);
         match tab {
             DemoTab::Files => base.icon(glyphs::FOLDER),
             DemoTab::Editor => base.dirty(true),
             DemoTab::Console => base.icon(glyphs::TERMINAL).scroll([false, true]),
             DemoTab::Preview | DemoTab::Untitled(_) => base,
+        }
+    }
+
+    fn context_menu(
+        &mut self,
+        ui: &mut egui::Ui,
+        _tab: &DemoTab,
+        context: &mut DockTabContext<'_, DemoTab>,
+    ) {
+        for (label, side) in [
+            ("Split Right", DockSide::Right),
+            ("Split Down", DockSide::Bottom),
+        ] {
+            let item = MenuItem::new(label).enabled(context.can_split());
+            if ui.add(item).clicked() {
+                context.split(side);
+            }
+        }
+        ui.separator();
+        if ui.add(MenuItem::new("Close")).clicked() {
+            context.close();
         }
     }
 
@@ -3170,6 +3191,7 @@ impl DockViewer for DemoDockViewer {
         ui.label(
             theme.faint_text("or drop it on a pane edge to split. Drag the gutters to resize."),
         );
+        ui.label(theme.faint_text("Right-click a tab to split it from its pane or close it."));
     }
 }
 
