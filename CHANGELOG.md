@@ -8,19 +8,19 @@ Versions before 0.11.0 predate tagging; see the git history for those.
 
 ### Added
 
-- `IndicatorState::Idle`, a grey dot for something stopped with nothing wrong, such as a session that ended normally.
-- `Checkbox::indeterminate` shows a partly selected box, e.g. for "select all". `Checkbox::hide_label` draws the box alone and keeps the label as its accessible name.
-- `glyphs::SERVER`, `MONITOR`, `COLUMNS` and `ROWS`.
+- `IndicatorState::Idle`, a grey dot for something stopped with nothing wrong.
+- `Checkbox::indeterminate` and `Checkbox::hide_label`.
+- Glyphs `SERVER`, `MONITOR`, `COLUMNS` and `ROWS`.
 
 ### Changed
 
-- **Breaking:** `IndicatorState` is `#[non_exhaustive]`; add a wildcard arm to exhaustive matches.
-- When any item in a menu has an icon, check or radio mark, every item in it leaves room for one, so labels line up.
+- **Breaking:** `IndicatorState` is `#[non_exhaustive]`.
+- Menu labels line up when any item has an icon, check or radio mark.
 
 ### Fixed
 
-- A one-line `Callout` with long text no longer runs under its actions; the text truncates before them. A long multi-line title wraps before them.
-- `Checkbox` with an empty label no longer leaves a gap after the box, and reports its checked state to screen readers.
+- `Callout` text truncates or wraps before its actions instead of running under them.
+- `Checkbox` reports its checked state to screen readers and leaves no gap with an empty label.
 
 ## [0.20.1](https://github.com/matrix-research-inc/egui-elegance/releases/tag/v0.20.1) — 2026-11-13
 

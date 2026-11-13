@@ -305,8 +305,7 @@ impl<'a> Callout<'a> {
                                             egui::Label::new(
                                                 egui::RichText::new(title.text())
                                                     .color(p.text)
-                                                    .size(body_size)
-                                                    .strong(),
+                                                    .size(body_size),
                                             )
                                             .wrap(),
                                         );
@@ -345,38 +344,19 @@ impl<'a> Callout<'a> {
                             .wrap_mode(egui::TextWrapMode::Extend),
                         );
 
-                        // Title (strong) then body (muted), as one line that
-                        // truncates once, so a long title leaves no stray
-                        // ellipsis for the body.
+                        // Title then muted body, as one line that truncates
+                        // once, so a long title leaves no stray ellipsis for
+                        // the body.
+                        let font = egui::FontId::proportional(body_size);
                         let mut line = egui::text::LayoutJob::default();
-                        let mut append = |text: egui::RichText, leading_space: f32| {
-                            text.append_to(
-                                &mut line,
-                                ui.style(),
-                                egui::FontSelection::Default,
-                                Align::Center,
-                            );
-                            if let Some(section) = line.sections.last_mut() {
-                                section.leading_space = leading_space;
-                            }
-                        };
                         if let Some(title) = &title {
-                            append(
-                                egui::RichText::new(title.text())
-                                    .color(p.text)
-                                    .size(body_size)
-                                    .strong(),
-                                0.0,
-                            );
+                            let format = egui::TextFormat::simple(font.clone(), p.text);
+                            line.append(title.text(), 0.0, format);
                         }
                         if let Some(body) = &body {
                             let gap = if title.is_some() { 10.0 } else { 0.0 };
-                            append(
-                                egui::RichText::new(body.text())
-                                    .color(p.text_muted)
-                                    .size(body_size),
-                                gap,
-                            );
+                            let format = egui::TextFormat::simple(font, p.text_muted);
+                            line.append(body.text(), gap, format);
                         }
                         if !line.is_empty() {
                             ui.add(egui::Label::new(line).wrap_mode(egui::TextWrapMode::Truncate));
@@ -425,18 +405,14 @@ fn trailing_then<R>(
     leading: impl FnOnce(&mut Ui),
 ) -> R {
     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-        let spacing = ui.spacing().item_spacing;
         if let Some(open) = open
             && dismiss_button(ui, theme).clicked()
         {
             *open = false;
         }
-        let inner = add_actions(ui);
-        ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
-            // The caller's actions may have changed the spacing.
-            ui.spacing_mut().item_spacing = spacing;
-            leading(ui);
-        });
+        // A scope, so style changes the caller makes don't reach `leading`.
+        let inner = ui.scope(add_actions).inner;
+        ui.with_layout(Layout::left_to_right(Align::Center), leading);
         inner
     })
     .inner

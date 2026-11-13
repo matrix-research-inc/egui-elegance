@@ -100,18 +100,25 @@ fn left_of(texts: &[(String, Rect)], text: &str) -> f32 {
 }
 
 /// One item with a glyph moves every label in its menu past the gutter, from
-/// the first frame on, including items laid out above it.
+/// the first frame on, including items laid out above it and items in other
+/// uis within the menu.
 #[test]
 fn menu_labels_line_up_when_one_item_has_a_glyph() {
     let menu = |icon: bool| {
         painted_text(move |ui| {
-            ui.with_layout(egui::Layout::top_down_justified(egui::Align::Min), |ui| {
+            let body = egui::UiBuilder::new()
+                .ui_stack_info(egui::UiStackInfo::new(egui::UiKind::Menu))
+                .layout(egui::Layout::top_down_justified(egui::Align::Min));
+            ui.scope_builder(body, |ui| {
                 ui.add(MenuItem::new("Cut"));
                 let copy = MenuItem::new("Copy");
-                ui.add(if icon {
-                    copy.icon(glyphs::COPY.to_string())
-                } else {
-                    copy
+                // A nested ui, as `add_enabled_ui` or a scroll area makes.
+                ui.add_enabled_ui(true, |ui| {
+                    ui.add(if icon {
+                        copy.icon(glyphs::COPY.to_string())
+                    } else {
+                        copy
+                    })
                 });
                 ui.add(MenuItem::new("Paste"));
             });
@@ -149,27 +156,24 @@ fn callout_text_leaves_room_for_actions() {
                 .show(ui, |ui| ui.add(Button::new("Save")).rect)
                 .inner;
         });
-        let title = texts
+        // The text on the button's row; a multi-line body below it may span
+        // the full width.
+        let beside = texts
             .iter()
-            .find(|(t, _)| t.starts_with("A long"))
-            .expect("title painted")
-            .1;
-        assert!(
-            title.right() <= button.left(),
-            "multiline={multiline}: title ends at {} but the button starts at {}",
-            title.right(),
-            button.left()
-        );
-        if !multiline {
-            // The body shares the row, after the title.
-            for (text, rect) in texts.iter().filter(|(t, _)| t.starts_with("A long")) {
-                assert!(
-                    rect.right() <= button.left(),
-                    "{text:?} ends at {} but the button starts at {}",
-                    rect.right(),
-                    button.left()
-                );
-            }
+            .filter(|(t, r)| t.starts_with("A long") && r.y_range().intersects(button.y_range()));
+        let mut count = 0;
+        for (text, rect) in beside {
+            count += 1;
+            assert!(
+                rect.right() <= button.left(),
+                "multiline={multiline}: {text:?} ends at {} but the button starts at {}",
+                rect.right(),
+                button.left()
+            );
         }
+        assert!(
+            count > 0,
+            "multiline={multiline}: no text beside the button"
+        );
     }
 }

@@ -413,6 +413,10 @@ fn toggles_ui(ui: &mut egui::Ui) {
         ui.add(Checkbox::new(&mut check_on, "Enabled"));
         ui.add_space(16.0);
         ui.add(Checkbox::new(&mut check_off, "Off"));
+        ui.add_space(16.0);
+        ui.add(Checkbox::new(&mut check_off, "Partly").indeterminate(true));
+        ui.add_space(16.0);
+        ui.add(Checkbox::new(&mut check_on, "Select all").hide_label());
     });
     ui.add_space(10.0);
 
@@ -731,6 +735,7 @@ fn status_ui(ui: &mut egui::Ui) {
             (IndicatorState::On, "On"),
             (IndicatorState::Connecting, "Connecting"),
             (IndicatorState::Off, "Off"),
+            (IndicatorState::Idle, "Idle"),
         ] {
             ui.add(Indicator::new(s));
             ui.label(theme.faint_text(text));

@@ -139,24 +139,19 @@ impl<'a> Widget for Checkbox<'a> {
                 egui::StrokeKind::Inside,
             );
 
+            let m = box_rect.min;
+            let s = box_size;
+            let mark = Stroke::new(1.6, Color32::WHITE);
             if self.indeterminate {
-                let m = box_rect.min;
-                let s = box_size;
-                let y = box_rect.center().y;
-                ui.painter().line_segment(
-                    [egui::pos2(m.x + s * 0.25, y), egui::pos2(m.x + s * 0.75, y)],
-                    Stroke::new(1.6, Color32::WHITE),
-                );
+                ui.painter()
+                    .hline(m.x + s * 0.25..=m.x + s * 0.75, box_rect.center().y, mark);
             } else if *self.checked {
                 // Draw a crisp checkmark.
-                let m = box_rect.min;
-                let s = box_size;
                 let a = egui::pos2(m.x + s * 0.22, m.y + s * 0.52);
                 let b = egui::pos2(m.x + s * 0.44, m.y + s * 0.72);
                 let c = egui::pos2(m.x + s * 0.78, m.y + s * 0.30);
-                let stroke = Stroke::new(1.6, Color32::WHITE);
-                ui.painter().line_segment([a, b], stroke);
-                ui.painter().line_segment([b, c], stroke);
+                ui.painter().line_segment([a, b], mark);
+                ui.painter().line_segment([b, c], mark);
             }
 
             if let Some(galley) = galley {
@@ -168,12 +163,16 @@ impl<'a> Widget for Checkbox<'a> {
             }
         }
 
-        response.widget_info(|| {
-            WidgetInfo::selected(Role::CheckBox, ui.is_enabled(), *self.checked, label)
-        });
         if self.indeterminate {
+            // Neither checked nor unchecked, so no selected state in the
+            // output event; accesskit has a state for it.
+            response.widget_info(|| WidgetInfo::labeled(Role::CheckBox, ui.is_enabled(), label));
             response.ctx.accesskit_node_builder(response.id, |node| {
                 node.set_toggled(accesskit::Toggled::Mixed);
+            });
+        } else {
+            response.widget_info(|| {
+                WidgetInfo::selected(Role::CheckBox, ui.is_enabled(), *self.checked, label)
             });
         }
         response

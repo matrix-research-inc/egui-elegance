@@ -26,7 +26,7 @@
 //! in this version.
 
 use egui::{
-    CornerRadius, Popup, PopupCloseBehavior, Pos2, Response, Role, Sense, Ui, Vec2, Widget,
+    CornerRadius, Popup, PopupCloseBehavior, Pos2, Response, Role, Sense, Ui, UiKind, Vec2, Widget,
     WidgetInfo, WidgetText,
 };
 
@@ -372,7 +372,8 @@ impl Widget for MenuItem {
 }
 
 /// Whether a [`MenuItem`] reserves the leading gutter: it does when it, or
-/// any sibling in the same `Ui`, has a leading glyph.
+/// any other item in the same menu, has a leading glyph. Outside a menu,
+/// "the same menu" is the items sharing the `Ui`'s scope.
 ///
 /// Siblings laid out later in this pass are known from the previous pass. If
 /// an item brings the first glyph into a menu after items above it were laid
@@ -391,7 +392,15 @@ fn reserve_gutter(ui: &Ui, has_leading: bool) -> bool {
     }
 
     let pass = ui.ctx().cumulative_pass_nr();
-    let id = ui.scope_id().with("elegance::menu_gutter");
+    // Key on the enclosing menu, not this `Ui`, so items in nested uis (an
+    // `add_enabled_ui`, a scroll area) share the menu's gutter. Each flyout
+    // is its own menu.
+    let menu = ui
+        .stack()
+        .iter()
+        .find(|frame| matches!(frame.kind(), Some(UiKind::Menu | UiKind::Popup)))
+        .map_or(ui.scope_id(), |frame| frame.scope_id);
+    let id = menu.with("elegance::menu_gutter");
     let (reserve, misaligned) = ui.data_mut(|d| {
         let g = d.get_temp_mut_or_default::<Gutter>(id);
         if g.pass != pass {
@@ -516,7 +525,7 @@ fn sub_menu_show<R>(
 ) -> Option<R> {
     use egui::containers::menu::{MenuConfig, MenuState};
     use egui::{
-        Frame, Layout, Margin, PointerButton, Popup, PopupCloseBehavior, Rect, UiKind, UiStackInfo,
+        Frame, Layout, Margin, PointerButton, Popup, PopupCloseBehavior, Rect, UiStackInfo,
         emath::{Align, RectAlign},
         pos2,
     };

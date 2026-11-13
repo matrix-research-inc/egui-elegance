@@ -1,4 +1,4 @@
-//! Status indicator light: a small circle showing a connection's state.
+//! Status indicator light: a small circle showing a status.
 
 use egui::{CornerRadius, Response, Role, Sense, Stroke, Ui, Vec2, Widget, WidgetInfo};
 
