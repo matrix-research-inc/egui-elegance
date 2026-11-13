@@ -3,7 +3,8 @@
 //! A [`Button`] is a chunky, rounded rectangle with a coloured fill, bold
 //! text, and smooth hover/press transitions. Six accent colours are
 //! available: Blue, Green, Red, Purple, Amber, and Sky. For secondary
-//! actions, [`Button::outline`] gives a transparent, bordered treatment.
+//! actions, [`Button::outline`] gives a transparent, bordered treatment,
+//! neutral unless given an accent.
 //! [`Button::icon`] renders one of the [`glyphs`](crate::glyphs) as a square
 //! icon-only button, and [`Button::icon_text`] puts one beside the label.
 
@@ -94,7 +95,8 @@ pub struct Button {
     /// [`Content::Icon`].
     text: WidgetText,
     content: Content,
-    accent: Accent,
+    /// `None` is Blue when filled and neutral when outlined.
+    accent: Option<Accent>,
     size: ButtonSize,
     outline: bool,
     min_width: Option<f32>,
@@ -132,7 +134,7 @@ impl Button {
         Self {
             text: text.into(),
             content: Content::Text,
-            accent: Accent::Blue,
+            accent: None,
             size: ButtonSize::Medium,
             outline: false,
             min_width: None,
@@ -189,16 +191,25 @@ impl Button {
         }
     }
 
-    /// Pick the button accent colour. Ignored when the button is set to
-    /// [`Button::outline`], which has no fill colour of its own.
+    /// Pick the button accent colour. On an [`outline`](Self::outline)
+    /// button it tints the border and label, e.g. red for a risky secondary
+    /// action:
+    ///
+    /// ```no_run
+    /// # use elegance::{Accent, Button};
+    /// # egui::__run_test_ui(|ui| {
+    /// ui.add(Button::new("Continue anyway").outline().accent(Accent::Red));
+    /// # });
+    /// ```
     #[inline]
     pub fn accent(mut self, accent: Accent) -> Self {
-        self.accent = accent;
+        self.accent = Some(accent);
         self
     }
 
     /// Render the button as a transparent, bordered "ghost" treatment for
-    /// secondary actions.
+    /// secondary actions. Neutral grey unless given an
+    /// [`accent`](Self::accent).
     #[inline]
     pub fn outline(mut self) -> Self {
         self.outline = true;
@@ -512,7 +523,7 @@ fn paint_barber_pole(ui: &Ui, rect: egui::Rect, theme: &Theme, outline: bool) {
 
 fn resolve_colors(
     theme: &Theme,
-    accent: Accent,
+    accent: Option<Accent>,
     outline: bool,
     enabled: bool,
     loading: bool,
@@ -528,7 +539,7 @@ fn resolve_colors(
             );
         }
         return (
-            mix(p.accent_fill(accent), p.card, 0.55),
+            mix(p.accent_fill(accent.unwrap_or(Accent::Blue)), p.card, 0.55),
             Stroke::NONE,
             mix(p.text, p.card, 0.4),
         );
@@ -536,6 +547,25 @@ fn resolve_colors(
     let is_down = !loading && response.is_pointer_button_down_on();
     let is_hovered = !loading && response.hovered();
 
+    if let (true, Some(accent)) = (outline, accent) {
+        let tint = p.accent_fill(accent);
+        // The accent eased toward the text colour, to read as text on the
+        // page in light and dark themes alike.
+        let text = mix(tint, p.text, 0.25);
+        let stroke_color = if is_hovered {
+            tint
+        } else {
+            with_alpha(tint, 210)
+        };
+        let fill = if is_down {
+            with_alpha(tint, 40)
+        } else if is_hovered {
+            with_alpha(tint, 24)
+        } else {
+            Color32::TRANSPARENT
+        };
+        return (fill, Stroke::new(1.0, stroke_color), text);
+    }
     if outline {
         let text = if is_hovered { p.text } else { p.text_muted };
         let stroke_color = if is_hovered { p.text_muted } else { p.border };
@@ -549,6 +579,7 @@ fn resolve_colors(
         return (fill, Stroke::new(1.0, stroke_color), text);
     }
 
+    let accent = accent.unwrap_or(Accent::Blue);
     let resting = p.accent_fill(accent);
     let hover = p.accent_hover(accent);
     let fill = if is_down {

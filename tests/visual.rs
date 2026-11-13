@@ -136,6 +136,19 @@ fn buttons_ui(ui: &mut egui::Ui) {
     });
     ui.add_space(8.0);
     ui.horizontal_wrapped(|ui| {
+        for (lbl, a) in [
+            ("Blue", Accent::Blue),
+            ("Green", Accent::Green),
+            ("Red", Accent::Red),
+            ("Purple", Accent::Purple),
+            ("Amber", Accent::Amber),
+            ("Sky", Accent::Sky),
+        ] {
+            ui.add(Button::new(lbl).outline().accent(a));
+        }
+    });
+    ui.add_space(8.0);
+    ui.horizontal_wrapped(|ui| {
         ui.add(
             Button::new("Small")
                 .size(ButtonSize::Small)

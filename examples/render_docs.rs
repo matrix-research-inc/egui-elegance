@@ -309,6 +309,19 @@ fn render_buttons() {
             });
             ui.add_space(6.0);
             ui.horizontal_wrapped(|ui| {
+                for (lbl, a) in [
+                    ("Blue", Accent::Blue),
+                    ("Green", Accent::Green),
+                    ("Red", Accent::Red),
+                    ("Purple", Accent::Purple),
+                    ("Amber", Accent::Amber),
+                    ("Sky", Accent::Sky),
+                ] {
+                    let _ = ui.add(Button::new(lbl).outline().accent(a));
+                }
+            });
+            ui.add_space(6.0);
+            ui.horizontal_wrapped(|ui| {
                 ui.add(
                     Button::new("Small")
                         .size(ButtonSize::Small)
