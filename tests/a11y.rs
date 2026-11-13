@@ -9,7 +9,7 @@ use egui_kittest::Harness;
 use egui_kittest::kittest::{NodeT, Queryable};
 use elegance::{
     BadgeTone, Checkbox, Drawer, DrawerSide, MenuBar, MenuItem, Modal, RemovableChip, Select,
-    TextInput, Theme, Toast, Toasts,
+    Switch, TextInput, Theme, Toast, Toasts,
 };
 
 fn new_harness<'a>(app: impl FnMut(&mut egui::Ui) + 'a) -> Harness<'a> {
@@ -732,5 +732,27 @@ fn checkbox_reports_checked_mixed_and_hidden_label() {
     assert_eq!(
         toggled("Select all rows"),
         Some(egui::accesskit::Toggled::Mixed)
+    );
+}
+
+#[test]
+fn switch_reports_its_state_and_hidden_label() {
+    let harness = new_harness(|ui| {
+        Theme::slate().install(ui.ctx());
+        let (mut on, mut off) = (true, false);
+        ui.add(Switch::new(&mut on, "Wi-Fi"));
+        ui.add(Switch::new(&mut off, "Notifications").hide_label());
+    });
+
+    let toggled = |label| {
+        harness
+            .get_by_role_and_label(egui::accesskit::Role::Switch, label)
+            .accesskit_node()
+            .toggled()
+    };
+    assert_eq!(toggled("Wi-Fi"), Some(egui::accesskit::Toggled::True));
+    assert_eq!(
+        toggled("Notifications"),
+        Some(egui::accesskit::Toggled::False)
     );
 }

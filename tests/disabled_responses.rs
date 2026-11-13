@@ -161,9 +161,7 @@ fn disabled_widget_shows_its_disabled_tooltip_only() {
                 .on_disabled_hover_text("Airplane mode is on");
         });
     harness.run();
-    harness
-        .get_by_role_and_label(Role::CheckBox, "Wi-Fi")
-        .hover();
+    harness.get_by_role_and_label(Role::Switch, "Wi-Fi").hover();
     harness.run_steps(8);
     assert!(harness.query_by_label("Airplane mode is on").is_some());
     assert!(harness.query_by_label("Toggle Wi-Fi").is_none());

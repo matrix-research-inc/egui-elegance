@@ -2,7 +2,7 @@
 
 use egui::{
     Color32, CornerRadius, FontSelection, Response, Role, Sense, Stroke, Ui, Vec2, Widget,
-    WidgetInfo, WidgetText, accesskit, vec2,
+    WidgetInfo, WidgetText, vec2,
 };
 
 use crate::theme::Theme;
@@ -163,18 +163,13 @@ impl<'a> Widget for Checkbox<'a> {
             }
         }
 
-        if self.indeterminate {
-            // Neither checked nor unchecked, so no selected state in the
-            // output event; accesskit has a state for it.
-            response.widget_info(|| WidgetInfo::labeled(Role::CheckBox, ui.is_enabled(), label));
-            response.ctx.accesskit_node_builder(response.id, |node| {
-                node.set_toggled(accesskit::Toggled::Mixed);
-            });
-        } else {
-            response.widget_info(|| {
-                WidgetInfo::selected(Role::CheckBox, ui.is_enabled(), *self.checked, label)
-            });
-        }
+        // A checkbox with no selected state is announced as mixed.
+        let selected = (!self.indeterminate).then_some(*self.checked);
+        response.widget_info(|| {
+            let mut info = WidgetInfo::labeled(Role::CheckBox, ui.is_enabled(), label);
+            info.selected = selected;
+            info
+        });
         response
     }
 }

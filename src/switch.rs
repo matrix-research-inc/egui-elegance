@@ -28,6 +28,7 @@ use crate::theme::{Theme, mix, with_alpha};
 pub struct Switch<'a> {
     state: &'a mut bool,
     label: WidgetText,
+    hide_label: bool,
     accent: Accent,
     enabled: bool,
 }
@@ -37,6 +38,7 @@ impl<'a> std::fmt::Debug for Switch<'a> {
         f.debug_struct("Switch")
             .field("state", &*self.state)
             .field("label", &self.label.text())
+            .field("hide_label", &self.hide_label)
             .field("accent", &self.accent)
             .field("enabled", &self.enabled)
             .finish()
@@ -46,15 +48,24 @@ impl<'a> std::fmt::Debug for Switch<'a> {
 impl<'a> Switch<'a> {
     /// Create a switch bound to `state` with the given label.
     ///
-    /// Pass `""` for the label if the switch is rendered alongside a
-    /// separately-laid-out caption (e.g., in a settings row).
+    /// When a separate caption sits beside the switch, as in a settings row,
+    /// call [`Switch::hide_label`] rather than passing `""`, so the switch
+    /// keeps an accessible name.
     pub fn new(state: &'a mut bool, label: impl Into<WidgetText>) -> Self {
         Self {
             state,
             label: label.into(),
+            hide_label: false,
             accent: Accent::Sky,
             enabled: true,
         }
+    }
+
+    /// Draw the switch without its label. The label is still the switch's
+    /// accessible name, so pass what it controls ("Notifications").
+    pub fn hide_label(mut self) -> Self {
+        self.hide_label = true;
+        self
     }
 
     /// Colour the "on" state with the given accent. Default: [`Accent::Sky`].
@@ -84,7 +95,7 @@ impl<'a> Widget for Switch<'a> {
         let gap: f32 = 8.0;
 
         let label_text = self.label.text();
-        let has_label = !label_text.is_empty();
+        let has_label = !self.hide_label && !label_text.is_empty();
 
         let galley = has_label.then(|| {
             egui::WidgetText::from(egui::RichText::new(label_text).color(p.text).size(t.body))
@@ -178,8 +189,9 @@ impl<'a> Widget for Switch<'a> {
             }
         }
 
-        response
-            .widget_info(|| WidgetInfo::labeled(Role::CheckBox, self.enabled, self.label.text()));
+        response.widget_info(|| {
+            WidgetInfo::selected(Role::Switch, self.enabled, *self.state, label_text)
+        });
         response
     }
 }

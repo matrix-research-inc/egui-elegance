@@ -427,6 +427,8 @@ fn toggles_ui(ui: &mut egui::Ui) {
         ui.add(Switch::new(&mut switch_off, "Off"));
         ui.add_space(16.0);
         ui.add(Switch::new(&mut switch_green, "Green accent").accent(Accent::Green));
+        ui.add_space(16.0);
+        ui.add(Switch::new(&mut switch_off, "Wi-Fi").hide_label());
     });
     ui.add_space(10.0);
 
