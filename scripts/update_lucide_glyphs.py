@@ -93,6 +93,8 @@ LUCIDE_GLYPHS = [
     ("play", 0xE025),
     ("pause", 0xE026),
     ("square", 0xE027),
+    ("file", 0xE028),
+    ("file-text", 0xE029),
     ("check", 0x2713),
     ("x", 0x2717),
 ]

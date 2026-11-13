@@ -237,6 +237,32 @@ impl<T: Clone + Eq + Hash> DockLayout<T> {
         Self::from_node(DockNode::tabs(tabs))
     }
 
+    /// The layout's shape as a [`DockNode`]: its groups, their tabs in strip
+    /// order, and its splits and fractions. `None` when the layout is empty.
+    ///
+    /// This is a snapshot for inspecting or comparing layouts, as in a test.
+    /// It leaves out each group's active tab and which group has focus, so
+    /// edit a layout with its own methods rather than through
+    /// [`Self::from_node`]`(layout.to_node())`.
+    ///
+    /// ```
+    /// use elegance::{DockLayout, DockNode, DockSide};
+    ///
+    /// let mut layout: DockLayout<String> = DockLayout::single(["editor"]);
+    /// layout.insert_beside("editor", "console".to_string(), DockSide::Bottom);
+    /// assert_eq!(
+    ///     layout.to_node(),
+    ///     Some(DockNode::column(
+    ///         0.5,
+    ///         DockNode::tabs(["editor"]),
+    ///         DockNode::tabs(["console"]),
+    ///     )),
+    /// );
+    /// ```
+    pub fn to_node(&self) -> Option<DockNode<T>> {
+        self.root.as_ref().map(Node::to_node)
+    }
+
     fn build(&mut self, node: DockNode<T>) -> Node<T> {
         match node {
             DockNode::Tabs(tabs) => Node::Group(TabGroup {
@@ -839,6 +865,26 @@ enum MaybeTab<T> {
 }
 
 impl<T> Node<T> {
+    fn to_node(&self) -> DockNode<T>
+    where
+        T: Clone,
+    {
+        match self {
+            Self::Group(g) => DockNode::Tabs(g.tabs.clone()),
+            Self::Split {
+                direction,
+                fraction,
+                first,
+                second,
+            } => DockNode::Split {
+                direction: *direction,
+                fraction: *fraction,
+                first: Box::new(first.to_node()),
+                second: Box::new(second.to_node()),
+            },
+        }
+    }
+
     pub(crate) fn for_each_group<'a>(&'a self, f: &mut impl FnMut(&'a TabGroup<T>)) {
         match self {
             Self::Group(g) => f(g),
@@ -1637,5 +1683,34 @@ mod tests {
         );
         assert!(moved);
         assert!(layout.next_group > 8, "allocator moved past existing ids");
+    }
+
+    #[test]
+    fn to_node_reads_back_the_shape() {
+        assert_eq!(DockLayout::<String>::new().to_node(), None);
+
+        // Duplicates and empty groups are already gone from the layout.
+        let layout = DockLayout::<String>::from_node(DockNode::row(
+            0.25,
+            DockNode::tabs(["files", "editor"]),
+            DockNode::column(0.7, DockNode::tabs(["editor"]), DockNode::Tabs(vec![])),
+        ));
+        assert_eq!(layout.to_node(), Some(DockNode::tabs(["files", "editor"])));
+
+        // Two layouts of the same shape match, however they were built.
+        let mut built = DockLayout::<String>::single(["files"]);
+        built.insert_node_beside(
+            "files",
+            DockNode::column(
+                0.7,
+                DockNode::tabs(["editor", "preview"]),
+                DockNode::tabs(["console"]),
+            ),
+            DockSide::Right,
+            0.75,
+        );
+        built.activate("preview");
+        assert_ne!(built, three_pane());
+        assert_eq!(built.to_node(), three_pane().to_node());
     }
 }

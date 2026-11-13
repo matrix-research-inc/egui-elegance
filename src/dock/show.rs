@@ -579,6 +579,7 @@ impl<T: Clone + Eq + Hash> Pass<'_, T> {
             tabs: &group.tabs,
             active: group.active,
             group: group.id,
+            id: self.base_id.with(("group", group.id)),
             actions: &mut self.actions,
         };
         self.viewer.tab_strip_ui(&mut child, &mut context);
