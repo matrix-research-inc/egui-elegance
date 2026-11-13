@@ -424,7 +424,7 @@ fn dismiss_button(ui: &mut Ui, theme: &Theme) -> Response {
     let size = Vec2::splat(theme.typography.body + 8.0);
     let (rect, response) = ui.allocate_exact_size(size, Sense::click());
     if ui.is_rect_visible(rect) {
-        let color = if response.hovered() || response.has_focus() {
+        let color = if response.hovered() || crate::focus::shows_focus(&response) {
             theme.palette.text
         } else {
             theme.palette.text_faint

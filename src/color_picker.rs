@@ -440,7 +440,7 @@ fn paint_trigger(
     if ui.is_rect_visible(rect) {
         let painter = ui.painter();
         let radius = CornerRadius::same(theme.control_radius as u8);
-        let stroke_color = if response.has_focus() {
+        let stroke_color = if crate::focus::shows_focus(&response) {
             with_alpha(p.focus, 200)
         } else if response.hovered() {
             p.text_muted
@@ -703,7 +703,7 @@ fn paint_focus_ring(
     p: &crate::theme::Palette,
     response: &Response,
 ) {
-    if !response.has_focus() {
+    if !crate::focus::shows_focus(response) {
         return;
     }
     const GAP: f32 = 2.0;

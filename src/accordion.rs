@@ -459,14 +459,15 @@ impl<'a, 'u> AccordionItem<'a, 'u> {
             // slot, rounding the corners that meet the card (top on the first
             // row, bottom on the last) — a square fill/ring would otherwise
             // square off the card's curve (issue #7's pattern).
-            if !disabled && (row_resp.hovered() || row_resp.has_focus()) {
+            let focused = crate::focus::shows_focus(&row_resp);
+            if !disabled && (row_resp.hovered() || focused) {
                 let slot = owner.ui.painter().add(Shape::Noop);
                 owner.highlights.push(PendingHighlight {
                     slot,
                     rect: row_rect,
                     index,
                     is_open,
-                    focused: row_resp.has_focus(),
+                    focused,
                 });
             }
 

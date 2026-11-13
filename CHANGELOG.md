@@ -17,6 +17,7 @@ Versions before 0.11.0 predate tagging; see the git history for those.
 - **Breaking:** `IndicatorState` is `#[non_exhaustive]`.
 - Menu labels line up when any item has an icon, check or radio mark.
 - `Button::accent` tints an `outline` button's border and label (it was ignored), e.g. red for a risky secondary action. Outline buttons without an accent stay neutral.
+- Focus rings show only after keyboard input (Tab, arrows), not after a click, so a dialog opened by mouse no longer rings its close button. Outline buttons now show a ring.
 
 ### Fixed
 

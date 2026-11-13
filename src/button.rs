@@ -537,7 +537,7 @@ fn resolve_colors(
         }
     };
 
-    match (outline, accent) {
+    let (fill, stroke, text) = match (outline, accent) {
         (true, _) if !enabled => (
             Color32::TRANSPARENT,
             Stroke::new(1.0, p.border),
@@ -585,15 +585,15 @@ fn resolve_colors(
             } else {
                 p.accent_fill(accent)
             };
-            // Outline buttons get no ring: modals and drawers focus their
-            // close button on open, and egui can't tell that from keyboard
-            // focus.
-            let stroke = if response.has_focus() {
-                Stroke::new(2.0, with_alpha(p.focus, 180))
-            } else {
-                Stroke::NONE
-            };
-            (fill, stroke, Color32::WHITE)
+            (fill, Stroke::NONE, Color32::WHITE)
         }
-    }
+    };
+    // The ring replaces an outline button's border. A disabled button can't
+    // hold focus, so this never marks one.
+    let stroke = if crate::focus::shows_focus(response) {
+        Stroke::new(2.0, with_alpha(p.focus, 180))
+    } else {
+        stroke
+    };
+    (fill, stroke, text)
 }

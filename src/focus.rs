@@ -1,6 +1,70 @@
-//! Shared focus policy for value widgets.
+//! Shared focus policy: when to draw focus, and focus on press for value
+//! widgets.
 
-use egui::Response;
+use egui::{Context, Event, Id, RawInput, Response, TouchPhase};
+
+/// Whether to draw `response`'s focus indicator: it has focus, and the user
+/// is navigating with the keyboard.
+///
+/// Like the web's `:focus-visible`. Focus also lands on widgets without the
+/// keyboard: a modal focuses its close button when it opens, and a slider
+/// takes focus when grabbed (see [`focus_on_press`]). A ring there, after a
+/// mouse click, is noise; after `Tab` or a keyboard shortcut it shows where
+/// the next key press goes.
+///
+/// Draw a widget's focus indicator only when this is true. Use plain
+/// [`Response::has_focus`] for keyboard handling, which applies however the
+/// widget got focus.
+pub(crate) fn shows_focus(response: &Response) -> bool {
+    response.has_focus() && keyboard_navigation(&response.ctx)
+}
+
+/// Whether the latest input was the keyboard (or an assistive technology)
+/// rather than a pointer, as recorded by [`FocusVisible`].
+///
+/// Without the plugin, which [`Theme::install`](crate::Theme::install)
+/// registers, there is no record, and focus always shows.
+fn keyboard_navigation(ctx: &Context) -> bool {
+    ctx.data(|d| d.get_temp::<bool>(keyboard_navigation_id()))
+        .unwrap_or(true)
+}
+
+fn keyboard_navigation_id() -> Id {
+    Id::unique("elegance::keyboard_navigation")
+}
+
+/// Records whether the latest input was the keyboard or a pointer, for
+/// [`shows_focus`].
+///
+/// A plugin rather than a check inside widgets, because it has to see every
+/// frame's input: the click that opens a modal arrives in a frame where the
+/// modal's close button doesn't exist yet to look.
+pub(crate) struct FocusVisible;
+
+impl egui::Plugin for FocusVisible {
+    fn debug_name(&self) -> &'static str {
+        "elegance::FocusVisible"
+    }
+
+    fn setup(&mut self, ctx: &Context) {
+        ctx.data_mut(|d| d.insert_temp(keyboard_navigation_id(), false));
+    }
+
+    fn input_hook(&mut self, ctx: &Context, input: &mut RawInput) {
+        let latest = input.events.iter().rev().find_map(|event| match event {
+            Event::Key { pressed: true, .. } | Event::AccessKitActionRequest(_) => Some(true),
+            Event::PointerButton { pressed: true, .. }
+            | Event::Touch {
+                phase: TouchPhase::Start,
+                ..
+            } => Some(false),
+            _ => None,
+        });
+        if let Some(keyboard) = latest {
+            ctx.data_mut(|d| d.insert_temp(keyboard_navigation_id(), keyboard));
+        }
+    }
+}
 
 /// Give a value widget keyboard focus when the pointer grabs it.
 ///

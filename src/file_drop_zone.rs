@@ -213,7 +213,7 @@ fn paint_zone(
     let painter = ui.painter();
 
     let hovered = enabled && response.hovered();
-    let focused = enabled && response.has_focus();
+    let focused = enabled && crate::focus::shows_focus(response);
 
     // Background fill. Subtle by default; focus-tinted while a file is dragged
     // over the zone.
