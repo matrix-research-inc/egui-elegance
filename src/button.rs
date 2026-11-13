@@ -3,7 +3,8 @@
 //! A [`Button`] is a chunky, rounded rectangle with a coloured fill, bold
 //! text, and smooth hover/press transitions. Six accent colours are
 //! available: Blue, Green, Red, Purple, Amber, and Sky. For secondary
-//! actions, [`Button::outline`] gives a transparent, bordered treatment.
+//! actions, [`Button::outline`] gives a transparent, bordered treatment,
+//! neutral unless given an accent.
 //! [`Button::icon`] renders one of the [`glyphs`](crate::glyphs) as a square
 //! icon-only button, and [`Button::icon_text`] puts one beside the label.
 
@@ -14,7 +15,7 @@ use egui::{
     WidgetInfo, WidgetText, pos2, vec2,
 };
 
-use crate::theme::{Accent, Theme, mix};
+use crate::theme::{Accent, Theme, mix, with_alpha};
 
 /// Size presets for buttons.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -94,7 +95,8 @@ pub struct Button {
     /// [`Content::Icon`].
     text: WidgetText,
     content: Content,
-    accent: Accent,
+    /// `None` is Blue when filled and neutral when outlined.
+    accent: Option<Accent>,
     size: ButtonSize,
     outline: bool,
     min_width: Option<f32>,
@@ -122,7 +124,8 @@ impl std::fmt::Debug for Button {
 }
 
 impl Button {
-    /// Create a new button. Defaults to the Blue accent and medium size.
+    /// Create a new button. Defaults to medium size and, when filled, the
+    /// Blue accent.
     ///
     /// Only the string content of `text` is used: the label is laid out at the
     /// size preset's font size in the button's own state colour, so a
@@ -132,7 +135,7 @@ impl Button {
         Self {
             text: text.into(),
             content: Content::Text,
-            accent: Accent::Blue,
+            accent: None,
             size: ButtonSize::Medium,
             outline: false,
             min_width: None,
@@ -189,16 +192,25 @@ impl Button {
         }
     }
 
-    /// Pick the button accent colour. Ignored when the button is set to
-    /// [`Button::outline`], which has no fill colour of its own.
+    /// Pick the button accent colour. On an [`outline`](Self::outline)
+    /// button it tints the border and label, e.g. red for a risky secondary
+    /// action:
+    ///
+    /// ```no_run
+    /// # use elegance::{Accent, Button};
+    /// # egui::__run_test_ui(|ui| {
+    /// ui.add(Button::new("Continue anyway").outline().accent(Accent::Red));
+    /// # });
+    /// ```
     #[inline]
     pub fn accent(mut self, accent: Accent) -> Self {
-        self.accent = accent;
+        self.accent = Some(accent);
         self
     }
 
     /// Render the button as a transparent, bordered "ghost" treatment for
-    /// secondary actions.
+    /// secondary actions. Neutral grey unless given an
+    /// [`accent`](Self::accent).
     #[inline]
     pub fn outline(mut self) -> Self {
         self.outline = true;
@@ -392,7 +404,7 @@ impl Widget for Button {
                 .rect(rect, radius, fill, stroke, egui::StrokeKind::Inside);
 
             if self.loading {
-                paint_barber_pole(ui, rect, &theme, self.outline);
+                paint_barber_pole(ui, rect, &theme, with_alpha(text_color, 32));
             }
 
             // A label centres on its layout box, which lines its baseline up
@@ -461,8 +473,9 @@ fn ink_size(galley: &Galley) -> Vec2 {
 
 /// Overlay diagonal "barber pole" stripes drifting across the button, between
 /// the base fill and the text. Inset by a fraction of the corner radius so
-/// the stripes never bleed into the rounded corner cutouts.
-fn paint_barber_pole(ui: &Ui, rect: egui::Rect, theme: &Theme, outline: bool) {
+/// the stripes never bleed into the rounded corner cutouts. Pass a faint
+/// label colour, which reads on filled and outline buttons alike.
+fn paint_barber_pole(ui: &Ui, rect: egui::Rect, theme: &Theme, stripe_color: Color32) {
     crate::request_repaint_at_rate(ui.ctx(), 30.0);
 
     // Inset enough that a square-clip never overlaps the rounded corner area.
@@ -473,14 +486,6 @@ fn paint_barber_pole(ui: &Ui, rect: egui::Rect, theme: &Theme, outline: bool) {
     if stripe_rect.width() <= 0.0 || stripe_rect.height() <= 0.0 {
         return;
     }
-
-    // White stripes read on saturated fills; for outline buttons the fill is
-    // transparent, so use the theme's text colour against the page background.
-    let stripe_color = if outline {
-        crate::theme::with_alpha(theme.palette.text, 32)
-    } else {
-        crate::theme::with_alpha(Color32::WHITE, 32)
-    };
 
     // Geometry scales with the visible height so Small / Medium / Large all
     // read with the same striped-vs-fill ratio. The 0.85 factor lands a Medium
@@ -512,61 +517,83 @@ fn paint_barber_pole(ui: &Ui, rect: egui::Rect, theme: &Theme, outline: bool) {
 
 fn resolve_colors(
     theme: &Theme,
-    accent: Accent,
+    accent: Option<Accent>,
     outline: bool,
     enabled: bool,
     loading: bool,
     response: &Response,
 ) -> (Color32, Stroke, Color32) {
     let p = &theme.palette;
-    if !enabled {
-        if outline {
-            return (
-                Color32::TRANSPARENT,
-                Stroke::new(1.0, p.border),
-                mix(p.text_muted, p.card, 0.4),
-            );
-        }
-        return (
-            mix(p.accent_fill(accent), p.card, 0.55),
-            Stroke::NONE,
-            mix(p.text, p.card, 0.4),
-        );
-    }
     let is_down = !loading && response.is_pointer_button_down_on();
     let is_hovered = !loading && response.hovered();
-
-    if outline {
-        let text = if is_hovered { p.text } else { p.text_muted };
-        let stroke_color = if is_hovered { p.text_muted } else { p.border };
-        let fill = if is_down {
-            with_alpha(p.text_muted, 30)
+    // A wash over the background: pressed, hovered, or none.
+    let wash = |color: Color32, hover: u8, down: u8| {
+        if is_down {
+            with_alpha(color, down)
         } else if is_hovered {
-            with_alpha(p.text_muted, 20)
+            with_alpha(color, hover)
         } else {
             Color32::TRANSPARENT
-        };
-        return (fill, Stroke::new(1.0, stroke_color), text);
+        }
+    };
+
+    match (outline, accent) {
+        (true, _) if !enabled => (
+            Color32::TRANSPARENT,
+            Stroke::new(1.0, p.border),
+            mix(p.text_muted, p.card, 0.4),
+        ),
+        (true, Some(accent)) => {
+            let tint = p.accent_fill(accent);
+            let border = if is_hovered {
+                tint
+            } else {
+                with_alpha(tint, 210)
+            };
+            // The accent eased toward the text colour, so the label reads on
+            // the page in light and dark themes alike.
+            (
+                wash(tint, 24, 40),
+                Stroke::new(1.0, border),
+                mix(tint, p.text, 0.4),
+            )
+        }
+        (true, None) => {
+            let (border, text) = if is_hovered {
+                (p.text_muted, p.text)
+            } else {
+                (p.border, p.text_muted)
+            };
+            (wash(p.text_muted, 20, 30), Stroke::new(1.0, border), text)
+        }
+        (false, accent) => {
+            let accent = accent.unwrap_or(Accent::Blue);
+            if !enabled {
+                return (
+                    mix(p.accent_fill(accent), p.card, 0.55),
+                    Stroke::NONE,
+                    mix(p.text, p.card, 0.4),
+                );
+            }
+
+            let hover = p.accent_hover(accent);
+            let fill = if is_down {
+                // Slightly darker than the hover colour for a satisfying click.
+                mix(hover, Color32::BLACK, 0.08)
+            } else if is_hovered {
+                hover
+            } else {
+                p.accent_fill(accent)
+            };
+            // Outline buttons get no ring: modals and drawers focus their
+            // close button on open, and egui can't tell that from keyboard
+            // focus.
+            let stroke = if response.has_focus() {
+                Stroke::new(2.0, with_alpha(p.focus, 180))
+            } else {
+                Stroke::NONE
+            };
+            (fill, stroke, Color32::WHITE)
+        }
     }
-
-    let resting = p.accent_fill(accent);
-    let hover = p.accent_hover(accent);
-    let fill = if is_down {
-        // Slightly darker than the resting hover colour for a satisfying click.
-        mix(hover, Color32::BLACK, 0.08)
-    } else if is_hovered {
-        hover
-    } else {
-        resting
-    };
-    let stroke = if response.has_focus() {
-        Stroke::new(2.0, with_alpha(p.focus, 180))
-    } else {
-        Stroke::NONE
-    };
-    (fill, stroke, Color32::WHITE)
-}
-
-fn with_alpha(c: Color32, alpha: u8) -> Color32 {
-    crate::theme::with_alpha(c, alpha)
 }

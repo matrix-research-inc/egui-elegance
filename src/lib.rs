@@ -276,6 +276,18 @@ pub mod glyphs {
     /// Text-file icon, for documents and other files with text content
     /// (pairs with [`FILE`]). Source: [Lucide `file-text`](https://lucide.dev/icons/file-text).
     pub const FILE_TEXT: char = '\u{E029}';
+    /// Server icon, for hosts, backends, and remote machines.
+    /// Source: [Lucide `server`](https://lucide.dev/icons/server).
+    pub const SERVER: char = '\u{E02A}';
+    /// Monitor icon, for a computer, a display, or the local machine
+    /// (pairs with [`SERVER`]). Source: [Lucide `monitor`](https://lucide.dev/icons/monitor).
+    pub const MONITOR: char = '\u{E02B}';
+    /// Two side-by-side columns, for side-by-side layouts or a "split right"
+    /// action. Source: [Lucide `columns-2`](https://lucide.dev/icons/columns-2).
+    pub const COLUMNS: char = '\u{E02C}';
+    /// Two stacked rows, for stacked layouts or a "split down" action
+    /// (pairs with [`COLUMNS`]). Source: [Lucide `rows-2`](https://lucide.dev/icons/rows-2).
+    pub const ROWS: char = '\u{E02D}';
     /// Check / done mark, mapped at standard U+2713 so plain `'✓'` literals
     /// also pick up the elegance treatment.
     /// Source: [Lucide `check`](https://lucide.dev/icons/check).

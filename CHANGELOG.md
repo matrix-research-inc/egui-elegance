@@ -4,6 +4,26 @@ Notable changes to `egui-elegance`. Where a version has [GitHub release notes](h
 
 Versions before 0.11.0 predate tagging; see the git history for those.
 
+## Unreleased
+
+### Added
+
+- `IndicatorState::Idle`, a grey dot for something stopped with nothing wrong.
+- `Checkbox::indeterminate`, `Checkbox::hide_label` and `Switch::hide_label`.
+- Glyphs `SERVER`, `MONITOR`, `COLUMNS` and `ROWS`.
+
+### Changed
+
+- **Breaking:** `IndicatorState` is `#[non_exhaustive]`.
+- Menu labels line up when any item has an icon, check or radio mark.
+- `Button::accent` tints an `outline` button's border and label (it was ignored), e.g. red for a risky secondary action. Outline buttons without an accent stay neutral.
+
+### Fixed
+
+- `Callout` text truncates or wraps before its actions instead of running under them.
+- `Checkbox` reports its checked state to screen readers and leaves no gap with an empty label.
+- `Switch` reports itself to screen readers as a switch, with its on/off state. A disabled switch's label fades.
+
 ## [0.20.1](https://github.com/matrix-research-inc/egui-elegance/releases/tag/v0.20.1) — 2026-11-13
 
 ### Added

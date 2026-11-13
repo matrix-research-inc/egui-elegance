@@ -1,18 +1,22 @@
-//! Status indicator light — a small circle with three visual states.
+//! Status indicator light: a small circle showing a status.
 
 use egui::{CornerRadius, Response, Role, Sense, Stroke, Ui, Vec2, Widget, WidgetInfo};
 
 use crate::theme::{Theme, with_alpha};
 
-/// The three visual states of an [`Indicator`].
+/// The visual states of an [`Indicator`].
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum IndicatorState {
     /// Connected / healthy — solid green dot with a subtle glow.
     On,
     /// Disconnected / error — red horizontal bar inside a ring.
     Off,
-    /// Transient / in-progress — amber ring only.
+    /// Transient / in-progress, including reconnecting — amber ring only.
     Connecting,
+    /// Not running, with nothing wrong: not started yet, or ended
+    /// normally — solid grey dot.
+    Idle,
 }
 
 /// A small status light.
@@ -66,6 +70,9 @@ impl Widget for Indicator {
                 IndicatorState::Connecting => {
                     painter.circle_stroke(c, r - 0.5, Stroke::new(1.8, p.warning));
                 }
+                IndicatorState::Idle => {
+                    painter.circle_filled(c, r, p.text_faint);
+                }
             }
         }
 
@@ -77,6 +84,7 @@ impl Widget for Indicator {
                     IndicatorState::On => "status: on",
                     IndicatorState::Off => "status: off",
                     IndicatorState::Connecting => "status: connecting",
+                    IndicatorState::Idle => "status: idle",
                 },
             )
         });

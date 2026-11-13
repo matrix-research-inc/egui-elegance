@@ -26,7 +26,7 @@
 //! in this version.
 
 use egui::{
-    CornerRadius, Popup, PopupCloseBehavior, Pos2, Response, Role, Sense, Ui, Vec2, Widget,
+    CornerRadius, Popup, PopupCloseBehavior, Pos2, Response, Role, Sense, Ui, UiKind, Vec2, Widget,
     WidgetInfo, WidgetText,
 };
 
@@ -87,9 +87,9 @@ impl Menu {
 /// [`Response`]'s `.clicked()` fires on activation.
 ///
 /// The optional [`icon`](Self::icon), [`checked`](Self::checked), and
-/// [`radio`](Self::radio) builders all reserve the same leading gutter,
-/// so toggle items in a menu align cleanly with action items as long as
-/// every item in that menu opts into one of them.
+/// [`radio`](Self::radio) builders draw in a leading gutter. When any item
+/// in a menu has one, every item in that menu reserves the gutter, so
+/// labels line up whether or not their own item has a glyph.
 #[must_use = "Add with `ui.add(...)`."]
 pub struct MenuItem {
     label: WidgetText,
@@ -163,8 +163,7 @@ impl MenuItem {
     }
 
     /// Show a leading icon (any text, typically a unicode glyph) in the
-    /// gutter to the left of the label. Reserves the gutter even when the
-    /// glyph is narrow, so adjacent items align.
+    /// gutter to the left of the label.
     pub fn icon(mut self, icon: impl Into<WidgetText>) -> Self {
         self.leading = Some(Leading::Icon(icon.into()));
         self
@@ -258,7 +257,7 @@ impl Widget for MenuItem {
             None => None,
         };
 
-        let leading_offset = if self.leading.is_some() {
+        let leading_offset = if reserve_gutter(ui, self.leading.is_some()) {
             gutter_w + gutter_gap
         } else {
             0.0
@@ -372,6 +371,58 @@ impl Widget for MenuItem {
     }
 }
 
+/// Whether a [`MenuItem`] reserves the leading gutter: it does when it, or
+/// any other item in the same menu, has a leading glyph. Outside a menu,
+/// "the same menu" is the items sharing the `Ui`'s scope.
+///
+/// Siblings laid out later in this pass are known from the previous pass. If
+/// an item brings the first glyph into a menu after items above it were laid
+/// out without the gutter, the pass is discarded and rerun rather than shown
+/// misaligned. When the last glyph goes, the gutter goes on the next pass.
+fn reserve_gutter(ui: &Ui, has_leading: bool) -> bool {
+    #[derive(Clone, Copy, Default)]
+    struct Gutter {
+        pass: u64,
+        /// Any item had a glyph in the last pass the menu was shown.
+        previous: bool,
+        /// Any item so far in `pass` has a glyph.
+        current: bool,
+        /// An item earlier in `pass` was laid out without the gutter.
+        missed: bool,
+    }
+
+    let pass = ui.ctx().cumulative_pass_nr();
+    // Key on the enclosing menu, not this `Ui`, so items in nested uis (an
+    // `add_enabled_ui`, a scroll area) share the menu's gutter. Each flyout
+    // is its own menu.
+    let menu = ui
+        .stack()
+        .iter()
+        .find(|frame| matches!(frame.kind(), Some(UiKind::Menu | UiKind::Popup)))
+        .map_or(ui.scope_id(), |frame| frame.scope_id);
+    let id = menu.with("elegance::menu_gutter");
+    let (reserve, misaligned) = ui.data_mut(|d| {
+        let g = d.get_temp_mut_or_default::<Gutter>(id);
+        if g.pass != pass {
+            *g = Gutter {
+                pass,
+                previous: g.current,
+                ..Gutter::default()
+            };
+        }
+        g.current |= has_leading;
+        let reserve = g.previous || g.current;
+        let misaligned = reserve && g.missed;
+        g.missed |= !reserve;
+        (reserve, misaligned)
+    });
+    if misaligned {
+        ui.ctx()
+            .request_discard("elegance: a menu item added a leading glyph");
+    }
+    reserve
+}
+
 /// A menu row that opens a flyout submenu when hovered.
 ///
 /// Visually a [`MenuItem`] with a right-pointing chevron; pair the
@@ -474,7 +525,7 @@ fn sub_menu_show<R>(
 ) -> Option<R> {
     use egui::containers::menu::{MenuConfig, MenuState};
     use egui::{
-        Frame, Layout, Margin, PointerButton, Popup, PopupCloseBehavior, Rect, UiKind, UiStackInfo,
+        Frame, Layout, Margin, PointerButton, Popup, PopupCloseBehavior, Rect, UiStackInfo,
         emath::{Align, RectAlign},
         pos2,
     };
