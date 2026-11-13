@@ -112,8 +112,8 @@ pub use color_picker::ColorPicker;
 pub use commit::ResponseCommitExt;
 pub use context_menu::ContextMenu;
 pub use dock::{
-    Dock, DockEvent, DockLayout, DockNode, DockResponse, DockSide, DockTab, DockTabContext,
-    DockViewer, SplitDirection,
+    Dock, DockEvent, DockGroupContext, DockLayout, DockNode, DockResponse, DockSide,
+    DockStripButton, DockTab, DockTabContext, DockViewer, SplitDirection,
 };
 pub use drawer::{Drawer, DrawerSide};
 /// The bound on a caller-supplied widget id salt: any `Hash + Debug` value,

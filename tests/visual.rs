@@ -16,13 +16,14 @@ use egui_kittest::kittest::Queryable;
 use elegance::{
     Accent, Accordion, Avatar, AvatarGroup, AvatarPresence, AvatarSize, AvatarTone, Badge,
     BadgeTone, BrowserTab, BrowserTabs, Button, ButtonSize, Callout, CalloutTone, Card, Checkbox,
-    CollapsingSection, ColorPicker, Dock, DockLayout, DockNode, DockTab, DockViewer, Drawer,
-    DrawerSide, FileDropZone, GaugeZones, Indicator, IndicatorState, Knob, KnobSize, LinearGauge,
-    LogBar, MenuBar, MenuItem, MenuSection, MetricSlider, Modal, PairItem, Pairing, PercentSlider,
-    Popover, PopoverSide, ProgressBar, ProgressRing, RadialGauge, RangeSlider, RemovableChip,
-    Segment, SegmentDot, SegmentedButton, SegmentedControl, SegmentedSize, Select, Slider,
-    SliderHandle, SortableItem, SortableList, Spinner, StatCard, StatusPill, Steps, StepsStyle,
-    Switch, TabBar, TagInput, TextArea, TextInput, Theme, Tooltip, TooltipSide, glyphs,
+    CollapsingSection, ColorPicker, Dock, DockGroupContext, DockLayout, DockNode, DockStripButton,
+    DockTab, DockViewer, Drawer, DrawerSide, FileDropZone, GaugeZones, Indicator, IndicatorState,
+    Knob, KnobSize, LinearGauge, LogBar, MenuBar, MenuItem, MenuSection, MetricSlider, Modal,
+    PairItem, Pairing, Palette, PercentSlider, Popover, PopoverSide, ProgressBar, ProgressRing,
+    RadialGauge, RangeSlider, RemovableChip, Segment, SegmentDot, SegmentedButton,
+    SegmentedControl, SegmentedSize, Select, Slider, SliderHandle, SortableItem, SortableList,
+    Spinner, StatCard, StatusPill, Steps, StepsStyle, Switch, TabBar, TagInput, TextArea,
+    TextInput, Theme, Tooltip, TooltipSide, glyphs,
 };
 
 fn snap(name: &str, theme: Theme, ui_fn: fn(&mut egui::Ui)) {
@@ -630,6 +631,42 @@ fn dock_ui(ui: &mut egui::Ui) {
     let mut layout = dock_layout();
     ui.allocate_ui(egui::vec2(720.0, 360.0), |ui| {
         Dock::new("vis_dock").show(ui, &mut layout, &mut DockDemoViewer);
+    });
+}
+
+/// Tinted tabs, active and inactive, and a "+" at the end of every strip.
+struct DockStripViewer {
+    palette: Palette,
+}
+
+impl DockViewer for DockStripViewer {
+    type Tab = String;
+
+    fn tab(&mut self, id: &String) -> DockTab {
+        let tab = DockDemoViewer.tab(id);
+        match id.as_str() {
+            "console" => tab.tint(self.palette.red),
+            "preview" => tab.tint(self.palette.green),
+            _ => tab,
+        }
+    }
+
+    fn ui(&mut self, ui: &mut egui::Ui, id: &String) {
+        DockDemoViewer.ui(ui, id);
+    }
+
+    fn tab_strip_ui(&mut self, ui: &mut egui::Ui, _context: &mut DockGroupContext<'_, String>) {
+        ui.add(DockStripButton::new(glyphs::PLUS, "New tab"));
+    }
+}
+
+fn dock_strip_ui(ui: &mut egui::Ui) {
+    let mut layout = dock_layout();
+    let mut viewer = DockStripViewer {
+        palette: Theme::current(ui.ctx()).palette,
+    };
+    ui.allocate_ui(egui::vec2(720.0, 360.0), |ui| {
+        Dock::new("vis_dock_strip").show(ui, &mut layout, &mut viewer);
     });
 }
 
@@ -2058,6 +2095,7 @@ theme_tests!(segmented_control, segmented_control_ui);
 theme_tests!(browser_tabs, browser_tabs_ui);
 theme_tests!(dock, dock_ui);
 theme_tests!(dock_overflow, dock_overflow_ui);
+theme_tests!(dock_strip, dock_strip_ui);
 theme_tests!(status, status_ui);
 theme_tests!(stat_cards, stat_cards_ui);
 theme_tests!(avatars, avatars_ui);

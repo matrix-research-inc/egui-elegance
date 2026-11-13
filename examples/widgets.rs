@@ -10,14 +10,14 @@ use elegance::{
     Accent, Accordion, Avatar, AvatarGroup, AvatarPresence, AvatarSize, AvatarTone, Badge,
     BadgeTone, BrowserTab, BrowserTabs, BrowserTabsEvent, BuiltInTheme, Button, ButtonSize,
     Callout, CalloutTone, Card, Checkbox, CollapsingSection, ColorPicker, ContextMenu, Dock,
-    DockEvent, DockLayout, DockNode, DockSide, DockTab, DockTabContext, DockViewer, Drawer,
-    DrawerSide, FileDropZone, GaugeZones, Indicator, IndicatorState, Knob, KnobSize, LinearGauge,
-    LogBar, Menu, MenuBar, MenuItem, MenuSection, MetricSlider, Modal, PairItem, Pairing,
-    PercentSlider, Popover, PopoverSide, ProgressBar, ProgressRing, RadialGauge, RangeSlider,
-    RemovableChip, Segment, SegmentDot, SegmentedButton, SegmentedControl, SegmentedSize, Select,
-    Slider, SliderHandle, SortableItem, SortableList, Spinner, StatCard, StatusPill, Steps,
-    StepsStyle, SubMenuItem, Switch, TabBar, TagInput, TextArea, TextInput, Theme, ThemeSwitcher,
-    Toast, Toasts, Tooltip, TooltipSide, glyphs,
+    DockEvent, DockGroupContext, DockLayout, DockNode, DockSide, DockStripButton, DockTab,
+    DockTabContext, DockViewer, Drawer, DrawerSide, FileDropZone, GaugeZones, Indicator,
+    IndicatorState, Knob, KnobSize, LinearGauge, LogBar, Menu, MenuBar, MenuItem, MenuSection,
+    MetricSlider, Modal, PairItem, Pairing, PercentSlider, Popover, PopoverSide, ProgressBar,
+    ProgressRing, RadialGauge, RangeSlider, RemovableChip, Segment, SegmentDot, SegmentedButton,
+    SegmentedControl, SegmentedSize, Select, Slider, SliderHandle, SortableItem, SortableList,
+    Spinner, StatCard, StatusPill, Steps, StepsStyle, SubMenuItem, Switch, TabBar, TagInput,
+    TextArea, TextInput, Theme, ThemeSwitcher, Toast, Toasts, Tooltip, TooltipSide, glyphs,
 };
 
 fn main() -> eframe::Result<()> {
@@ -1039,13 +1039,6 @@ impl App {
         Card::new().heading("Dock").show(ui, |ui| {
             ui.horizontal(|ui| {
                 if ui
-                    .add(Button::new("New tab").size(ButtonSize::Small))
-                    .clicked()
-                {
-                    self.dock_untitled += 1;
-                    self.dock.add_tab(DemoTab::Untitled(self.dock_untitled));
-                }
-                if ui
                     .add(
                         Button::new("Reset layout")
                             .accent(Accent::Sky)
@@ -1059,7 +1052,11 @@ impl App {
             ui.add_space(6.0);
             let size = egui::vec2(ui.available_width(), 360.0);
             ui.allocate_ui(size, |ui| {
-                let out = Dock::new("ref_dock").show(ui, &mut self.dock, &mut DemoDockViewer);
+                let mut viewer = DemoDockViewer {
+                    untitled: &mut self.dock_untitled,
+                    error: Theme::current(ui.ctx()).palette.red,
+                };
+                let out = Dock::new("ref_dock").show(ui, &mut self.dock, &mut viewer);
                 for ev in out.events {
                     match ev {
                         DockEvent::TabClosed(tab) => {
@@ -3141,9 +3138,14 @@ impl DemoTab {
     }
 }
 
-struct DemoDockViewer;
+struct DemoDockViewer<'a> {
+    /// Number of the last untitled tab opened.
+    untitled: &'a mut u32,
+    /// Tint for a tab reporting errors.
+    error: egui::Color32,
+}
 
-impl DockViewer for DemoDockViewer {
+impl DockViewer for DemoDockViewer<'_> {
     type Tab = DemoTab;
 
     fn tab(&mut self, tab: &DemoTab) -> DockTab {
@@ -3151,8 +3153,22 @@ impl DockViewer for DemoDockViewer {
         match tab {
             DemoTab::Files => base.icon(glyphs::FOLDER),
             DemoTab::Editor => base.dirty(true),
-            DemoTab::Console => base.icon(glyphs::TERMINAL).scroll([false, true]),
+            DemoTab::Console => base
+                .icon(glyphs::TERMINAL)
+                .tint(self.error)
+                .scroll([false, true]),
             DemoTab::Preview | DemoTab::Untitled(_) => base,
+        }
+    }
+
+    fn tab_strip_ui(&mut self, ui: &mut egui::Ui, context: &mut DockGroupContext<'_, DemoTab>) {
+        if ui
+            .add(DockStripButton::new(glyphs::PLUS, "New tab"))
+            .on_hover_text("New tab")
+            .clicked()
+        {
+            *self.untitled += 1;
+            context.add(DemoTab::Untitled(*self.untitled));
         }
     }
 
@@ -3183,6 +3199,7 @@ impl DockViewer for DemoDockViewer {
             for i in 1..=40 {
                 ui.label(theme.faint_text(format!("[{i:02}] build step {i} finished")));
             }
+            ui.label(egui::RichText::new("[41] build step 41 failed").color(self.error));
             return;
         }
         ui.label(theme.muted_text(format!("Contents of {}", tab.label())));
@@ -3192,6 +3209,7 @@ impl DockViewer for DemoDockViewer {
             theme.faint_text("or drop it on a pane edge to split. Drag the gutters to resize."),
         );
         ui.label(theme.faint_text("Right-click a tab to split it from its pane or close it."));
+        ui.label(theme.faint_text("Each pane's + opens a new tab in that pane."));
     }
 }
 

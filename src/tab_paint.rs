@@ -35,6 +35,8 @@ const CLOSE_RADIUS: u8 = 4;
 pub(crate) struct TabContent<'a> {
     pub label: &'a str,
     pub icon: Option<&'a str>,
+    /// Replaces the theme's colours for the label and icon.
+    pub tint: Option<Color32>,
     pub dirty: bool,
     pub closable: bool,
 }
@@ -256,12 +258,17 @@ pub(crate) fn paint_content(
     state: TabState,
 ) {
     let p = &theme.palette;
-    let (label_color, icon_color) = if state.active {
-        (p.text, p.focus)
-    } else if state.hovered {
-        (p.text, p.text_muted)
-    } else {
-        (p.text_muted, p.text_faint)
+    let (label_color, icon_color) = match content.tint {
+        // Full strength where the label would use `text`, dimmed toward the
+        // strip where it would be muted.
+        Some(tint) if state.active || state.hovered => (tint, tint),
+        Some(tint) => {
+            let dimmed = mix(state.strip_bg, tint, 0.7);
+            (dimmed, dimmed)
+        }
+        None if state.active => (p.text, p.focus),
+        None if state.hovered => (p.text, p.text_muted),
+        None => (p.text_muted, p.text_faint),
     };
 
     let mut cursor_x = tab_rect.min.x + TAB_PAD_X;

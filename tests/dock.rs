@@ -6,8 +6,8 @@ use eframe::egui::{self, Key, Pos2};
 use egui_kittest::Harness;
 use egui_kittest::kittest::{NodeT as _, Queryable as _};
 use elegance::{
-    Dock, DockEvent, DockLayout, DockNode, DockSide, DockTab, DockTabContext, DockViewer, MenuItem,
-    Theme,
+    Dock, DockEvent, DockGroupContext, DockLayout, DockNode, DockSide, DockStripButton, DockTab,
+    DockTabContext, DockViewer, MenuItem, Theme, glyphs,
 };
 
 struct App {
@@ -17,9 +17,13 @@ struct App {
     min_tab_width: f32,
     /// Skip showing the dock, as an app does while a tab page is hidden.
     hidden: bool,
+    /// Give each strip buttons through `DockViewer::tab_strip_ui`.
+    strip_buttons: bool,
 }
 
-struct Viewer;
+struct Viewer {
+    strip_buttons: bool,
+}
 
 impl DockViewer for Viewer {
     type Tab = String;
@@ -56,6 +60,26 @@ impl DockViewer for Viewer {
             context.close();
         }
     }
+
+    /// "new beside X" adds "X+" to X's group. The `files` group can also
+    /// open `preview`, a tab in another group.
+    fn tab_strip_ui(&mut self, ui: &mut egui::Ui, context: &mut DockGroupContext<'_, String>) {
+        if !self.strip_buttons {
+            return;
+        }
+        let active = context.active_tab().clone();
+        let new = DockStripButton::new(glyphs::PLUS, format!("new beside {active}"));
+        if ui.add(new).clicked() {
+            context.add(format!("{active}+"));
+        }
+        if context.tabs().contains(&"files".to_string())
+            && ui
+                .add(DockStripButton::new(glyphs::EYE, "open preview"))
+                .clicked()
+        {
+            context.add("preview");
+        }
+    }
 }
 
 fn harness(layout: DockLayout<String>) -> Harness<'static, App> {
@@ -72,7 +96,13 @@ fn harness_sized(layout: DockLayout<String>, size: egui::Vec2) -> Harness<'stati
             let out = Dock::new("dock")
                 .min_pane_size(app.min_pane)
                 .min_tab_width(app.min_tab_width)
-                .show(ui, &mut app.layout, &mut Viewer);
+                .show(
+                    ui,
+                    &mut app.layout,
+                    &mut Viewer {
+                        strip_buttons: app.strip_buttons,
+                    },
+                );
             app.events.extend(out.events);
         },
         App {
@@ -81,6 +111,7 @@ fn harness_sized(layout: DockLayout<String>, size: egui::Vec2) -> Harness<'stati
             min_pane: 96.0,
             min_tab_width: 120.0,
             hidden: false,
+            strip_buttons: false,
         },
     );
     harness.run();
@@ -641,4 +672,94 @@ fn activating_a_hidden_tab_scrolls_it_into_view() {
 
     assert!(harness.query_by_label("channel 6").is_some());
     assert!(harness.query_by_label("body channel 6").is_some());
+}
+
+fn with_strip_buttons() -> Harness<'static, App> {
+    let mut harness = harness(three_pane());
+    harness.state_mut().strip_buttons = true;
+    harness.run();
+    harness
+}
+
+#[test]
+fn strip_widgets_sit_right_of_the_tabs() {
+    let harness = with_strip_buttons();
+    for (tab, button) in [
+        ("files", "new beside files"),
+        ("editor", "new beside editor"),
+    ] {
+        let tab = harness.get_by_label(tab).rect();
+        let button = harness.get_by_label(button).rect();
+        assert!(tab.max.x < button.min.x, "{tab:?} overlaps {button:?}");
+        assert!((tab.center().y - button.center().y).abs() < 1.0);
+    }
+    // The first widget added takes the right edge.
+    let new = harness.get_by_label("new beside files").rect();
+    let open = harness.get_by_label("open preview").rect();
+    assert!(open.max.x <= new.min.x);
+}
+
+#[test]
+fn a_strip_widget_adds_a_tab_to_its_group() {
+    let mut harness = with_strip_buttons();
+    harness.get_by_label("new beside console").click();
+    harness.run();
+    let app = harness.state();
+    assert_eq!(app.layout.group_tabs("console+"), ["console", "console+"]);
+    assert_eq!(app.layout.focused_tab().unwrap(), "console+");
+    assert_eq!(app.events, [DockEvent::LayoutChanged]);
+}
+
+#[test]
+fn adding_a_tab_already_open_activates_it_where_it_is() {
+    let mut harness = with_strip_buttons();
+    harness.get_by_label("open preview").click();
+    harness.run();
+    let app = harness.state();
+    assert_eq!(app.layout.group_tabs("preview"), ["editor", "preview"]);
+    assert_eq!(app.layout.focused_tab().unwrap(), "preview");
+    assert_eq!(app.events, [DockEvent::LayoutChanged]);
+
+    // Already active: nothing changes, so nothing is reported.
+    harness.state_mut().events.clear();
+    harness.get_by_label("open preview").click();
+    harness.run();
+    assert!(harness.state().events.is_empty());
+}
+
+#[test]
+fn strip_widgets_leave_room_for_the_overflow_button() {
+    let layout = DockLayout::from_node(DockNode::row(
+        0.5,
+        DockNode::tabs(["files", "a", "b"]),
+        DockNode::tabs(["editor", "c", "d"]),
+    ));
+    let mut harness = harness_sized(layout, egui::vec2(160.0, 300.0));
+    harness.state_mut().strip_buttons = true;
+    harness.state_mut().min_pane = 20.0;
+    harness.run();
+
+    let dock = harness.get_by_label("dock").rect();
+    let overflow: Vec<_> = harness
+        .get_all_by_label("All tabs")
+        .map(|n| n.rect())
+        .collect();
+    assert_eq!(overflow.len(), 2);
+    let pane_split = dock.center().x;
+    for (button, pane) in overflow
+        .iter()
+        .zip([dock.min.x..=pane_split, pane_split..=dock.max.x])
+    {
+        assert!(
+            pane.contains(&button.min.x) && pane.contains(&button.max.x),
+            "{button:?}"
+        );
+    }
+    for label in ["new beside files", "open preview", "new beside editor"] {
+        let widget = harness.get_by_label(label).rect();
+        assert!(
+            overflow.iter().all(|b| !b.intersects(widget)),
+            "{label} overlaps"
+        );
+    }
 }

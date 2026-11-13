@@ -72,18 +72,28 @@ pub use layout::{DockLayout, DockNode, DockSide, SplitDirection};
 
 use std::hash::Hash;
 
-use egui::{Response, Ui, Vec2b};
+use egui::{Align2, Color32, FontId, Response, Role, Sense, Ui, Vec2b, Widget, WidgetInfo, vec2};
 
-use crate::tab_paint::TabContent;
+use crate::tab_paint::{self, TabContent};
+use crate::theme::Theme;
+use layout::GroupId;
 
 /// How one tab appears in its group's tab strip.
+///
+/// Build it with [`DockTab::new`] and the builder methods. It is
+/// `#[non_exhaustive]`, so struct literals don't compile outside this crate,
+/// which lets new fields arrive without a breaking change.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[non_exhaustive]
 pub struct DockTab {
     /// Display label. Truncated with an ellipsis if it doesn't fit, in which
     /// case hovering the tab shows it in full.
     pub label: String,
     /// Optional leading icon glyph, typically from [`crate::glyphs`].
     pub icon: Option<String>,
+    /// Colour for the label and icon, replacing the theme's text colours.
+    /// Default: `None`.
+    pub tint: Option<Color32>,
     /// Show a small focus-accent dot to signal unsaved changes.
     pub dirty: bool,
     /// Show a close (×) button. Default: `true`.
@@ -102,6 +112,7 @@ impl DockTab {
         Self {
             label: label.into(),
             icon: None,
+            tint: None,
             dirty: false,
             closable: true,
             context_menu: false,
@@ -113,6 +124,15 @@ impl DockTab {
     #[inline]
     pub fn icon(mut self, icon: impl Into<String>) -> Self {
         self.icon = Some(icon.into());
+        self
+    }
+
+    /// Colour the label and icon, such as to match a plot trace or flag an
+    /// error. The tint shows at full strength on the active or hovered tab
+    /// and dimmed on the others, as the theme's text colours are.
+    #[inline]
+    pub fn tint(mut self, color: Color32) -> Self {
+        self.tint = Some(color);
         self
     }
 
@@ -151,6 +171,7 @@ impl DockTab {
         TabContent {
             label: &self.label,
             icon: self.icon.as_deref(),
+            tint: self.tint,
             dirty: self.dirty,
             closable: self.closable,
         }
@@ -200,6 +221,29 @@ pub trait DockViewer {
         context: &mut DockTabContext<'_, Self::Tab>,
     ) {
         let _ = (ui, tab, context);
+    }
+
+    /// Add widgets to the right end of a group's tab strip, such as a "+"
+    /// button that opens a new tab in that group. Called every frame for each
+    /// group; the tabs fit into the space left over. `context` lists the
+    /// group's tabs and can add one:
+    ///
+    /// ```
+    /// # use elegance::{DockGroupContext, DockStripButton, glyphs};
+    /// # fn strip(ui: &mut egui::Ui, context: &mut DockGroupContext<'_, String>, untitled: &mut u32) {
+    /// if ui.add(DockStripButton::new(glyphs::PLUS, "New tab")).clicked() {
+    ///     *untitled += 1;
+    ///     context.add(format!("untitled {untitled}"));
+    /// }
+    /// # }
+    /// ```
+    ///
+    /// The `ui` is one tab tall and lays out right to left, so the first
+    /// widget added sits at the right edge. It stops short of the strip's
+    /// left end, keeping room for the overflow button. [`DockStripButton`] matches the
+    /// strip's own buttons.
+    fn tab_strip_ui(&mut self, ui: &mut Ui, context: &mut DockGroupContext<'_, Self::Tab>) {
+        let _ = (ui, context);
     }
 
     /// Draw the dock when the layout has no tabs. Defaults to a muted
@@ -261,11 +305,92 @@ impl<T: Clone> DockTabContext<'_, T> {
     }
 }
 
+/// A tab group, and actions on it, for [`DockViewer::tab_strip_ui`]. As
+/// with [`DockTabContext`], actions are queued and the dock applies them
+/// once drawing is done.
+#[derive(Debug)]
+pub struct DockGroupContext<'a, T> {
+    tabs: &'a [T],
+    /// Index of the active tab in `tabs`.
+    active: usize,
+    group: GroupId,
+    actions: &'a mut Vec<TabAction<T>>,
+}
+
+impl<T> DockGroupContext<'_, T> {
+    /// The group's tabs, in strip order.
+    pub fn tabs(&self) -> &[T] {
+        self.tabs
+    }
+
+    /// The group's active tab.
+    pub fn active_tab(&self) -> &T {
+        &self.tabs[self.active]
+    }
+
+    /// Add `tab` to the end of this group, activate it, and focus the group.
+    /// A tab already in the layout is activated where it is instead, as
+    /// [`DockLayout::add_tab`] does. Emits only [`DockEvent::LayoutChanged`],
+    /// and only if the layout changed, since the app chose the tab.
+    pub fn add(&mut self, tab: impl Into<T>) {
+        self.actions.push(TabAction::Add(tab.into(), self.group));
+    }
+}
+
 /// A change to a tab requested while the dock draws, applied after.
 #[derive(Debug)]
 pub(crate) enum TabAction<T> {
+    Add(T, GroupId),
     Close(T),
     Split(T, DockSide),
+}
+
+/// A borderless icon button sized for a [`Dock`] tab strip, drawn like the
+/// strip's own buttons. Use it in [`DockViewer::tab_strip_ui`].
+///
+/// `name` is not painted. It is the accessible name, so pass what the button
+/// does ("New tab"). Add hover text with
+/// [`Response::on_hover_text`] if the glyph needs explaining.
+#[must_use = "Add it with `ui.add(...)`."]
+#[derive(Clone, Debug)]
+pub struct DockStripButton {
+    glyph: char,
+    name: String,
+}
+
+impl DockStripButton {
+    /// A button showing `glyph`, typically one from [`crate::glyphs`].
+    pub fn new(glyph: char, name: impl Into<String>) -> Self {
+        Self {
+            glyph,
+            name: name.into(),
+        }
+    }
+}
+
+impl Widget for DockStripButton {
+    fn ui(self, ui: &mut Ui) -> Response {
+        let theme = Theme::current(ui.ctx());
+        let size = vec2(show::STRIP_BUTTON_WIDTH, tab_paint::tab_height(&theme));
+        let (rect, response) = ui.allocate_exact_size(size, Sense::click());
+        let enabled = ui.is_enabled();
+        response.widget_info(|| WidgetInfo::labeled(Role::Button, enabled, &self.name));
+        if ui.is_rect_visible(rect) {
+            let color = if enabled {
+                show::paint_strip_button(ui.painter(), &theme, rect, response.hovered())
+            } else {
+                theme.palette.text_faint
+            };
+            ui.painter().text(
+                rect.center(),
+                Align2::CENTER_CENTER,
+                self.glyph,
+                FontId::proportional(show::STRIP_GLYPH_SIZE),
+                color,
+            );
+        }
+        response
+    }
 }
 
 /// Something that happened in a [`Dock`] during a frame.
@@ -279,7 +404,7 @@ pub enum DockEvent<T> {
     /// The user moved a tab to a new position or group, by dragging it or
     /// with [`DockTabContext::split`].
     TabMoved(T),
-    /// The arrangement changed: a tab was activated, closed or moved, or a
+    /// The arrangement changed: a tab was added, activated, closed or moved, or a
     /// splitter was released. Useful as a signal to persist the layout.
     LayoutChanged,
 }
