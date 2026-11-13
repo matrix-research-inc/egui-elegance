@@ -55,6 +55,41 @@ Arev contributions) is preserved in `elegance-symbols-LICENSE.txt`.
 | U+E009    | (PUA) | power (Lucide `power`) |
 | U+E00A    | (PUA) | trash / delete (Lucide `trash-2`) |
 | U+E00B    | (PUA) | pencil / edit (Lucide `pencil`) |
+| U+E00C    | (PUA) | plus / add (Lucide `plus`) |
+| U+E00D    | (PUA) | terminal prompt (Lucide `terminal`) |
+| U+E00E    | (PUA) | key (Lucide `key-round`) |
+| U+E00F    | (PUA) | refresh / sync (Lucide `refresh-cw`) |
+| U+E010    | (PUA) | arrow up (Lucide `arrow-up`) |
+| U+E011    | (PUA) | arrow down (Lucide `arrow-down`) |
+| U+E012    | (PUA) | info (Lucide `info`) |
+| U+E013    | (PUA) | warning triangle (Lucide `triangle-alert`) |
+| U+E014    | (PUA) | circular x / error (Lucide `circle-x`) |
+| U+E015    | (PUA) | circular check / success (Lucide `circle-check`) |
+| U+E016    | (PUA) | settings gear (Lucide `settings`) |
+| U+E017    | (PUA) | menu / hamburger (Lucide `menu`) |
+| U+E018    | (PUA) | arrow left (Lucide `arrow-left`) |
+| U+E019    | (PUA) | arrow right (Lucide `arrow-right`) |
+| U+E01A    | (PUA) | external link (Lucide `external-link`) |
+| U+E01B    | (PUA) | chevron right (Lucide `chevron-right`) |
+| U+E01C    | (PUA) | chevron down (Lucide `chevron-down`) |
+| U+E01D    | (PUA) | filter (Lucide `funnel`) |
+| U+E01E    | (PUA) | eye / show (Lucide `eye`) |
+| U+E01F    | (PUA) | eye off / hide (Lucide `eye-off`) |
+| U+E020    | (PUA) | home (Lucide `house`) |
+| U+E021    | (PUA) | lock (Lucide `lock`) |
+| U+E022    | (PUA) | save (Lucide `save`) |
+| U+E023    | (PUA) | folder (Lucide `folder`) |
+| U+E024    | (PUA) | open folder (Lucide `folder-open`) |
+| U+E025    | (PUA) | play (Lucide `play`) |
+| U+E026    | (PUA) | pause (Lucide `pause`) |
+| U+E027    | (PUA) | stop (Lucide `square`) |
+| U+E028    | (PUA) | file (Lucide `file`) |
+| U+E029    | (PUA) | text file (Lucide `file-text`) |
+| U+E02A    | (PUA) | server (Lucide `server`) |
+| U+E02B    | (PUA) | monitor (Lucide `monitor`) |
+| U+E02C    | (PUA) | two columns / split right (Lucide `columns-2`) |
+| U+E02D    | (PUA) | two rows / split down (Lucide `rows-2`) |
+| U+E02E    | (PUA) | image file (Lucide `file-image`) |
 
 ### Regenerating the subset
 

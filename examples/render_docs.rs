@@ -2152,7 +2152,13 @@ fn render_glyphs() {
                         ),
                         (
                             "Files",
-                            icons(&[g::FILE, g::FILE_TEXT, g::FOLDER, g::FOLDER_OPEN]),
+                            icons(&[
+                                g::FILE,
+                                g::FILE_TEXT,
+                                g::FILE_IMAGE,
+                                g::FOLDER,
+                                g::FOLDER_OPEN,
+                            ]),
                         ),
                         (
                             "Navigation",

@@ -358,9 +358,9 @@ pub(crate) enum TabAction<T> {
 /// A borderless icon button sized for a [`Dock`] tab strip, drawn like the
 /// strip's own buttons. Use it in [`DockViewer::tab_strip_ui`].
 ///
-/// `name` is not painted. It is the accessible name, so pass what the button
-/// does ("New tab"). Add hover text with
-/// [`Response::on_hover_text`] if the glyph needs explaining.
+/// `name` is the button's tooltip and its accessible name, so pass a short
+/// name for what the button does ("New tab"). Longer help can go in
+/// [`Response::on_hover_text`]; don't repeat the name there.
 #[must_use = "Add it with `ui.add(...)`."]
 #[derive(Clone, Debug)]
 pub struct DockStripButton {
@@ -399,7 +399,7 @@ impl Widget for DockStripButton {
                 color,
             );
         }
-        response
+        crate::button::show_name(response, &self.name)
     }
 }
 

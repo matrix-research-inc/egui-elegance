@@ -1420,13 +1420,16 @@ The font combines a subset of DejaVu Sans (arrows, math ellipsis, Mac modifier k
 - **Transfer** — `upload`, `download`, `refresh-cw`
 - **Search** — `search`, `zoom-in`, `zoom-out`, `funnel`
 - **Visibility** — `eye`, `eye-off`
+- **Media** — `play`, `pause`, `square`
 - **Edit** — `plus`, `pencil`, `copy`, `trash-2`, `save`
-- **System** — `terminal`, `settings`, `key-round`, `lock`, `power`, `network`
+- **System** — `terminal`, `settings`, `key-round`, `lock`, `power`, `network`, `server`, `monitor`
 - **Status** — `info`, `circle-check`, `triangle-alert`, `circle-x`, `circle-alert`
 - **Direction** — `arrow-up`, `arrow-down`, `arrow-left`, `arrow-right`, `chevron-right`, `chevron-down`
-- **Navigation** — `house`, `folder`, `folder-open`, `menu`, `external-link`, `pin`
+- **Files** — `file`, `file-text`, `file-image`, `folder`, `folder-open`
+- **Navigation** — `house`, `menu`, `external-link`, `pin`
+- **Layout** — `columns-2`, `rows-2`
 
-plus Lucide-styled `check` / `x` overriding the standard U+2713 / U+2717 codepoints. The status marks also back `Callout`'s per-tone icons. The icons are exposed as constants in the [`glyphs`] module (a few are intent-named where the Lucide name differs, e.g. `FILTER` for `funnel`, `HOME` for `house`):
+plus Lucide-styled `check` / `x` overriding the standard U+2713 / U+2717 codepoints. The status marks also back `Callout`'s per-tone icons. The icons are exposed as constants in the [`glyphs`] module (a few are intent-named where the Lucide name differs, e.g. `FILTER` for `funnel`, `HOME` for `house`, `STOP` for `square`):
 
 ```rust
 ui.label(egui::RichText::new(elegance::glyphs::UPLOAD).size(20.0));

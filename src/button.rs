@@ -152,9 +152,12 @@ impl Button {
     /// the two line up in a row, and the glyph is sized off that box rather
     /// than off the label preset, which inks under a third of the button.
     ///
-    /// `label` is not painted. It is the accessible name, so pass what the
-    /// button *does* ("Download", "Delete run"): an icon alone announces
-    /// nothing, and every other builder method still applies.
+    /// `label` is the button's tooltip and its accessible name, so pass a
+    /// short name for what the button *does* ("Download", "Delete run"): an
+    /// icon alone tells neither a sighted user nor a screen reader what it
+    /// does. Longer help can go in [`Response::on_hover_text`], which shows
+    /// under the name and becomes the accessible description; don't repeat
+    /// the label there. Every other builder method still applies.
     ///
     /// ```no_run
     /// # use elegance::{Button, glyphs};
@@ -435,6 +438,9 @@ impl Widget for Button {
         response.widget_info(|| WidgetInfo::labeled(Role::Button, interactive, self.text.text()));
         match self.disabled_reason {
             Some(reason) => explain_disabled(response, reason),
+            None if matches!(self.content, Content::Icon(_)) => {
+                show_name(response, self.text.text())
+            }
             None => response,
         }
     }
@@ -449,6 +455,22 @@ fn explain_disabled(response: Response, reason: String) -> Response {
         node.set_description(reason.clone());
     });
     response.on_disabled_hover_text(reason)
+}
+
+/// Show an icon-only button's name as its tooltip, enabled or not, since
+/// nothing else on screen says what the icon does.
+///
+/// Not `on_hover_text`: that also sets the text as the accessible
+/// description, so a screen reader would read the name twice.
+pub(crate) fn show_name(response: Response, name: &str) -> Response {
+    if name.is_empty() {
+        return response;
+    }
+    let tooltip = |ui: &mut Ui| {
+        ui.set_max_width(ui.spacing().tooltip_width);
+        ui.label(name);
+    };
+    response.on_hover_ui(tooltip).on_disabled_hover_ui(tooltip)
 }
 
 /// The laid-out content of a [`Button`], before it is allocated.
